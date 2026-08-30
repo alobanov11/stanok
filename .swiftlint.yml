@@ -1,5 +1,6 @@
 included:
   - Stanok
+  - StanokKit/Sources
   - StanokTests
   - StanokUITests
 
@@ -96,7 +97,8 @@ file_length:
   ignore_comment_only_lines: true
 
 line_length:
-  warning: 200
+  warning: 100
+  error: 140
   ignores_urls: true
   ignores_function_declarations: true
   ignores_comments: true
@@ -127,7 +129,7 @@ reporter: "xcode"
 custom_rules:
   grouped_constants:
     name: "Group constants in an enum"
-    regex: '(?:[ \t]*(?:private |fileprivate |public |internal )?static let [^\n]+\n\s*){3,}(?!static let)(?!\})\S'
+    regex: '(?:(?:private |fileprivate |public |internal )?static let [^\n]+\n\s*){3,}(?!static let)(?!\})\S'
     message: "Three or more constants in a row belong in a dedicated enum."
     severity: error
 
