@@ -17,6 +17,8 @@ final class GhosttySurfaceView: NSView {
 
     var onCommandFinished: ((CommandRun) -> Void)?
 
+    var onOpenURL: ((String) -> Void)?
+
     private var tracking: NSTrackingArea?
 
     private var surface: ghostty_surface_t?

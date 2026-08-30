@@ -59,15 +59,15 @@ struct TerminalHeader: View {
     }
 
     private func counters(_ status: GitStatus) -> some View {
-        HStack(spacing: 6) {
-            Text("+\(status.added)")
-                .foregroundStyle(.green)
+        var added = AttributedString("+\(status.added)")
+        added.foregroundColor = .green
 
-            Text("−\(status.removed)")
-                .foregroundStyle(.red)
-        }
-        .font(.system(size: 11))
-        .monospacedDigit()
+        var removed = AttributedString("−\(status.removed)")
+        removed.foregroundColor = .red
+
+        return Text(added + AttributedString("  ") + removed)
+            .font(.system(size: 11))
+            .monospacedDigit()
     }
 
     private func label(_ icon: String, _ text: String) -> some View {
