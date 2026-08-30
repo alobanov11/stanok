@@ -6,6 +6,12 @@ final class GhosttySurfaceView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    private var backingScale: CGFloat {
+        let frame = convertToBacking(bounds)
+        guard bounds.width > 0, frame.width > 0 else { return window?.backingScaleFactor ?? 2 }
+        return frame.width / bounds.width
+    }
+
     private var tracking: NSTrackingArea?
 
     private var surface: ghostty_surface_t?
@@ -23,7 +29,7 @@ final class GhosttySurfaceView: NSView {
         config.platform = ghostty_platform_u(
             macos: ghostty_platform_macos_s(nsview: Unmanaged.passUnretained(self).toOpaque())
         )
-        config.scale_factor = Double(window?.backingScaleFactor ?? 2)
+        config.scale_factor = 2
         config.font_size = fontSize
         self.surface = ghostty_surface_new(app, &config)
     }
@@ -43,8 +49,8 @@ final class GhosttySurfaceView: NSView {
         }
 
         window.makeFirstResponder(self)
-        applyScale(window.backingScaleFactor)
-        applySize(bounds.size, scale: window.backingScaleFactor)
+        applyScale()
+        applySize(bounds.size)
 
         let link = displayLink(target: self, selector: #selector(render))
         link.add(to: .main, forMode: .common)
@@ -67,15 +73,15 @@ final class GhosttySurfaceView: NSView {
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
 
-        guard let scale = window?.backingScaleFactor else { return }
-        applyScale(scale)
-        applySize(bounds.size, scale: scale)
+        applyScale()
+        applySize(bounds.size)
     }
 
     override func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
 
-        applySize(newSize, scale: window?.backingScaleFactor ?? 2)
+        applyScale()
+        applySize(newSize)
     }
 
     override func becomeFirstResponder() -> Bool {
@@ -227,26 +233,26 @@ final class GhosttySurfaceView: NSView {
         ghostty_surface_mouse_pos(surface, point.x, bounds.height - point.y, Self.mods(from: event.modifierFlags))
     }
 
-    private func applyScale(_ scale: CGFloat) {
+    private func applyScale() {
         guard let surface else { return }
+
+        let scale = backingScale
         ghostty_surface_set_content_scale(surface, scale, scale)
     }
 
-    private func applySize(_ size: NSSize, scale: CGFloat) {
+    private func applySize(_ size: NSSize) {
         guard let surface else { return }
-        let width = UInt32(max(size.width * scale, 1))
-        let height = UInt32(max(size.height * scale, 1))
-        ghostty_surface_set_size(surface, width, height)
+
+        let scale = backingScale
+        let backing = convertToBacking(NSRect(origin: .zero, size: size)).size
+        ghostty_surface_set_size(surface, UInt32(max(backing.width, 1)), UInt32(max(backing.height, 1)))
 
         let metrics = ghostty_surface_size(surface)
+        let cellWidth = Double(metrics.cell_width_px) / scale
+        let cellHeight = Double(metrics.cell_height_px) / scale
         Log.terminal.info(
-            """
-            grid \(metrics.columns)x\(metrics.rows)             cell \(metrics.cell_width_px)x\(metrics
-                .cell_height_px
-            )px             (\(Double(metrics.cell_width_px) / scale)x\(Double(metrics.cell_height_px) /
-                scale
-            )pt)             scale \(scale)
-            """
+            "grid \(metrics.columns)x\(metrics.rows) cell \(cellWidth)x\(cellHeight)pt scale \(scale)"
         )
     }
+
 }
