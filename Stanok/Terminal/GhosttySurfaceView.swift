@@ -32,6 +32,7 @@ final class GhosttySurfaceView: NSView {
         config.scale_factor = 1
         config.font_size = fontSize
         self.surface = ghostty_surface_new(app, &config)
+        GhosttyRuntime.currentSurface = surface
     }
 
     @available(*, unavailable)
@@ -177,6 +178,9 @@ final class GhosttySurfaceView: NSView {
     }
 
     func shutdown() {
+        if GhosttyRuntime.currentSurface == surface {
+            GhosttyRuntime.currentSurface = nil
+        }
         link?.invalidate()
         link = nil
 
