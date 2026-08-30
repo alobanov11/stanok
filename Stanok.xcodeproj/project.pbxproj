@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		22CF9B60768383B9DF5B1B6A /* GhosttyKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0074BC03542AF9469D479EBF /* GhosttyKit.xcframework */; };
+		D8F465EBFFF07F678FD0345D /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 68DD610276F8434E15A59EB6 /* Carbon.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		E2AA030530446888008EA09A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +29,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0074BC03542AF9469D479EBF /* GhosttyKit.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; name = GhosttyKit.xcframework; path = .build/ghostty/GhosttyKit.xcframework; sourceTree = "<group>"; };
+		68DD610276F8434E15A59EB6 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/Carbon.framework; sourceTree = DEVELOPER_DIR; };
 		E2AA02F730446886008EA09A /* Stanok.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Stanok.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2AA030430446888008EA09A /* StanokTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StanokTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2AA030E30446888008EA09A /* StanokUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StanokUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -32,16 +39,22 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2AA02F930446886008EA09A /* Stanok */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = Stanok;
 			sourceTree = "<group>";
 		};
 		E2AA030730446888008EA09A /* StanokTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StanokTests;
 			sourceTree = "<group>";
 		};
 		E2AA031130446888008EA09A /* StanokUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StanokUITests;
 			sourceTree = "<group>";
 		};
@@ -52,6 +65,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				22CF9B60768383B9DF5B1B6A /* GhosttyKit.xcframework in Frameworks */,
+				D8F465EBFFF07F678FD0345D /* Carbon.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,6 +87,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		44D5B42F59742B3685950906 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BC0D6FFA2E887A5EE50C7B0B /* OS X */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BC0D6FFA2E887A5EE50C7B0B /* OS X */ = {
+			isa = PBXGroup;
+			children = (
+				68DD610276F8434E15A59EB6 /* Carbon.framework */,
+			);
+			name = "OS X";
+			sourceTree = "<group>";
+		};
 		E2AA02EE30446886008EA09A = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +110,8 @@
 				E2AA030730446888008EA09A /* StanokTests */,
 				E2AA031130446888008EA09A /* StanokUITests */,
 				E2AA02F830446886008EA09A /* Products */,
+				0074BC03542AF9469D479EBF /* GhosttyKit.xcframework */,
+				44D5B42F59742B3685950906 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -111,8 +144,6 @@
 				E2AA02F930446886008EA09A /* Stanok */,
 			);
 			name = Stanok;
-			packageProductDependencies = (
-			);
 			productName = Stanok;
 			productReference = E2AA02F730446886008EA09A /* Stanok.app */;
 			productType = "com.apple.product-type.application";
@@ -134,8 +165,6 @@
 				E2AA030730446888008EA09A /* StanokTests */,
 			);
 			name = StanokTests;
-			packageProductDependencies = (
-			);
 			productName = StanokTests;
 			productReference = E2AA030430446888008EA09A /* StanokTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -157,8 +186,6 @@
 				E2AA031130446888008EA09A /* StanokUITests */,
 			);
 			name = StanokUITests;
-			packageProductDependencies = (
-			);
 			productName = StanokUITests;
 			productReference = E2AA030E30446888008EA09A /* StanokUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -409,6 +436,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lstdc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = ru.alobanov11.Stanok;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -441,6 +472,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lstdc++",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = ru.alobanov11.Stanok;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

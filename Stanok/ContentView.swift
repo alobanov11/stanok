@@ -1,21 +1,14 @@
-//
-//  ContentView.swift
-//  Stanok
-//
-//  Created by Антон Лобанов on 30.08.2026.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        VStack(spacing: 8) {
+            Text("stanok").font(.largeTitle.weight(.semibold))
+            Text("libghostty \(GhosttyInfo.version) · \(GhosttyInfo.buildMode)")
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(.secondary)
         }
-        .padding()
+        .frame(minWidth: 420, minHeight: 240)
     }
 }
 

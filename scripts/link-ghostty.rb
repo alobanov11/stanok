@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # Wires .build/ghostty/GhosttyKit.xcframework into the Stanok target.
 # Idempotent: safe to re-run after regenerating the xcframework.
+gem 'xcodeproj', '>= 1.28'
 require 'xcodeproj'
 
 root = File.expand_path('..', __dir__)
