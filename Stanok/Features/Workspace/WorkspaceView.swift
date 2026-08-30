@@ -8,6 +8,8 @@ struct WorkspaceView: View {
 
         static let cardRadius: CGFloat = 12
 
+        static let sidebarTopInset: CGFloat = 30
+
         static let sidebarMin: CGFloat = 200
 
         static let sidebarIdeal: CGFloat = 240
@@ -28,11 +30,14 @@ struct WorkspaceView: View {
         HStack(spacing: 0) {
             sidebar
                 .frame(width: Layout.sidebarIdeal)
+                .padding(.top, Layout.sidebarTopInset)
 
             main
                 .padding(.trailing, Layout.inset)
-                .padding(.vertical, Layout.inset)
+                .padding(.top, Layout.sidebarTopInset)
+                .padding(.bottom, Layout.inset)
         }
+        .ignoresSafeArea()
         .containerBackground(.thinMaterial, for: .window)
         .frame(minWidth: 880, minHeight: 520)
         .task {
