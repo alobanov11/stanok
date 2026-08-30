@@ -36,7 +36,7 @@
 --nospaceoperators ...,..<
 --octalgrouping 4,8
 --operatorfunc spaced
---organizetypes actor,class,enum,struct
+--organizetypes actor,class,struct
 --patternlet hoist
 --propertytypes inferred
 --self init-only
@@ -63,5 +63,10 @@
 --xcodeindentation disabled
 --yodaswap always
 --disable wrapConditionalBodies,wrapMultilineStatementBraces,wrapSingleLineComments,wrapSwitchCases,markTypes,opaqueGenericParameters,preferForLoop,redundantVoidReturnType,blankLinesAtEndOfScope,redundantReturn
---enable isEmpty,wrapEnumCases,redundantOptionalBinding,propertyTypes
+--enable isEmpty,wrapEnumCases,redundantOptionalBinding,propertyTypes,organizeDeclarations
+--organizationmode type
+--markcategories false
+--groupblanklines true
+--typeorder nestedType,staticProperty,staticPropertyWithBody,classPropertyWithBody,overriddenProperty,computedProperty,swiftUIPropertyWrapper,swiftUIProperty,instanceProperty,instanceLifecycle,swiftUIMethod,overriddenMethod,staticMethod,classMethod,instanceMethod,beforeMarks
+--visibilityorder open,public,package,internal,fileprivate,private
 --exclude .build,build,DerivedData,ThirdParty
