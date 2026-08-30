@@ -39,22 +39,16 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2AA02F930446886008EA09A /* Stanok */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = Stanok;
 			sourceTree = "<group>";
 		};
 		E2AA030730446888008EA09A /* StanokTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StanokTests;
 			sourceTree = "<group>";
 		};
 		E2AA031130446888008EA09A /* StanokUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StanokUITests;
 			sourceTree = "<group>";
 		};
