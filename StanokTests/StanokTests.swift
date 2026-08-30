@@ -15,7 +15,7 @@ struct StanokTests {
     func runtimeBootsAndReadsConfig() throws {
         let runtime = try GhosttyRuntime()
 
-        #expect(runtime.config.number("font-size") != nil)
+        #expect(runtime.config.float("font-size") == 17)
         #expect(runtime.config.diagnostics.isEmpty)
 
         runtime.tick()

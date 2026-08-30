@@ -6,6 +6,8 @@ final class GhosttySurfaceView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    private var tracking: NSTrackingArea?
+
     private var surface: ghostty_surface_t?
 
     private var link: CADisplayLink?
@@ -49,6 +51,19 @@ final class GhosttySurfaceView: NSView {
         self.link = link
     }
 
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let tracking { removeTrackingArea(tracking) }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect],
+            owner: self
+        )
+        addTrackingArea(area)
+        tracking = area
+    }
+
     override func viewDidChangeBackingProperties() {
         super.viewDidChangeBackingProperties()
 
@@ -85,6 +100,40 @@ final class GhosttySurfaceView: NSView {
 
     override func flagsChanged(with event: NSEvent) {
         send(event, action: GHOSTTY_ACTION_PRESS)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        sendMouse(event, state: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_LEFT)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        sendMouse(event, state: GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_LEFT)
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        sendMouse(event, state: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_RIGHT)
+    }
+
+    override func rightMouseUp(with event: NSEvent) {
+        sendMouse(event, state: GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_RIGHT)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        sendPosition(event)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        sendPosition(event)
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        guard let surface else { return }
+
+        var mods: Int32 = 0
+        if event.hasPreciseScrollingDeltas { mods = 1 }
+        if event.momentumPhase != [] { mods |= 2 }
+        ghostty_surface_mouse_scroll(surface, event.scrollingDeltaX, event.scrollingDeltaY, mods)
     }
 
     private static func mods(from flags: NSEvent.ModifierFlags) -> ghostty_input_mods_e {
@@ -134,6 +183,24 @@ final class GhosttySurfaceView: NSView {
                 _ = ghostty_surface_key(surface, key)
             }
         }
+    }
+
+    private func sendMouse(
+        _ event: NSEvent,
+        state: ghostty_input_mouse_state_e,
+        button: ghostty_input_mouse_button_e
+    ) {
+        guard let surface else { return }
+
+        sendPosition(event)
+        _ = ghostty_surface_mouse_button(surface, state, button, Self.mods(from: event.modifierFlags))
+    }
+
+    private func sendPosition(_ event: NSEvent) {
+        guard let surface else { return }
+
+        let point = convert(event.locationInWindow, from: nil)
+        ghostty_surface_mouse_pos(surface, point.x, bounds.height - point.y, Self.mods(from: event.modifierFlags))
     }
 
     private func applyScale(_ scale: CGFloat) {

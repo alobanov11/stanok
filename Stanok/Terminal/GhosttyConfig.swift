@@ -19,6 +19,12 @@ final class GhosttyConfig {
         self.handle = handle
     }
 
+    func float(_ key: String) -> Float? {
+        var value: Float = 0
+        guard ghostty_config_get(handle, &value, key, UInt(key.utf8.count)) else { return nil }
+        return value
+    }
+
     func number(_ key: String) -> Double? {
         var value: Double = 0
         guard ghostty_config_get(handle, &value, key, UInt(key.utf8.count)) else { return nil }

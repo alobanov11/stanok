@@ -10,7 +10,7 @@ struct TerminalView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> GhosttySurfaceView {
-        let fontSize = runtime.config.number("font-size").map { Float($0) } ?? 13
+        let fontSize = runtime.config.float("font-size") ?? 13
         return GhosttySurfaceView(app: runtime.app, fontSize: fontSize)
     }
 

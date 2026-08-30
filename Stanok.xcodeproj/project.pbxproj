@@ -136,6 +136,7 @@
 				E2AA02F330446886008EA09A /* Sources */,
 				E2AA02F430446886008EA09A /* Frameworks */,
 				E2AA02F530446886008EA09A /* Resources */,
+				F1311A40D5B7CF1A4547A6C0 /* Ghostty Resources */,
 			);
 			buildRules = (
 			);
@@ -278,6 +279,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.\nfor candidate in /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint; do\n  if [ -x \"$candidate\" ]; then\n    exec \"$candidate\" lint --quiet\n  fi\ndone\necho \"warning: swiftlint not found — run: brew install swiftlint\"\n";
+		};
+		F1311A40D5B7CF1A4547A6C0 /* Ghostty Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Ghostty Resources";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Without these ghostty falls back to xterm-256color and disables shell integration.\nshare=\"$SRCROOT/.build/ghostty/share\"\ndest=\"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources\"\nif [ ! -d \"$share/ghostty\" ]; then\n  echo \"warning: $share/ghostty missing — run scripts/build-ghostty.sh\"\n  exit 0\nfi\nmkdir -p \"$dest\"\nrsync -a --delete \"$share/ghostty/\" \"$dest/ghostty/\"\nrsync -a --delete \"$share/terminfo/\" \"$dest/terminfo/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

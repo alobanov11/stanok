@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import GhosttyKit
 import os
@@ -12,6 +13,9 @@ final class GhosttyRuntime {
         case configuration
         case application
     }
+
+    @ObservationIgnored
+    static var currentSurface: ghostty_surface_t?
 
     @ObservationIgnored
     private(set) weak static var current: GhosttyRuntime?
@@ -57,9 +61,28 @@ final class GhosttyRuntime {
             }
         }
         runtime.action_cb = { _, _, _ in false }
-        runtime.read_clipboard_cb = { _, _, _ in false }
+        runtime.read_clipboard_cb = { _, kind, state in
+            let contents = MainActor.assumeIsolated {
+                NSPasteboard.general.string(forType: .string)
+            }
+            guard let contents, let surface = GhosttyRuntime.currentSurface else { return false }
+            _ = kind
+            contents.withCString { pointer in
+                ghostty_surface_complete_clipboard_request(surface, pointer, state, true)
+            }
+            return true
+        }
         runtime.confirm_read_clipboard_cb = { _, _, _, _ in }
-        runtime.write_clipboard_cb = { _, _, _, _, _ in }
+        runtime.write_clipboard_cb = { _, _, contents, count, _ in
+            guard let contents, count > 0 else { return }
+            let items = UnsafeBufferPointer(start: contents, count: count)
+            let text = items.compactMap { $0.data.map { String(cString: $0) } }.joined()
+            guard !text.isEmpty else { return }
+            MainActor.assumeIsolated {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+            }
+        }
         runtime.close_surface_cb = { _, _ in }
 
         guard let app = ghostty_app_new(&runtime, handle) else { throw Failure.application }
