@@ -55,6 +55,7 @@ struct WorkspaceView: View {
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
+        .containerBackground(.clear, for: .navigationSplitView)
         .overlay {
             if model.runs.isEmpty {
                 ContentUnavailableView(
@@ -71,6 +72,10 @@ struct WorkspaceView: View {
         if let runtime {
             TerminalView(runtime: runtime) { model.record($0) }
                 .clipShape(.rect(cornerRadius: Layout.cardRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Layout.cardRadius, style: .continuous)
+                        .strokeBorder(.white.opacity(0.07), lineWidth: 1)
+                }
         } else if let failure {
             ContentUnavailableView("Терминал не запустился", systemImage: "exclamationmark.triangle", description: Text(failure))
         } else {
