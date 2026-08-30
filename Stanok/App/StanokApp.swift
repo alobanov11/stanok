@@ -7,5 +7,7 @@ struct StanokApp: App {
         WindowGroup {
             WorkspaceView()
         }
+        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unifiedCompact)
     }
 }

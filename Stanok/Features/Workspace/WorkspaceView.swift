@@ -2,6 +2,8 @@ import SwiftUI
 
 struct WorkspaceView: View {
 
+    private static let inset: CGFloat = 10
+
     @State
     private var model = WorkspaceModel()
 
@@ -12,14 +14,16 @@ struct WorkspaceView: View {
     private var failure: String?
 
     var body: some View {
-        HSplitView {
-            history
-                .frame(minWidth: 200, idealWidth: 260, maxWidth: 360)
+        HStack(spacing: 0) {
+            sidebar
+                .frame(width: 232)
 
-            terminal
-                .frame(minWidth: 480)
+            main
+                .padding(.trailing, Self.inset)
+                .padding(.vertical, Self.inset)
         }
-        .frame(minWidth: 900, minHeight: 480)
+        .background(VisualEffectView(material: .underWindowBackground).ignoresSafeArea())
+        .frame(minWidth: 880, minHeight: 520)
         .task {
             do {
                 runtime = try GhosttyRuntime()
@@ -29,41 +33,60 @@ struct WorkspaceView: View {
         }
     }
 
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("stanok")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+
+            Text("История")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
+
+            ScrollView {
+                LazyVStack(spacing: 1) {
+                    ForEach(model.runs) { run in
+                        CommandRow(run: run)
+                    }
+                }
+                .padding(.horizontal, 6)
+            }
+            .scrollContentBackground(.hidden)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 34)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .overlay(alignment: .top) {
+            if model.runs.isEmpty {
+                Text("команды появятся здесь")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.quaternary)
+                    .padding(.top, 90)
+            }
+        }
+    }
+
     @ViewBuilder
-    private var terminal: some View {
+    private var main: some View {
         if let runtime {
             TerminalView(runtime: runtime) { model.record($0) }
+                .clipShape(.rect(cornerRadius: 10))
+                .shadow(color: .black.opacity(0.18), radius: 12, y: 3)
         } else if let failure {
             Text(failure)
                 .font(.system(.callout, design: .monospaced))
                 .padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.background, in: .rect(cornerRadius: 10))
         } else {
             ProgressView()
-        }
-    }
-
-    private var history: some View {
-        List(model.runs) { run in
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(run.succeeded ? Color.green : Color.red)
-                    .frame(width: 7, height: 7)
-
-                Text(run.exitCode.map { "exit \($0)" } ?? "no exit code")
-
-                Spacer()
-
-                Text(run.duration.formatted(.units(allowed: [.seconds, .milliseconds], width: .narrow)))
-                    .foregroundStyle(.secondary)
-            }
-            .font(.system(.caption, design: .monospaced))
-        }
-        .overlay {
-            if model.runs.isEmpty {
-                Text("команды появятся здесь")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.background, in: .rect(cornerRadius: 10))
         }
     }
 }
