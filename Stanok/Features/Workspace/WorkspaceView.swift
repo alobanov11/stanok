@@ -2,7 +2,11 @@ import SwiftUI
 
 struct WorkspaceView: View {
 
-    private static let inset: CGFloat = 10
+    private static let inset: CGFloat = 12
+
+    private static let windowRadius: CGFloat = 18
+
+    private static let cardRadius: CGFloat = 11
 
     @State
     private var model = WorkspaceModel()
@@ -22,8 +26,10 @@ struct WorkspaceView: View {
                 .padding(.trailing, Self.inset)
                 .padding(.vertical, Self.inset)
         }
-        .background(VisualEffectView(material: .underWindowBackground).ignoresSafeArea())
+        .ignoresSafeArea()
+        .background(VisualEffectView(material: .underWindowBackground))
         .background(WindowConfigurator().frame(width: 0, height: 0))
+        .clipShape(.rect(cornerRadius: Self.windowRadius, style: .continuous))
         .frame(minWidth: 880, minHeight: 520)
         .task {
             do {
@@ -76,22 +82,18 @@ struct WorkspaceView: View {
     private var main: some View {
         if let runtime {
             TerminalView(runtime: runtime) { model.record($0) }
-                .clipShape(.rect(cornerRadius: 10))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-                }
-                .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
+                .background(.black.opacity(0.28))
+                .clipShape(.rect(cornerRadius: Self.cardRadius, style: .continuous))
         } else if let failure {
             Text(failure)
                 .font(.system(.callout, design: .monospaced))
                 .padding(24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.background, in: .rect(cornerRadius: 10))
+                .background(.black.opacity(0.28), in: .rect(cornerRadius: Self.cardRadius, style: .continuous))
         } else {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.background, in: .rect(cornerRadius: 10))
+                .background(.black.opacity(0.28), in: .rect(cornerRadius: Self.cardRadius, style: .continuous))
         }
     }
 }

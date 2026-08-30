@@ -27,7 +27,7 @@ final class GhosttySurfaceView: NSView {
 
         wantsLayer = true
         layerContentsRedrawPolicy = .duringViewResize
-        layer?.cornerRadius = 10
+        layer?.cornerRadius = 11
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = true
 
