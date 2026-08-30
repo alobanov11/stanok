@@ -17,10 +17,7 @@ struct CommandRow: View {
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
         }
-        .font(.system(size: 11))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .contentShape(.rect(cornerRadius: 7))
+        .font(.callout)
     }
 
     let run: CommandRun
