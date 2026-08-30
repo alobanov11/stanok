@@ -5,7 +5,7 @@ struct FileTree: View {
 
     var body: some View {
         content
-            .onChange(of: url, initial: true) { _, new in model.open(new) }
+            .task(id: url) { model.open(url) }
             .alert(prompt?.title ?? "", isPresented: isPrompting) {
                 TextField("Имя", text: $name)
                 Button("Отмена", role: .cancel) { prompt = nil }
