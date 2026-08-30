@@ -110,6 +110,11 @@ struct FileTree: View {
     private func rootMenu(_ root: FileNode) -> some View {
         Button("Новый файл…") { ask(.newFile, at: root.url) }
         Button("Новая папка…") { ask(.newFolder, at: root.url) }
+
+        Divider()
+
+        Button("Вставить") { paste(into: root.url) }
+            .disabled(FilePasteboard.urls.isEmpty)
     }
 
     @ViewBuilder
@@ -125,11 +130,25 @@ struct FileTree: View {
 
         Divider()
 
+        Button("Копировать") { FilePasteboard.write([node.url]) }
+
+        Button("Вставить") { paste(into: container(of: node)) }
+            .disabled(FilePasteboard.urls.isEmpty)
+
+        Divider()
+
         Button("Удалить", role: .destructive) { perform { try FileOperations.trash(node.url) } }
     }
 
     private func container(of node: FileNode) -> URL {
         node.isDirectory ? node.url : node.url.deletingLastPathComponent()
+    }
+
+    private func paste(into directory: URL) {
+        let urls = FilePasteboard.urls
+        guard !urls.isEmpty else { return }
+
+        perform { try FileOperations.copy(urls, into: directory) }
     }
 
     private func copyPath(_ url: URL) {
