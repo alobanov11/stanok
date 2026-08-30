@@ -37,7 +37,7 @@ struct WorkspaceView: View {
                 .padding(.vertical, Layout.inset)
         }
         .ignoresSafeArea()
-        .containerBackground(.thinMaterial, for: .window)
+        .background(WindowBackground().ignoresSafeArea())
         .frame(minWidth: 880, minHeight: 520)
         .task {
             do {
