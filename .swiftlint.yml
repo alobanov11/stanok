@@ -125,6 +125,12 @@ empty_count:
 reporter: "xcode"
 
 custom_rules:
+  grouped_constants:
+    name: "Group constants in an enum"
+    regex: '(?:[ \t]*(?:private |fileprivate |public |internal )?static let [^\n]+\n\s*){3,}(?!static let)(?!\})\S'
+    message: "Three or more constants in a row belong in a dedicated enum."
+    severity: error
+
   blank_line_after_type_brace:
     name: "Blank line after type brace"
     regex: '(?:struct|class|enum|protocol|extension|actor)\s+[^\n]*\{[ \t]*\n[ \t]*(?!\})\S'

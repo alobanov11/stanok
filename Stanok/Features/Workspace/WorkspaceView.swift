@@ -2,11 +2,16 @@ import SwiftUI
 
 struct WorkspaceView: View {
 
-    private static let inset: CGFloat = 12
+    private enum Layout {
 
-    private static let windowRadius: CGFloat = 18
+        static let inset: CGFloat = 12
 
-    private static let cardRadius: CGFloat = 11
+        static let cardRadius: CGFloat = 11
+
+        static let sidebarWidth: CGFloat = 232
+
+        static let sidebarTopInset: CGFloat = 34
+    }
 
     @State
     private var model = WorkspaceModel()
@@ -20,11 +25,11 @@ struct WorkspaceView: View {
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-                .frame(width: 232)
+                .frame(width: Layout.sidebarWidth)
 
             main
-                .padding(.trailing, Self.inset)
-                .padding(.vertical, Self.inset)
+                .padding(.trailing, Layout.inset)
+                .padding(.vertical, Layout.inset)
         }
         .ignoresSafeArea()
         .background(WindowConfigurator().frame(width: 0, height: 0))
@@ -64,7 +69,7 @@ struct WorkspaceView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.top, 34)
+        .padding(.top, Layout.sidebarTopInset)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(.black.opacity(0.16))
         .overlay(alignment: .top) {
@@ -81,17 +86,17 @@ struct WorkspaceView: View {
     private var main: some View {
         if let runtime {
             TerminalView(runtime: runtime) { model.record($0) }
-                .clipShape(.rect(cornerRadius: Self.cardRadius, style: .continuous))
+                .clipShape(.rect(cornerRadius: Layout.cardRadius, style: .continuous))
         } else if let failure {
             Text(failure)
                 .font(.system(.callout, design: .monospaced))
                 .padding(24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.black.opacity(0.28), in: .rect(cornerRadius: Self.cardRadius, style: .continuous))
+                .background(.black.opacity(0.28), in: .rect(cornerRadius: Layout.cardRadius, style: .continuous))
         } else {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.black.opacity(0.28), in: .rect(cornerRadius: Self.cardRadius, style: .continuous))
+                .background(.black.opacity(0.28), in: .rect(cornerRadius: Layout.cardRadius, style: .continuous))
         }
     }
 }
