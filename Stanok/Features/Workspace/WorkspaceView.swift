@@ -27,9 +27,7 @@ struct WorkspaceView: View {
                 .padding(.vertical, Self.inset)
         }
         .ignoresSafeArea()
-        .background(VisualEffectView(material: .underWindowBackground))
         .background(WindowConfigurator().frame(width: 0, height: 0))
-        .clipShape(.rect(cornerRadius: Self.windowRadius, style: .continuous))
         .frame(minWidth: 880, minHeight: 520)
         .task {
             do {
@@ -68,6 +66,7 @@ struct WorkspaceView: View {
         }
         .padding(.top, 34)
         .frame(maxHeight: .infinity, alignment: .top)
+        .background(.black.opacity(0.16))
         .overlay(alignment: .top) {
             if model.runs.isEmpty {
                 Text("команды появятся здесь")
@@ -82,7 +81,6 @@ struct WorkspaceView: View {
     private var main: some View {
         if let runtime {
             TerminalView(runtime: runtime) { model.record($0) }
-                .background(.black.opacity(0.28))
                 .clipShape(.rect(cornerRadius: Self.cardRadius, style: .continuous))
         } else if let failure {
             Text(failure)
