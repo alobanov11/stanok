@@ -99,7 +99,20 @@ final class GhosttySurfaceView: NSView {
     }
 
     override func flagsChanged(with event: NSEvent) {
-        send(event, action: GHOSTTY_ACTION_PRESS)
+        guard let surface else { return }
+
+        let mods = Self.mods(from: event.modifierFlags)
+        let held = Self.modifier(for: event.keyCode).map { mods.rawValue & $0.rawValue != 0 } ?? false
+
+        var key = ghostty_input_key_s()
+        key.action = held ? GHOSTTY_ACTION_PRESS : GHOSTTY_ACTION_RELEASE
+        key.keycode = UInt32(event.keyCode)
+        key.mods = mods
+        key.consumed_mods = GHOSTTY_MODS_NONE
+        key.composing = false
+        key.unshifted_codepoint = 0
+        key.text = nil
+        _ = ghostty_surface_key(surface, key)
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -134,6 +147,17 @@ final class GhosttySurfaceView: NSView {
         if event.hasPreciseScrollingDeltas { mods = 1 }
         if !event.momentumPhase.isEmpty { mods |= 2 }
         ghostty_surface_mouse_scroll(surface, event.scrollingDeltaX, event.scrollingDeltaY, mods)
+    }
+
+    private static func modifier(for keyCode: UInt16) -> ghostty_input_mods_e? {
+        switch keyCode {
+        case 56, 60: GHOSTTY_MODS_SHIFT
+        case 59, 62: GHOSTTY_MODS_CTRL
+        case 58, 61: GHOSTTY_MODS_ALT
+        case 54, 55: GHOSTTY_MODS_SUPER
+        case 57: GHOSTTY_MODS_CAPS
+        default: nil
+        }
     }
 
     private static func mods(from flags: NSEvent.ModifierFlags) -> ghostty_input_mods_e {
@@ -213,5 +237,16 @@ final class GhosttySurfaceView: NSView {
         let width = UInt32(max(size.width * scale, 1))
         let height = UInt32(max(size.height * scale, 1))
         ghostty_surface_set_size(surface, width, height)
+
+        let metrics = ghostty_surface_size(surface)
+        Log.terminal.info(
+            """
+            grid \(metrics.columns)x\(metrics.rows)             cell \(metrics.cell_width_px)x\(metrics
+                .cell_height_px
+            )px             (\(Double(metrics.cell_width_px) / scale)x\(Double(metrics.cell_height_px) /
+                scale
+            )pt)             scale \(scale)
+            """
+        )
     }
 }
