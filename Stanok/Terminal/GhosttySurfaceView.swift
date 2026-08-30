@@ -6,6 +6,8 @@ final class GhosttySurfaceView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    var handle: ghostty_surface_t? { surface }
+
     private var backingScale: CGFloat {
         let frame = convertToBacking(bounds)
         guard bounds.width > 0, frame.width > 0 else { return window?.backingScaleFactor ?? 2 }
@@ -31,8 +33,8 @@ final class GhosttySurfaceView: NSView {
         )
         config.scale_factor = 1
         config.font_size = fontSize
+        config.userdata = Unmanaged.passUnretained(self).toOpaque()
         self.surface = ghostty_surface_new(app, &config)
-        GhosttyRuntime.currentSurface = surface
     }
 
     @available(*, unavailable)
@@ -156,6 +158,11 @@ final class GhosttySurfaceView: NSView {
         ghostty_surface_mouse_scroll(surface, event.scrollingDeltaX, event.scrollingDeltaY, mods)
     }
 
+    static func from(userdata: UnsafeMutableRawPointer?) -> GhosttySurfaceView? {
+        guard let userdata else { return nil }
+        return Unmanaged<GhosttySurfaceView>.fromOpaque(userdata).takeUnretainedValue()
+    }
+
     private static func insertableText(
         from event: NSEvent,
         using keyPath: KeyPath<NSEvent, String?>
@@ -192,9 +199,6 @@ final class GhosttySurfaceView: NSView {
     }
 
     func shutdown() {
-        if GhosttyRuntime.currentSurface == surface {
-            GhosttyRuntime.currentSurface = nil
-        }
         link?.invalidate()
         link = nil
 

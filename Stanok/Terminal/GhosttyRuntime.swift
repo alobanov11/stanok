@@ -15,9 +15,6 @@ final class GhosttyRuntime {
     }
 
     @ObservationIgnored
-    static var currentSurface: ghostty_surface_t?
-
-    @ObservationIgnored
     private(set) weak static var current: GhosttyRuntime?
 
     @ObservationIgnored
@@ -61,16 +58,18 @@ final class GhosttyRuntime {
             }
         }
         runtime.action_cb = { _, _, _ in false }
-        runtime.read_clipboard_cb = { _, kind, state in
-            let contents = MainActor.assumeIsolated {
-                NSPasteboard.general.string(forType: .string)
+        runtime.read_clipboard_cb = { userdata, _, state in
+            MainActor.assumeIsolated {
+                guard
+                    let text = NSPasteboard.general.string(forType: .string),
+                    let surface = GhosttySurfaceView.from(userdata: userdata)?.handle
+                else { return false }
+
+                text.withCString { pointer in
+                    ghostty_surface_complete_clipboard_request(surface, pointer, state, true)
+                }
+                return true
             }
-            guard let contents, let surface = GhosttyRuntime.currentSurface else { return false }
-            _ = kind
-            contents.withCString { pointer in
-                ghostty_surface_complete_clipboard_request(surface, pointer, state, true)
-            }
-            return true
         }
         runtime.confirm_read_clipboard_cb = { _, _, _, _ in }
         runtime.write_clipboard_cb = { _, _, contents, count, _ in
