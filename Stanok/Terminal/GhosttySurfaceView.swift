@@ -29,7 +29,7 @@ final class GhosttySurfaceView: NSView {
         config.platform = ghostty_platform_u(
             macos: ghostty_platform_macos_s(nsview: Unmanaged.passUnretained(self).toOpaque())
         )
-        config.scale_factor = 2
+        config.scale_factor = 1
         config.font_size = fontSize
         self.surface = ghostty_surface_new(app, &config)
     }
@@ -241,7 +241,7 @@ final class GhosttySurfaceView: NSView {
     }
 
     private func applySize(_ size: NSSize) {
-        guard let surface else { return }
+        guard let surface, size.width > 1, size.height > 1 else { return }
 
         let scale = backingScale
         let backing = convertToBacking(NSRect(origin: .zero, size: size)).size
