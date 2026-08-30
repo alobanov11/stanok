@@ -241,6 +241,11 @@ final class GhosttySurfaceView: NSView {
         isHidden = !active
         link?.isPaused = !active
 
+        if let surface {
+            ghostty_surface_set_occlusion(surface, active)
+            if active { ghostty_surface_refresh(surface) }
+        }
+
         if !active, window?.firstResponder === self {
             window?.makeFirstResponder(window?.contentView)
         }

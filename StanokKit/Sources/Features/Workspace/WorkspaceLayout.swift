@@ -2,7 +2,7 @@ import CoreFoundation
 
 enum WorkspaceLayout {
 
-    static let liveSessionLimit = 8
+    static let liveSessionLimit = 24
 
     static let inset: CGFloat = 12
 
