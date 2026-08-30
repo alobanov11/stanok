@@ -132,7 +132,7 @@ final class GhosttySurfaceView: NSView {
 
         var mods: Int32 = 0
         if event.hasPreciseScrollingDeltas { mods = 1 }
-        if event.momentumPhase != [] { mods |= 2 }
+        if !event.momentumPhase.isEmpty { mods |= 2 }
         ghostty_surface_mouse_scroll(surface, event.scrollingDeltaX, event.scrollingDeltaY, mods)
     }
 
