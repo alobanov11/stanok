@@ -23,6 +23,7 @@ struct WorkspaceView: View {
                 .padding(.vertical, Self.inset)
         }
         .background(VisualEffectView(material: .underWindowBackground).ignoresSafeArea())
+        .background(WindowConfigurator().frame(width: 0, height: 0))
         .frame(minWidth: 880, minHeight: 520)
         .task {
             do {
@@ -76,7 +77,11 @@ struct WorkspaceView: View {
         if let runtime {
             TerminalView(runtime: runtime) { model.record($0) }
                 .clipShape(.rect(cornerRadius: 10))
-                .shadow(color: .black.opacity(0.18), radius: 12, y: 3)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.35), radius: 18, y: 6)
         } else if let failure {
             Text(failure)
                 .font(.system(.callout, design: .monospaced))
