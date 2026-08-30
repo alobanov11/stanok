@@ -30,6 +30,11 @@ public enum DefaultConfig {
         typeset -g _stanok_started=0
         typeset -g STANOK_PLACEHOLDER=${STANOK_PLACEHOLDER:-"Введите команду"}
 
+        HISTSIZE=50000
+        SAVEHIST=50000
+        setopt APPEND_HISTORY INC_APPEND_HISTORY EXTENDED_HISTORY
+        setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS
+
         PROMPT=''
         RPROMPT=''
 
