@@ -68,7 +68,11 @@ final class GhosttySurfaceView: NSView {
             return
         }
 
-        window.makeFirstResponder(self)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.window === window else { return }
+            window.makeFirstResponder(self)
+        }
+
         applyScale()
         applySize(bounds.size)
 
@@ -248,8 +252,14 @@ final class GhosttySurfaceView: NSView {
             if active { ghostty_surface_refresh(surface) }
         }
 
-        if !active, window?.firstResponder === self {
-            window?.makeFirstResponder(window?.contentView)
+        guard !active else { return }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let window, window.firstResponder === self else {
+                return
+            }
+
+            window.makeFirstResponder(window.contentView)
         }
     }
 
