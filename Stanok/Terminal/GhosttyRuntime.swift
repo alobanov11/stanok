@@ -57,7 +57,24 @@ final class GhosttyRuntime {
                 }
             }
         }
-        runtime.action_cb = { _, _, _ in false }
+        runtime.action_cb = { _, target, action in
+            guard action.tag == GHOSTTY_ACTION_COMMAND_FINISHED, target.tag == GHOSTTY_TARGET_SURFACE else {
+                return false
+            }
+
+            let finished = action.action.command_finished
+            return MainActor.assumeIsolated {
+                guard
+                    let surface = target.target.surface,
+                    let view = GhosttySurfaceView.from(surface: surface)
+                else { return false }
+
+                view.onCommandFinished?(
+                    CommandRun(exitCode: finished.exit_code, durationNanoseconds: finished.duration)
+                )
+                return true
+            }
+        }
         runtime.read_clipboard_cb = { userdata, _, state in
             MainActor.assumeIsolated {
                 guard

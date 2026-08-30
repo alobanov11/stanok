@@ -14,6 +14,8 @@ final class GhosttySurfaceView: NSView {
         return frame.width / bounds.width
     }
 
+    var onCommandFinished: ((CommandRun) -> Void)?
+
     private var tracking: NSTrackingArea?
 
     private var surface: ghostty_surface_t?
@@ -156,6 +158,10 @@ final class GhosttySurfaceView: NSView {
         if event.hasPreciseScrollingDeltas { mods = 1 }
         if !event.momentumPhase.isEmpty { mods |= 2 }
         ghostty_surface_mouse_scroll(surface, event.scrollingDeltaX, event.scrollingDeltaY, mods)
+    }
+
+    static func from(surface: ghostty_surface_t) -> GhosttySurfaceView? {
+        from(userdata: ghostty_surface_userdata(surface))
     }
 
     static func from(userdata: UnsafeMutableRawPointer?) -> GhosttySurfaceView? {
