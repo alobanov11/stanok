@@ -50,12 +50,12 @@ type_contents_order:
     - [instance_property]
     - [ib_inspectable, ib_outlet]
     - [initializer]
+    - [deinitializer]
     - [type_method]
     - [view_life_cycle_method]
     - [ib_action]
     - [other_method]
     - [subscript]
-    - [deinitializer]
 
 one_declaration_per_file:
   severity: error
