@@ -156,6 +156,20 @@ final class GhosttySurfaceView: NSView {
         ghostty_surface_mouse_scroll(surface, event.scrollingDeltaX, event.scrollingDeltaY, mods)
     }
 
+    private static func insertableText(
+        from event: NSEvent,
+        using keyPath: KeyPath<NSEvent, String?>
+    ) -> String? {
+        guard let characters = event[keyPath: keyPath], !characters.isEmpty else { return nil }
+
+        for scalar in characters.unicodeScalars {
+            let isFunctionKey = (0xF700...0xF8FF).contains(scalar.value)
+            let isControl = scalar.value < 0x20 || scalar.value == 0x7F
+            if isFunctionKey || isControl { return nil }
+        }
+        return characters
+    }
+
     private static func modifier(for keyCode: UInt16) -> ghostty_input_mods_e? {
         switch keyCode {
         case 56, 60: GHOSTTY_MODS_SHIFT
@@ -205,9 +219,10 @@ final class GhosttySurfaceView: NSView {
         key.mods = Self.mods(from: event.modifierFlags)
         key.consumed_mods = GHOSTTY_MODS_NONE
         key.composing = false
-        key.unshifted_codepoint = event.charactersIgnoringModifiers?.unicodeScalars.first?.value ?? 0
+        key.unshifted_codepoint = Self.insertableText(from: event, using: \.charactersIgnoringModifiers)?
+            .unicodeScalars.first?.value ?? 0
 
-        let text = event.type == .keyDown ? (event.characters ?? "") : ""
+        let text = event.type == .keyDown ? (Self.insertableText(from: event, using: \.characters) ?? "") : ""
         if text.isEmpty {
             key.text = nil
             _ = ghostty_surface_key(surface, key)
