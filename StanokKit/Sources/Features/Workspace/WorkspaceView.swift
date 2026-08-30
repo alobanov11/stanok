@@ -187,14 +187,16 @@ public struct WorkspaceView<Terminal: View>: View {
                 PreviewPanel(
                     preview: preview,
                     leadingInset: headerLeading,
-                    previousName: navigator.previousName
+                    previousName: navigator.previousName,
+                    onBack: stepBack
                 )
 
             case let .web(preview):
                 WebPreviewPanel(
                     preview: preview,
                     leadingInset: headerLeading,
-                    previousName: navigator.previousName
+                    previousName: navigator.previousName,
+                    onBack: stepBack
                 )
             }
         }
@@ -270,6 +272,10 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func closePreview() {
+        navigator.clear()
+    }
+
+    private func stepBack() {
         navigator.pop()
     }
 

@@ -14,7 +14,7 @@ struct PreviewPanel: View {
     private var bar: some View {
         HStack(spacing: 8) {
             if let previousName {
-                PreviewBackIndicator(name: previousName)
+                PreviewBackIndicator(name: previousName, action: onBack)
             }
 
             Text(preview.name)
@@ -63,5 +63,7 @@ struct PreviewPanel: View {
     let leadingInset: CGFloat
 
     let previousName: String?
+
+    let onBack: () -> Void
 
 }
