@@ -25,19 +25,14 @@ struct WorkspaceView: View {
     private var failure: String?
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             sidebar
-                .navigationSplitViewColumnWidth(
-                    min: Layout.sidebarMin,
-                    ideal: Layout.sidebarIdeal,
-                    max: Layout.sidebarMax
-                )
-        } detail: {
+                .frame(width: Layout.sidebarIdeal)
+
             main
-                .padding(Layout.inset)
-                .navigationTitle("stanok")
+                .padding(.trailing, Layout.inset)
+                .padding(.vertical, Layout.inset)
         }
-        .navigationSplitViewStyle(.prominentDetail)
         .containerBackground(.thinMaterial, for: .window)
         .frame(minWidth: 880, minHeight: 520)
         .task {
@@ -52,10 +47,11 @@ struct WorkspaceView: View {
     private var sidebar: some View {
         List(model.runs) { run in
             CommandRow(run: run)
+                .listRowBackground(Color.clear)
         }
         .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
-        .containerBackground(.clear, for: .navigationSplitView)
+        .background(.clear)
         .overlay {
             if model.runs.isEmpty {
                 ContentUnavailableView(
