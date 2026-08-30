@@ -2,6 +2,12 @@ import SwiftUI
 
 struct MarkdownView: View {
 
+    @AppStorage(PreviewTypography.Keys.markdownFontSize)
+    private var fontSize = PreviewTypography.Defaults.markdownFontSize
+
+    @AppStorage(PreviewTypography.Keys.markdownLineSpacing)
+    private var lineSpacing = PreviewTypography.Defaults.markdownLineSpacing
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
@@ -37,7 +43,7 @@ struct MarkdownView: View {
         case let .heading(level):
             Text(block.text)
                 .font(.system(
-                    size: Self.headingSize(level),
+                    size: Self.headingSize(level, base: fontSize),
                     weight: level == 1 ? .bold : .semibold
                 ))
 
@@ -68,15 +74,15 @@ struct MarkdownView: View {
 
     private func prose(_ text: AttributedString) -> some View {
         Text(text)
-            .font(.system(size: 13))
-            .lineSpacing(4)
+            .font(.system(size: fontSize))
+            .lineSpacing(lineSpacing)
             .fixedSize(horizontal: false, vertical: true)
     }
 
     private func item(_ marker: String, _ text: AttributedString, _ depth: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(marker)
-                .font(.system(size: 13))
+                .font(.system(size: fontSize))
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
                 .frame(minWidth: 14, alignment: .trailing)
@@ -92,7 +98,7 @@ struct MarkdownView: View {
         HStack(alignment: .top, spacing: 16) {
             ForEach(Array(cells.enumerated()), id: \.offset) { _, cell in
                 Text(cell)
-                    .font(.system(size: 12, weight: isHeader ? .semibold : .regular))
+                    .font(.system(size: fontSize * 0.92, weight: isHeader ? .semibold : .regular))
                     .lineSpacing(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -107,6 +113,15 @@ struct MarkdownView: View {
         switch kind {
         case .bullet, .numbered, .continuation: true
         default: false
+        }
+    }
+
+    private static func depth(of kind: MarkdownBlock.Kind) -> Int {
+        switch kind {
+        case let .bullet(depth): depth
+        case let .numbered(_, depth): depth
+        case let .continuation(depth): depth
+        default: 0
         }
     }
 
@@ -128,12 +143,12 @@ struct MarkdownView: View {
         return nil
     }
 
-    private static func headingSize(_ level: Int) -> CGFloat {
+    private static func headingSize(_ level: Int, base: Double) -> CGFloat {
         switch level {
-        case 1: 21
-        case 2: 17
-        case 3: 15
-        default: 13
+        case 1: base * 1.6
+        case 2: base * 1.3
+        case 3: base * 1.15
+        default: base
         }
     }
 
@@ -150,7 +165,9 @@ struct MarkdownView: View {
         if let level = Self.heading(current) { return level <= 2 ? 26 : 18 }
         if Self.heading(previous) != nil { return 7 }
         if Self.isTable(previous), Self.isTable(current) { return 0 }
-        if Self.isList(previous), Self.isList(current) { return 5 }
+        if Self.isList(previous), Self.isList(current) {
+            return Self.depth(of: current) < Self.depth(of: previous) ? 14 : 5
+        }
         if Self.isCode(previous) || Self.isCode(current) { return 14 }
 
         return 13

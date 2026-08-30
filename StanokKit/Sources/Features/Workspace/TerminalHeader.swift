@@ -7,7 +7,7 @@ struct TerminalHeader: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
             if let repository {
                 folderBadge(repository.name)
             }
@@ -39,7 +39,7 @@ struct TerminalHeader: View {
 
     private func folderBadge(_ name: String) -> some View {
         Button(action: toggleFiles) {
-            HStack(spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Image(systemName: "folder")
 
                 Text(name)
@@ -66,12 +66,12 @@ struct TerminalHeader: View {
             Text("−\(status.removed)")
                 .foregroundStyle(.red)
         }
-        .font(.system(size: 11, weight: .medium))
+        .font(.system(size: 11))
         .monospacedDigit()
     }
 
     private func label(_ icon: String, _ text: String) -> some View {
-        HStack(spacing: 5) {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
             Image(systemName: icon)
 
             Text(text)
