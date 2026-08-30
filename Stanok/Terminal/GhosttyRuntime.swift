@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import GhosttyKit
 import os
+import StanokKit
 
 @MainActor
 @Observable
@@ -17,19 +18,13 @@ final class GhosttyRuntime {
     @ObservationIgnored
     private(set) weak static var current: GhosttyRuntime?
 
-    @ObservationIgnored
-    static var configURL: URL {
-        let root = ProcessInfo.processInfo.environment["XDG_CONFIG_HOME"].flatMap {
-            $0.hasPrefix("/") ? URL(filePath: $0, directoryHint: .isDirectory) : nil
-        } ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: ".config", directoryHint: .isDirectory)
-        return root.appending(path: "stanok", directoryHint: .isDirectory)
-            .appending(path: "config.ghostty", directoryHint: .notDirectory)
-    }
-
     private(set) var config: GhosttyConfig
 
     @ObservationIgnored
     let app: ghostty_app_t
+
+    @ObservationIgnored
+    private let surfaces = NSHashTable<GhosttySurfaceView>.weakObjects()
 
     init() throws {
         let status = ghostty_init(0, nil)
@@ -39,9 +34,10 @@ final class GhosttyRuntime {
         ghostty_config_load_default_files(handle)
         ghostty_config_load_recursive_files(handle)
 
-        let ownConfig = Self.configURL
+        let ownConfig = AppPaths.ghosttyConfig
         if FileManager.default.fileExists(atPath: ownConfig.path(percentEncoded: false)) {
-            ownConfig.path(percentEncoded: false).withCString { ghostty_config_load_file(handle, $0) }
+            ownConfig.path(percentEncoded: false)
+                .withCString { ghostty_config_load_file(handle, $0) }
             Log.terminal.info("loaded \(ownConfig.path(percentEncoded: false))")
         }
 
@@ -58,7 +54,10 @@ final class GhosttyRuntime {
             }
         }
         runtime.action_cb = { _, target, action in
-            guard action.tag == GHOSTTY_ACTION_COMMAND_FINISHED, target.tag == GHOSTTY_TARGET_SURFACE else {
+            guard
+                action.tag == GHOSTTY_ACTION_COMMAND_FINISHED,
+                target.tag == GHOSTTY_TARGET_SURFACE
+            else {
                 return false
             }
 
@@ -90,14 +89,7 @@ final class GhosttyRuntime {
         }
         runtime.confirm_read_clipboard_cb = { _, _, _, _ in }
         runtime.write_clipboard_cb = { _, _, contents, count, _ in
-            guard let contents, count > 0 else { return }
-            let items = UnsafeBufferPointer(start: contents, count: count)
-            let text = items.compactMap { $0.data.map { String(cString: $0) } }.joined()
-            guard !text.isEmpty else { return }
-            MainActor.assumeIsolated {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
-            }
+            GhosttyRuntime.writeClipboard(contents, count: count)
         }
         runtime.close_surface_cb = { _, _ in }
 
@@ -105,6 +97,62 @@ final class GhosttyRuntime {
         self.app = app
 
         Self.current = self
+    }
+
+    static func loadConfig() -> ghostty_config_t? {
+        guard let handle = ghostty_config_new() else { return nil }
+
+        ghostty_config_load_default_files(handle)
+        ghostty_config_load_recursive_files(handle)
+
+        let own = AppPaths.ghosttyConfig
+        if FileManager.default.fileExists(atPath: own.path(percentEncoded: false)) {
+            own.path(percentEncoded: false).withCString { ghostty_config_load_file(handle, $0) }
+        }
+
+        ghostty_config_finalize(handle)
+        return handle
+    }
+
+    private static func writeClipboard(
+        _ contents: UnsafePointer<ghostty_clipboard_content_s>?,
+        count: Int
+    ) {
+        guard let contents, count > 0 else { return }
+
+        var flavors: [NSPasteboard.PasteboardType: String] = [:]
+        for item in UnsafeBufferPointer(start: contents, count: count) {
+            guard let data = item.data else { continue }
+
+            switch item.mime.map({ String(cString: $0) }) ?? "text/plain" {
+            case "text/html": flavors[.html] = String(cString: data)
+            case "text/plain", "": flavors[.string] = String(cString: data)
+            default: continue
+            }
+        }
+        guard !flavors.isEmpty else { return }
+
+        MainActor.assumeIsolated {
+            NSPasteboard.general.clearContents()
+            for (type, value) in flavors {
+                NSPasteboard.general.setString(value, forType: type)
+            }
+        }
+    }
+
+    func register(_ view: GhosttySurfaceView) {
+        surfaces.add(view)
+    }
+
+    func reloadConfig() {
+        guard let handle = Self.loadConfig() else { return }
+
+        ghostty_app_update_config(app, handle)
+        for view in surfaces.allObjects {
+            view.updateConfig(handle)
+        }
+        config = GhosttyConfig(handle: handle)
+        Log.terminal.info("config reloaded")
     }
 
     func tick() {

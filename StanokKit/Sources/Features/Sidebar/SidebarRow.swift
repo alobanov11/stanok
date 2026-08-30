@@ -1,0 +1,47 @@
+import SwiftUI
+
+struct SidebarRow: View {
+
+    private var iconStyle: AnyShapeStyle {
+        if isMuted { return AnyShapeStyle(.tertiary) }
+        return isLive ? AnyShapeStyle(Color.green) : AnyShapeStyle(.secondary)
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .frame(width: 16)
+                .foregroundStyle(iconStyle)
+
+            Text(title)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+        .foregroundStyle(isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+        .padding(.leading, 8 + indent)
+        .padding(.trailing, 10)
+        .padding(.vertical, 7)
+        .background(
+            isSelected ? AnyShapeStyle(.white.opacity(0.12)) : AnyShapeStyle(.clear),
+            in: .rect(cornerRadius: 10, style: .continuous)
+        )
+        .contentShape(.rect(cornerRadius: 10))
+    }
+
+    let icon: String
+
+    let title: String
+
+    let isSelected: Bool
+
+    let isMuted: Bool
+
+    let isLive: Bool
+
+    let indent: CGFloat
+
+}

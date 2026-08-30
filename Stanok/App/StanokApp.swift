@@ -1,3 +1,4 @@
+import StanokKit
 import SwiftUI
 
 @main
@@ -5,9 +6,12 @@ struct StanokApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WorkspaceView()
+            RootView()
         }
         .windowStyle(.hiddenTitleBar)
-        .windowToolbarStyle(.unifiedCompact)
+
+        Settings {
+            SettingsWindow()
+        }
     }
 }

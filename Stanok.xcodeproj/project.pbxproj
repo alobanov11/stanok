@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		22CF9B60768383B9DF5B1B6A /* GhosttyKit.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0074BC03542AF9469D479EBF /* GhosttyKit.xcframework */; };
+		A77AB9E7CD362CD5406B8BCD /* StanokKit in Frameworks */ = {isa = PBXBuildFile; productRef = B7E06AB1B026D9C8992ADEA1 /* StanokKit */; };
 		D8F465EBFFF07F678FD0345D /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 68DD610276F8434E15A59EB6 /* Carbon.framework */; };
 /* End PBXBuildFile section */
 
@@ -39,16 +40,22 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2AA02F930446886008EA09A /* Stanok */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = Stanok;
 			sourceTree = "<group>";
 		};
 		E2AA030730446888008EA09A /* StanokTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StanokTests;
 			sourceTree = "<group>";
 		};
 		E2AA031130446888008EA09A /* StanokUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StanokUITests;
 			sourceTree = "<group>";
 		};
@@ -61,6 +68,7 @@
 			files = (
 				22CF9B60768383B9DF5B1B6A /* GhosttyKit.xcframework in Frameworks */,
 				D8F465EBFFF07F678FD0345D /* Carbon.framework in Frameworks */,
+				A77AB9E7CD362CD5406B8BCD /* StanokKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -126,7 +134,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E2AA031830446888008EA09A /* Build configuration list for PBXNativeTarget "Stanok" */;
 			buildPhases = (
-				B20134EDF402F6F91C261028 /* SwiftLint */,
+				3CBAE9D88D358019BBA320D5 /* SwiftLint */,
 				E2AA02F330446886008EA09A /* Sources */,
 				E2AA02F430446886008EA09A /* Frameworks */,
 				E2AA02F530446886008EA09A /* Resources */,
@@ -140,6 +148,9 @@
 				E2AA02F930446886008EA09A /* Stanok */,
 			);
 			name = Stanok;
+			packageProductDependencies = (
+				B7E06AB1B026D9C8992ADEA1 /* StanokKit */,
+			);
 			productName = Stanok;
 			productReference = E2AA02F730446886008EA09A /* Stanok.app */;
 			productType = "com.apple.product-type.application";
@@ -218,6 +229,9 @@
 			);
 			mainGroup = E2AA02EE30446886008EA09A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				94DA019E79D12F98CDC5CAB6 /* XCLocalSwiftPackageReference "StanokKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = E2AA02F830446886008EA09A /* Products */;
 			projectDirPath = "";
@@ -255,7 +269,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		B20134EDF402F6F91C261028 /* SwiftLint */ = {
+		3CBAE9D88D358019BBA320D5 /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -272,7 +286,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.\nfor candidate in /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint; do\n  if [ -x \"$candidate\" ]; then\n    exec \"$candidate\" lint --quiet\n  fi\ndone\necho \"warning: swiftlint not found — run: brew install swiftlint\"\n";
+			shellScript = "# Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.\nfor candidate in /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint; do\n  if [ -x \"$candidate\" ]; then\n    exec \"$candidate\" lint --quiet --force-exclude --use-alternative-excluding Stanok StanokKit/Sources\n  fi\ndone\necho \"warning: swiftlint not found — run: brew install swiftlint\"\n";
+		};
+		433DC455D3F1B96101D3CC1C /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = SwiftLint;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.\nfor candidate in /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint; do\n  if [ -x \"$candidate\" ]; then\n    exec \"$candidate\" lint --quiet Stanok StanokKit/Sources\n  fi\ndone\necho \"warning: swiftlint not found — run: brew install swiftlint\"\n";
 		};
 		F1311A40D5B7CF1A4547A6C0 /* Ghostty Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -653,6 +686,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		94DA019E79D12F98CDC5CAB6 /* XCLocalSwiftPackageReference "StanokKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = StanokKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B7E06AB1B026D9C8992ADEA1 /* StanokKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = StanokKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = E2AA02EF30446886008EA09A /* Project object */;
 }

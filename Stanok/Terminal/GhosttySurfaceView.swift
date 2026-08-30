@@ -1,6 +1,7 @@
 import AppKit
 import GhosttyKit
 import os
+import StanokKit
 
 final class GhosttySurfaceView: NSView {
 
@@ -22,12 +23,12 @@ final class GhosttySurfaceView: NSView {
 
     private var link: CADisplayLink?
 
-    init(app: ghostty_app_t, fontSize: Float) {
+    init(app: ghostty_app_t, fontSize: Float, workingDirectory: URL?) {
         super.init(frame: .zero)
 
         wantsLayer = true
         layerContentsRedrawPolicy = .duringViewResize
-        layer?.cornerRadius = 11
+        layer?.cornerRadius = 16
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = true
 
@@ -116,7 +117,8 @@ final class GhosttySurfaceView: NSView {
         guard let surface else { return }
 
         let mods = Self.mods(from: event.modifierFlags)
-        let held = Self.modifier(for: event.keyCode).map { mods.rawValue & $0.rawValue != 0 } ?? false
+        let held = Self.modifier(for: event.keyCode)
+            .map { mods.rawValue & $0.rawValue != 0 } ?? false
 
         var key = ghostty_input_key_s()
         key.action = held ? GHOSTTY_ACTION_PRESS : GHOSTTY_ACTION_RELEASE
@@ -207,6 +209,21 @@ final class GhosttySurfaceView: NSView {
         return ghostty_input_mods_e(raw)
     }
 
+    func updateConfig(_ config: ghostty_config_t) {
+        guard let surface else { return }
+
+        ghostty_surface_update_config(surface, config)
+    }
+
+    func setActive(_ active: Bool) {
+        isHidden = !active
+        link?.isPaused = !active
+
+        if !active, window?.firstResponder === self {
+            window?.makeFirstResponder(window?.contentView)
+        }
+    }
+
     func shutdown() {
         link?.invalidate()
         link = nil
@@ -232,10 +249,14 @@ final class GhosttySurfaceView: NSView {
         key.mods = Self.mods(from: event.modifierFlags)
         key.consumed_mods = GHOSTTY_MODS_NONE
         key.composing = false
-        key.unshifted_codepoint = Self.insertableText(from: event, using: \.charactersIgnoringModifiers)?
+        key.unshifted_codepoint = Self.insertableText(
+            from: event,
+            using: \.charactersIgnoringModifiers
+        )?
             .unicodeScalars.first?.value ?? 0
 
-        let text = event.type == .keyDown ? (Self.insertableText(from: event, using: \.characters) ?? "") : ""
+        let text = event
+            .type == .keyDown ? (Self.insertableText(from: event, using: \.characters) ?? "") : ""
         if text.isEmpty {
             key.text = nil
             _ = ghostty_surface_key(surface, key)
@@ -255,14 +276,24 @@ final class GhosttySurfaceView: NSView {
         guard let surface else { return }
 
         sendPosition(event)
-        _ = ghostty_surface_mouse_button(surface, state, button, Self.mods(from: event.modifierFlags))
+        _ = ghostty_surface_mouse_button(
+            surface,
+            state,
+            button,
+            Self.mods(from: event.modifierFlags)
+        )
     }
 
     private func sendPosition(_ event: NSEvent) {
         guard let surface else { return }
 
         let point = convert(event.locationInWindow, from: nil)
-        ghostty_surface_mouse_pos(surface, point.x, bounds.height - point.y, Self.mods(from: event.modifierFlags))
+        ghostty_surface_mouse_pos(
+            surface,
+            point.x,
+            bounds.height - point.y,
+            Self.mods(from: event.modifierFlags)
+        )
     }
 
     private func applyScale() {
@@ -277,14 +308,18 @@ final class GhosttySurfaceView: NSView {
 
         let scale = backingScale
         let backing = convertToBacking(NSRect(origin: .zero, size: size)).size
-        ghostty_surface_set_size(surface, UInt32(max(backing.width, 1)), UInt32(max(backing.height, 1)))
+        ghostty_surface_set_size(
+            surface,
+            UInt32(max(backing.width, 1)),
+            UInt32(max(backing.height, 1))
+        )
 
         let metrics = ghostty_surface_size(surface)
         let cellWidth = Double(metrics.cell_width_px) / scale
         let cellHeight = Double(metrics.cell_height_px) / scale
-        Log.terminal.info(
-            "grid \(metrics.columns)x\(metrics.rows) cell \(cellWidth)x\(cellHeight)pt scale \(scale)"
-        )
+        let grid = "\(metrics.columns)x\(metrics.rows)"
+        let cell = "\(cellWidth)x\(cellHeight)pt"
+        Log.terminal.info("grid \(grid) cell \(cell) scale \(scale)")
     }
 
 }

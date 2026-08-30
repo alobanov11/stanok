@@ -13,8 +13,8 @@ if [ -n "$leaked" ]; then
   status=1
 fi
 
-providers=$(grep -rlniE "\bclaude\b|\bcodex\b|\bgemini\b|\bcursor-agent\b|\bopencode\b" Stanok \
-  | grep -v "^Stanok/Features/Agents/" || true)
+providers=$(grep -rlniE "\bclaude\b|\bcodex\b|\bgemini\b|\bcursor-agent\b|\bopencode\b" Stanok StanokKit/Sources \
+  | grep -vE "^(Stanok|StanokKit/Sources)/Features/Agents/" || true)
 if [ -n "$providers" ]; then
   echo "error: provider names outside Stanok/Features/Agents/:"
   echo "$providers" | sed 's/^/  /'

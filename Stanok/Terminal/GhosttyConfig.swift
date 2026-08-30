@@ -33,7 +33,10 @@ final class GhosttyConfig {
 
     func text(_ key: String) -> String? {
         var value: UnsafePointer<CChar>?
-        guard ghostty_config_get(handle, &value, key, UInt(key.utf8.count)), let value else { return nil }
+        guard
+            ghostty_config_get(handle, &value, key, UInt(key.utf8.count)),
+            let value
+        else { return nil }
         return String(cString: value)
     }
 }
