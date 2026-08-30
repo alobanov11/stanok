@@ -40,7 +40,16 @@ final class GhosttySurfaceView: NSView {
         config.scale_factor = 1
         config.font_size = fontSize
         config.userdata = Unmanaged.passUnretained(self).toOpaque()
-        self.surface = ghostty_surface_new(app, &config)
+
+        guard let directory = Self.readablePath(workingDirectory) else {
+            self.surface = ghostty_surface_new(app, &config)
+            return
+        }
+
+        directory.withCString { path in
+            config.working_directory = path
+            self.surface = ghostty_surface_new(app, &config)
+        }
     }
 
     @available(*, unavailable)
@@ -207,6 +216,19 @@ final class GhosttySurfaceView: NSView {
         if flags.contains(.command) { raw |= GHOSTTY_MODS_SUPER.rawValue }
         if flags.contains(.capsLock) { raw |= GHOSTTY_MODS_CAPS.rawValue }
         return ghostty_input_mods_e(raw)
+    }
+
+    private static func readablePath(_ url: URL?) -> String? {
+        guard let url else { return nil }
+
+        var isDirectory: ObjCBool = false
+        let path = url.path(percentEncoded: false)
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) else {
+            Log.terminal.error("working directory is gone: \(path)")
+            return nil
+        }
+
+        return isDirectory.boolValue ? path : nil
     }
 
     func updateConfig(_ config: ghostty_config_t) {
