@@ -9,7 +9,7 @@ struct MarkdownView: View {
     private var lineSpacing = PreviewTypography.Defaults.markdownLineSpacing
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
                 quoted(block)
                     .padding(.top, spacing(before: index))

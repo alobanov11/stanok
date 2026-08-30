@@ -14,7 +14,7 @@ struct CodeBlockView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 2) {
+            LazyVStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(lines.enumerated()), id: \.offset) { index, tokens in
                     row(index, tokens)
                 }
