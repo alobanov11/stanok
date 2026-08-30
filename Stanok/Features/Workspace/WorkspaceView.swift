@@ -4,7 +4,7 @@ struct WorkspaceView: View {
 
     private enum Layout {
 
-        static let inset: CGFloat = 12
+        static let inset: CGFloat = 8
 
         static let cardRadius: CGFloat = 12
 
@@ -34,8 +34,7 @@ struct WorkspaceView: View {
 
             main
                 .padding(.trailing, Layout.inset)
-                .padding(.top, Layout.sidebarTopInset)
-                .padding(.bottom, Layout.inset)
+                .padding(.vertical, Layout.inset)
         }
         .ignoresSafeArea()
         .containerBackground(.thinMaterial, for: .window)
