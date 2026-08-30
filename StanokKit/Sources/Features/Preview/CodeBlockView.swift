@@ -6,6 +6,12 @@ struct CodeBlockView: View {
         CGFloat(String(max(lines.count, 1)).count) * 8 + 4
     }
 
+    @AppStorage(PreviewTypography.Keys.codeFontSize)
+    private var fontSize = PreviewTypography.Defaults.codeFontSize
+
+    @AppStorage(PreviewTypography.Keys.codeFontFamily)
+    private var fontFamily = PreviewTypography.Defaults.codeFontFamily
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 2) {
@@ -34,7 +40,7 @@ struct CodeBlockView: View {
 
             line(tokens)
         }
-        .font(CodeTheme.font)
+        .font(CodeTheme.font(size: fontSize, family: fontFamily))
     }
 
     private func line(_ tokens: [CodeToken]) -> Text {

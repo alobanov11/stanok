@@ -2,7 +2,11 @@ import SwiftUI
 
 enum CodeTheme {
 
-    static let font = Font.system(size: 12, design: .monospaced)
+    static func font(size: Double, family: String) -> Font {
+        family.isEmpty
+            ? .system(size: size, design: .monospaced)
+            : .custom(family, size: size)
+    }
 
     static func color(_ kind: CodeToken.Kind) -> Color {
         switch kind {

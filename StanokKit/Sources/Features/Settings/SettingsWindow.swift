@@ -3,7 +3,7 @@ import SwiftUI
 public struct SettingsWindow: View {
 
     @State
-    private var selection: SettingsSection? = .appearance
+    private var selection: SettingsSection? = .terminal
 
     public var body: some View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
@@ -15,26 +15,25 @@ public struct SettingsWindow: View {
                 }
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(220)
+            .navigationSplitViewColumnWidth(190)
             .toolbar(removing: .sidebarToggle)
         } detail: {
             detail
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Color.clear.frame(width: 0, height: 0)
-            }
-        }
         .navigationSplitViewStyle(.balanced)
-        .frame(minWidth: 750, minHeight: 500)
+        .frame(minWidth: 620, idealWidth: 660, minHeight: 400, idealHeight: 440)
     }
 
     @ViewBuilder
     private var detail: some View {
         switch selection {
-        case .appearance:
-            AppearanceSettings()
-                .navigationTitle(SettingsSection.appearance.title)
+        case .terminal:
+            TerminalSettings()
+                .navigationTitle(SettingsSection.terminal.title)
+
+        case .preview:
+            PreviewSettings()
+                .navigationTitle(SettingsSection.preview.title)
 
         case nil:
             EmptyView()
