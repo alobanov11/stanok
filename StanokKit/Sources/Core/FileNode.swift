@@ -9,9 +9,9 @@ final class FileNode: Identifiable {
     var name: String { url.lastPathComponent }
 
     var visibleDescendants: [FileNode] {
-        guard isExpanded, let children else { return [] }
-
-        return children.flatMap { [$0] + $0.visibleDescendants }
+        var result: [FileNode] = []
+        appendVisibleDescendants(to: &result)
+        return result
     }
 
     let url: URL
@@ -55,15 +55,13 @@ final class FileNode: Identifiable {
     }
 
     func node(at target: URL) -> FileNode? {
-        if url == target { return self }
+        let normalized = target.standardizedFileURL
+        if url.standardizedFileURL == normalized { return self }
 
-        guard
-            let children,
-            target.path(percentEncoded: false).hasPrefix(url.path(percentEncoded: false))
-        else { return nil }
+        guard let children, contains(normalized) else { return nil }
 
         for child in children {
-            if let found = child.node(at: target) { return found }
+            if let found = child.node(at: normalized) { return found }
         }
 
         return nil
@@ -93,13 +91,26 @@ final class FileNode: Identifiable {
             existing[child.url] = child
         }
 
-        self.children = rebuild(reusing: existing)
+        if let rebuilt = rebuild(reusing: existing) {
+            self.children = rebuilt
+        }
+    }
+
+    private func appendVisibleDescendants(to result: inout [FileNode]) {
+        guard isExpanded, let children else { return }
+
+        for child in children {
+            result.append(child)
+            child.appendVisibleDescendants(to: &result)
+        }
     }
 
     private func loadIfNeeded() {
         guard isExpanded, children == nil else { return }
 
-        children = rebuild(reusing: [:])
+        if let rebuilt = rebuild(reusing: [:]) {
+            children = rebuilt
+        }
     }
 
     private func contains(_ target: URL) -> Bool {
@@ -109,11 +120,19 @@ final class FileNode: Identifiable {
         return path.hasPrefix(base.hasSuffix("/") ? base : base + "/")
     }
 
-    private func rebuild(reusing existing: [URL: FileNode]) -> [FileNode] {
-        let contents = (try? FileManager.default.contentsOfDirectory(
-            at: url,
-            includingPropertiesForKeys: [.isDirectoryKey]
-        )) ?? []
+    private func rebuild(reusing existing: [URL: FileNode]) -> [FileNode]? {
+        let contents: [URL]
+        do {
+            contents = try FileManager.default.contentsOfDirectory(
+                at: url,
+                includingPropertiesForKeys: [.isDirectoryKey]
+            )
+        } catch {
+            let path = url.path(percentEncoded: false)
+            let reason = error.localizedDescription
+            Log.terminal.error("cannot list \(path): \(reason)")
+            return nil
+        }
 
         return contents
             .filter { $0.lastPathComponent != ".git" }

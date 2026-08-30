@@ -6,6 +6,8 @@ final class PreviewNavigator {
 
     private static let transitionDuration = 0.18
 
+    private static let maxStackSize = 20
+
     var current: PreviewEntry? { stack.last }
 
     var previousName: String? {
@@ -18,11 +20,17 @@ final class PreviewNavigator {
 
     private var token = UUID()
 
+    private var loadTask: Task<FilePreview, Never>?
+
     func openFile(_ url: URL) async {
         let generation = UUID()
         token = generation
+        loadTask?.cancel()
 
-        let loaded = await FilePreviewLoader.load(url)
+        let task = Task { await FilePreviewLoader.load(url) }
+        loadTask = task
+
+        let loaded = await task.value
         guard token == generation else { return }
 
         push(.file(loaded))
@@ -30,24 +38,38 @@ final class PreviewNavigator {
 
     func openWeb(_ url: URL) {
         token = UUID()
+        loadTask?.cancel()
+        loadTask = nil
         push(.web(WebPreview(url: url)))
     }
 
     func pop() {
+        token = UUID()
+        loadTask?.cancel()
+        loadTask = nil
+
         guard !stack.isEmpty else { return }
 
-        token = UUID()
         withAnimation(.smooth(duration: Self.transitionDuration)) { _ = stack.popLast() }
     }
 
     func clear() {
+        token = UUID()
+        loadTask?.cancel()
+        loadTask = nil
+
         guard !stack.isEmpty else { return }
 
-        token = UUID()
         withAnimation(.smooth(duration: Self.transitionDuration)) { stack = [] }
     }
 
     private func push(_ entry: PreviewEntry) {
-        withAnimation(.smooth(duration: Self.transitionDuration)) { stack.append(entry) }
+        withAnimation(.smooth(duration: Self.transitionDuration)) {
+            stack.append(entry)
+
+            if stack.count > Self.maxStackSize {
+                stack.removeFirst(stack.count - Self.maxStackSize)
+            }
+        }
     }
 }

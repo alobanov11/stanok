@@ -4,26 +4,95 @@ import Foundation
 @MainActor
 final class FileWatcher {
 
-    private final class Context: Sendable {
+    private final class Context: @unchecked Sendable {
 
-        let handler: @Sendable ([String]) -> Void
+        let generation: Int
 
-        init(handler: @escaping @Sendable ([String]) -> Void) {
-            self.handler = handler
+        private let lock = NSLock()
+
+        private let scheduleDelivery: @Sendable () -> Void
+
+        private var pendingDirectories: Set<URL> = []
+
+        private var pendingNeedsFullRescan = false
+
+        private var deliveryScheduled = false
+
+        init(generation: Int, scheduleDelivery: @escaping @Sendable () -> Void) {
+            self.generation = generation
+            self.scheduleDelivery = scheduleDelivery
+        }
+
+        func record(_ paths: [String], flags: [FSEventStreamEventFlags]) {
+            let rescanMask = FSEventStreamEventFlags(
+                kFSEventStreamEventFlagMustScanSubDirs
+                    | kFSEventStreamEventFlagUserDropped
+                    | kFSEventStreamEventFlagKernelDropped
+            )
+
+            lock.lock()
+            for (index, path) in paths.enumerated() {
+                if flags[index] & rescanMask != 0 {
+                    pendingNeedsFullRescan = true
+                    continue
+                }
+
+                let url = URL(filePath: path)
+                guard !FileWatcher.isIgnored(url) else { continue }
+
+                pendingDirectories.insert(url.deletingLastPathComponent())
+            }
+
+            let alreadyScheduled = deliveryScheduled
+            deliveryScheduled = true
+            lock.unlock()
+
+            guard !alreadyScheduled else { return }
+
+            scheduleDelivery()
+        }
+
+        func drain() -> (directories: Set<URL>, needsFullRescan: Bool) {
+            lock.lock()
+            defer { lock.unlock() }
+
+            let directories = pendingDirectories
+            let needsFullRescan = pendingNeedsFullRescan
+            pendingDirectories.removeAll()
+            pendingNeedsFullRescan = false
+            deliveryScheduled = false
+            return (directories, needsFullRescan)
         }
     }
 
-    private static let ignored: Set<String> = [
+    private enum ContextMemory {
+
+        static let retain: @convention(c) (UnsafeRawPointer?) -> UnsafeRawPointer? = { info in
+            guard let info else { return nil }
+
+            let value = Unmanaged<Context>.fromOpaque(info).takeUnretainedValue()
+            return UnsafeRawPointer(Unmanaged.passRetained(value).toOpaque())
+        }
+
+        static let release: @convention(c) (UnsafeRawPointer?) -> Void = { info in
+            guard let info else { return }
+
+            _ = Unmanaged<Context>.fromOpaque(info).takeRetainedValue()
+        }
+    }
+
+    private nonisolated static let ignored: Set<String> = [
         ".git", "node_modules", ".build", "DerivedData", ".next", ".venv", "Pods", ".zig-cache"
     ]
 
-    private static let callback: FSEventStreamCallback = { _, info, _, paths, _, _ in
+    private static let callback: FSEventStreamCallback = { _, info, count, paths, flags, _ in
         guard
             let info,
             let list = unsafeBitCast(paths, to: NSArray.self) as? [String]
         else { return }
 
-        Unmanaged<Context>.fromOpaque(info).takeUnretainedValue().handler(list)
+        let eventFlags = Array(UnsafeBufferPointer(start: flags, count: count))
+        Unmanaged<Context>.fromOpaque(info).takeUnretainedValue().record(list, flags: eventFlags)
     }
 
     private let onChange: (Set<URL>) -> Void
@@ -36,27 +105,35 @@ final class FileWatcher {
 
     private var flush: Task<Void, Never>?
 
+    private var nextGeneration = 0
+
+    private var watchedRoot: URL?
+
     init(onChange: @escaping (Set<URL>) -> Void) {
         self.onChange = onChange
     }
 
-    private static func isIgnored(_ url: URL) -> Bool {
+    private nonisolated static func isIgnored(_ url: URL) -> Bool {
         url.pathComponents.contains { ignored.contains($0) }
     }
 
     func watch(_ url: URL) {
         stop()
 
-        let context = Context { [weak self] paths in
-            Task { @MainActor in self?.received(paths) }
+        nextGeneration += 1
+        let currentGeneration = nextGeneration
+        watchedRoot = url
+
+        let context = Context(generation: currentGeneration) { [weak self] in
+            Task { @MainActor in self?.deliver(generation: currentGeneration) }
         }
         self.context = context
 
         var streamContext = FSEventStreamContext(
             version: 0,
             info: Unmanaged.passUnretained(context).toOpaque(),
-            retain: nil,
-            release: nil,
+            retain: ContextMemory.retain,
+            release: ContextMemory.release,
             copyDescription: nil
         )
 
@@ -76,16 +153,30 @@ final class FileWatcher {
             flags
         )
 
-        guard let stream else { return }
+        guard let stream else {
+            self.context = nil
+            return
+        }
 
         FSEventStreamSetDispatchQueue(stream, DispatchQueue.global(qos: .utility))
-        FSEventStreamStart(stream)
+
+        guard FSEventStreamStart(stream) else {
+            Log.terminal.error(
+                "failed to start FSEventStream at \(url.path(percentEncoded: false))"
+            )
+            FSEventStreamInvalidate(stream)
+            FSEventStreamRelease(stream)
+            self.stream = nil
+            self.context = nil
+            return
+        }
     }
 
     func stop() {
         flush?.cancel()
         flush = nil
         pending.removeAll()
+        context = nil
 
         guard let stream else { return }
 
@@ -93,18 +184,18 @@ final class FileWatcher {
         FSEventStreamInvalidate(stream)
         FSEventStreamRelease(stream)
         self.stream = nil
-        context = nil
     }
 
-    private func received(_ paths: [String]) {
-        for path in paths {
-            let url = URL(filePath: path)
-            guard !Self.isIgnored(url) else { continue }
+    private func deliver(generation delivered: Int) {
+        guard let context, context.generation == delivered else { return }
 
-            pending.insert(url.deletingLastPathComponent())
+        let (directories, needsFullRescan) = context.drain()
+        guard !directories.isEmpty || needsFullRescan else { return }
+
+        pending.formUnion(directories)
+        if needsFullRescan, let watchedRoot {
+            pending.insert(watchedRoot)
         }
-
-        guard !pending.isEmpty else { return }
 
         flush?.cancel()
         flush = Task { [weak self] in
