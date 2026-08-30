@@ -5,7 +5,7 @@ struct FilePanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            FileTree(url: url, onOpen: onOpen)
+            FileTree(url: url, selected: $selected, onOpen: onOpen)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -24,6 +24,9 @@ struct FilePanel: View {
     }
 
     let url: URL?
+
+    @Binding
+    var selected: URL?
 
     let onOpen: (URL) -> Void
 

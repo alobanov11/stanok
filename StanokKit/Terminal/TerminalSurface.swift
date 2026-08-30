@@ -11,6 +11,8 @@ struct TerminalSurface: NSViewRepresentable {
 
     let onCommandFinished: (CommandRun) -> Void
 
+    let onOpenURL: (String) -> Void
+
     static func dismantleNSView(_ view: GhosttySurfaceView, coordinator: ()) {
         view.shutdown()
     }
@@ -23,12 +25,14 @@ struct TerminalSurface: NSViewRepresentable {
             workingDirectory: workingDirectory
         )
         view.onCommandFinished = onCommandFinished
+        view.onOpenURL = onOpenURL
         runtime.register(view)
         return view
     }
 
     func updateNSView(_ view: GhosttySurfaceView, context: Context) {
         view.onCommandFinished = onCommandFinished
+        view.onOpenURL = onOpenURL
         view.setActive(isActive)
     }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 public struct WorkspaceView<Terminal: View>: View {
@@ -46,10 +47,10 @@ public struct WorkspaceView<Terminal: View>: View {
     private var git = GitStatusStore()
 
     @State
-    private var preview: FilePreview?
+    private var navigator = PreviewNavigator()
 
     @State
-    private var request = UUID()
+    private var selectedFile: URL?
 
     public var body: some View {
         HStack(spacing: 0) {
@@ -64,6 +65,7 @@ public struct WorkspaceView<Terminal: View>: View {
                 .padding(.leading, isSidebarExpanded ? 0 : WorkspaceLayout.inset)
                 .padding(.trailing, WorkspaceLayout.inset)
                 .padding(.vertical, WorkspaceLayout.inset)
+                .environment(\.openURL, OpenURLAction(handler: handleLink))
 
             if isFilesExpanded {
                 files
@@ -77,6 +79,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .frame(minWidth: 880, minHeight: 520)
         .task { selectFirstIfNeeded() }
         .task(id: selection) { await git.refresh(selectedRepository) }
+        .onChange(of: selectedRepository?.id) { _, _ in resetPreview() }
         .onChange(of: selection) { _, new in
             guard let new else { return }
 
@@ -91,7 +94,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var files: some View {
-        FilePanel(url: selectedRepository?.url, onOpen: open)
+        FilePanel(url: selectedRepository?.url, selected: $selectedFile, onOpen: open)
             .frame(width: WorkspaceLayout.filesWidth)
             .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
             .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
@@ -124,10 +127,14 @@ public struct WorkspaceView<Terminal: View>: View {
             ForEach(store.repositories) { repository in
                 ForEach(repository.sessions) { session in
                     if live.contains(session.id) {
-                        terminal(repository, session, isVisible(session)) {
-                            model.record($0)
-                            Task { await git.refresh(repository) }
-                        }
+                        terminal(
+                            repository,
+                            session,
+                            isVisible(session),
+                            { model.record($0)
+                                Task { await git.refresh(repository) } },
+                            { openTerminalLink($0) }
+                        )
                         .opacity(isVisible(session) ? 1 : 0)
                         .allowsHitTesting(isVisible(session))
                     }
@@ -143,8 +150,8 @@ public struct WorkspaceView<Terminal: View>: View {
                 terminals
             }
 
-            if let preview {
-                previewLayer(preview)
+            if let entry = navigator.current {
+                previewLayer(entry)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -156,7 +163,8 @@ public struct WorkspaceView<Terminal: View>: View {
         Repository,
         TerminalSession,
         Bool,
-        @escaping (CommandRun) -> Void
+        @escaping (CommandRun) -> Void,
+        @escaping (String) -> Void
     ) -> Terminal
 
     public init(
@@ -164,41 +172,110 @@ public struct WorkspaceView<Terminal: View>: View {
             Repository,
             TerminalSession,
             Bool,
-            @escaping (CommandRun) -> Void
+            @escaping (CommandRun) -> Void,
+            @escaping (String) -> Void
         ) -> Terminal
     ) {
         self.terminal = terminal
     }
 
-    private func previewLayer(_ preview: FilePreview) -> some View {
-        PreviewPanel(preview: preview)
-            .background {
-                WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius)
+    @ViewBuilder
+    private func previewLayer(_ entry: PreviewEntry) -> some View {
+        Group {
+            switch entry {
+            case let .file(preview):
+                PreviewPanel(
+                    preview: preview,
+                    leadingInset: headerLeading,
+                    previousName: navigator.previousName
+                )
+
+            case let .web(preview):
+                WebPreviewPanel(
+                    preview: preview,
+                    leadingInset: headerLeading,
+                    previousName: navigator.previousName
+                )
             }
-            .overlay(alignment: .topTrailing) { closeButton }
-            .zIndex(1)
-            .transition(.opacity)
+        }
+        .background {
+            WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius)
+        }
+        .overlay(alignment: .topTrailing) { closeButton }
+        .zIndex(1)
+        .transition(.opacity)
+    }
+
+    private static func contains(_ root: URL, _ candidate: URL) -> Bool {
+        let base = root.standardizedFileURL.path(percentEncoded: false)
+        let target = candidate.standardizedFileURL.path(percentEncoded: false)
+        guard target != base else { return true }
+
+        return target.hasPrefix(base.hasSuffix("/") ? base : base + "/")
+    }
+
+    private static func resolvedURL(from raw: String) -> URL? {
+        if let url = URL(string: raw), url.scheme != nil { return url }
+
+        return URL(fileURLWithPath: raw)
     }
 
     private func isVisible(_ session: TerminalSession) -> Bool {
-        session.id == selection && preview == nil
+        session.id == selection && navigator.current == nil
     }
 
     private func open(_ url: URL) {
-        let token = UUID()
-        request = token
+        reveal(url)
 
         Task {
-            let loaded = await FilePreviewLoader.load(url)
-            guard request == token else { return }
-
-            withAnimation(.smooth(duration: 0.18)) { preview = loaded }
+            await navigator.openFile(url)
         }
     }
 
+    private func reveal(_ url: URL) {
+        guard
+            let repository = selectedRepository,
+            Self.contains(repository.url, url)
+        else { return }
+
+        selectedFile = url
+        guard !isFilesExpanded else { return }
+
+        withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { isFilesExpanded = true }
+    }
+
+    private func route(_ url: URL) {
+        if url.scheme == "http" || url.scheme == "https" {
+            navigator.openWeb(url)
+            return
+        }
+
+        guard url.isFileURL else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+
+        open(URL(fileURLWithPath: url.path))
+    }
+
+    private func handleLink(_ url: URL) -> OpenURLAction.Result {
+        route(url)
+        return .handled
+    }
+
+    private func openTerminalLink(_ raw: String) {
+        guard let url = Self.resolvedURL(from: raw) else { return }
+
+        route(url)
+    }
+
     private func closePreview() {
-        request = UUID()
-        withAnimation(.smooth(duration: 0.18)) { preview = nil }
+        navigator.pop()
+    }
+
+    private func resetPreview() {
+        navigator.clear()
+        selectedFile = nil
     }
 
     private func toggleSidebar() {

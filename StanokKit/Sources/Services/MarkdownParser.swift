@@ -16,7 +16,7 @@ enum MarkdownParser {
         let isHeader: Bool
     }
 
-    static func blocks(from markdown: String) -> [MarkdownBlock] {
+    static func blocks(from markdown: String, baseURL: URL? = nil) -> [MarkdownBlock] {
         guard
             let parsed = try? AttributedString(
                 markdown: markdown,
@@ -24,7 +24,8 @@ enum MarkdownParser {
                     allowsExtendedAttributes: true,
                     interpretedSyntax: .full,
                     failurePolicy: .returnPartiallyParsedIfPossible
-                )
+                ),
+                baseURL: baseURL
             )
         else { return [] }
 

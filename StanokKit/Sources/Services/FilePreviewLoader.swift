@@ -47,7 +47,11 @@ enum FilePreviewLoader {
             )
         }
 
-        guard values?.isRegularFile == true else { return preview(.unreadable) }
+        guard values?.isRegularFile == true else {
+            let exists = FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+            return preview(exists ? .unreadable : .failed("Файл не найден"))
+        }
+
         guard let handle = try? FileHandle(forReadingFrom: url) else {
             return preview(.failed("Нет доступа к файлу"))
         }
@@ -62,7 +66,8 @@ enum FilePreviewLoader {
         guard let text = decode(data) else { return preview(.unreadable) }
 
         if markdownExtensions.contains(url.pathExtension.lowercased()) {
-            return preview(.markdown(MarkdownParser.blocks(from: text)))
+            let baseURL = url.deletingLastPathComponent()
+            return preview(.markdown(MarkdownParser.blocks(from: text, baseURL: baseURL)))
         }
 
         let lines = text.components(separatedBy: .newlines)

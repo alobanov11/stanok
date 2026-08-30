@@ -69,6 +69,22 @@ final class FileNode: Identifiable {
         return nil
     }
 
+    func reveal(_ target: URL) -> FileNode? {
+        let normalized = target.standardizedFileURL
+        if url.standardizedFileURL == normalized { return self }
+
+        guard isDirectory, contains(normalized) else { return nil }
+
+        expand()
+        guard let children else { return nil }
+
+        for child in children {
+            if let found = child.reveal(normalized) { return found }
+        }
+
+        return nil
+    }
+
     func reload() {
         guard let children else { return }
 
@@ -84,6 +100,13 @@ final class FileNode: Identifiable {
         guard isExpanded, children == nil else { return }
 
         children = rebuild(reusing: [:])
+    }
+
+    private func contains(_ target: URL) -> Bool {
+        let base = url.standardizedFileURL.path(percentEncoded: false)
+        let path = target.path(percentEncoded: false)
+
+        return path.hasPrefix(base.hasSuffix("/") ? base : base + "/")
     }
 
     private func rebuild(reusing existing: [URL: FileNode]) -> [FileNode] {

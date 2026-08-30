@@ -54,24 +54,43 @@ public final class GhosttyRuntime {
             }
         }
         runtime.action_cb = { _, target, action in
-            guard
-                action.tag == GHOSTTY_ACTION_COMMAND_FINISHED,
-                target.tag == GHOSTTY_TARGET_SURFACE
-            else {
+            guard target.tag == GHOSTTY_TARGET_SURFACE else { return false }
+
+            switch action.tag {
+            case GHOSTTY_ACTION_COMMAND_FINISHED:
+                let finished = action.action.command_finished
+                return MainActor.assumeIsolated {
+                    guard
+                        let surface = target.target.surface,
+                        let view = GhosttySurfaceView.from(surface: surface)
+                    else { return false }
+
+                    view.onCommandFinished?(
+                        CommandRun(
+                            exitCode: finished.exit_code,
+                            durationNanoseconds: finished.duration
+                        )
+                    )
+                    return true
+                }
+
+            case GHOSTTY_ACTION_OPEN_URL:
+                let openURL = action.action.open_url
+                guard let pointer = openURL.url else { return false }
+
+                let link = String(cString: pointer)
+                return MainActor.assumeIsolated {
+                    guard
+                        let surface = target.target.surface,
+                        let view = GhosttySurfaceView.from(surface: surface)
+                    else { return false }
+
+                    view.onOpenURL?(link)
+                    return true
+                }
+
+            default:
                 return false
-            }
-
-            let finished = action.action.command_finished
-            return MainActor.assumeIsolated {
-                guard
-                    let surface = target.target.surface,
-                    let view = GhosttySurfaceView.from(surface: surface)
-                else { return false }
-
-                view.onCommandFinished?(
-                    CommandRun(exitCode: finished.exit_code, durationNanoseconds: finished.duration)
-                )
-                return true
             }
         }
         runtime.read_clipboard_cb = { userdata, _, state in

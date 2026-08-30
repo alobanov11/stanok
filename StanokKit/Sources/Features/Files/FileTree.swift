@@ -20,13 +20,13 @@ struct FileTree: View {
 
     let url: URL?
 
+    @Binding
+    var selected: URL?
+
     let onOpen: (URL) -> Void
 
     @State
     private var model = FileTreeModel()
-
-    @State
-    private var selected: URL?
 
     @State
     private var prompt: FilePrompt?
@@ -48,15 +48,18 @@ struct FileTree: View {
     @ViewBuilder
     private var content: some View {
         if let root = model.root {
-            ScrollView {
-                LazyVStack(spacing: 1) {
-                    ForEach(root.visibleDescendants) { row($0) }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 1) {
+                        ForEach(root.visibleDescendants) { row($0) }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 10)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .contextMenu { rootMenu(root) }
+                .onChange(of: selected) { _, target in reveal(target, in: root, proxy: proxy) }
             }
-            .contextMenu { rootMenu(root) }
         } else {
             placeholder
         }
@@ -75,18 +78,32 @@ struct FileTree: View {
     }
 
     private func row(_ node: FileNode) -> some View {
-        FileRow(node: node, isSelected: node.url == selected)
-            .onTapGesture {
-                selected = node.url
+        FileRow(
+            node: node,
+            isSelected: node.url == selected,
+            newFile: { ask(.newFile, at: container(of: node)) },
+            rename: { ask(.rename, at: node.url) },
+            delete: { perform { try FileOperations.trash(node.url) } }
+        )
+        .onTapGesture {
+            selected = node.url
 
-                guard node.isDirectory else {
-                    onOpen(node.url)
-                    return
-                }
-
-                withAnimation(.smooth(duration: 0.2)) { node.toggle() }
+            guard node.isDirectory else {
+                onOpen(node.url)
+                return
             }
-            .contextMenu { menu(node) }
+
+            withAnimation(.smooth(duration: 0.2)) { node.toggle() }
+        }
+        .contextMenu { menu(node) }
+    }
+
+    private func reveal(_ target: URL?, in root: FileNode, proxy: ScrollViewProxy) {
+        guard let target, let node = root.reveal(target) else { return }
+
+        withAnimation(.smooth(duration: 0.2)) {
+            proxy.scrollTo(node.url, anchor: .center)
+        }
     }
 
     @ViewBuilder
