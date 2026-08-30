@@ -40,6 +40,7 @@ final class GhosttySurfaceView: NSView {
             return
         }
 
+        window.makeFirstResponder(self)
         applyScale(window.backingScaleFactor)
         applySize(bounds.size, scale: window.backingScaleFactor)
 
@@ -74,6 +75,28 @@ final class GhosttySurfaceView: NSView {
         return super.resignFirstResponder()
     }
 
+    override func keyDown(with event: NSEvent) {
+        send(event, action: GHOSTTY_ACTION_PRESS)
+    }
+
+    override func keyUp(with event: NSEvent) {
+        send(event, action: GHOSTTY_ACTION_RELEASE)
+    }
+
+    override func flagsChanged(with event: NSEvent) {
+        send(event, action: GHOSTTY_ACTION_PRESS)
+    }
+
+    private static func mods(from flags: NSEvent.ModifierFlags) -> ghostty_input_mods_e {
+        var raw = GHOSTTY_MODS_NONE.rawValue
+        if flags.contains(.shift) { raw |= GHOSTTY_MODS_SHIFT.rawValue }
+        if flags.contains(.control) { raw |= GHOSTTY_MODS_CTRL.rawValue }
+        if flags.contains(.option) { raw |= GHOSTTY_MODS_ALT.rawValue }
+        if flags.contains(.command) { raw |= GHOSTTY_MODS_SUPER.rawValue }
+        if flags.contains(.capsLock) { raw |= GHOSTTY_MODS_CAPS.rawValue }
+        return ghostty_input_mods_e(raw)
+    }
+
     func shutdown() {
         link?.invalidate()
         link = nil
@@ -88,6 +111,29 @@ final class GhosttySurfaceView: NSView {
     private func render() {
         guard let surface else { return }
         ghostty_surface_draw(surface)
+    }
+
+    private func send(_ event: NSEvent, action: ghostty_input_action_e) {
+        guard let surface else { return }
+
+        var key = ghostty_input_key_s()
+        key.action = action
+        key.keycode = UInt32(event.keyCode)
+        key.mods = Self.mods(from: event.modifierFlags)
+        key.consumed_mods = GHOSTTY_MODS_NONE
+        key.composing = false
+        key.unshifted_codepoint = event.charactersIgnoringModifiers?.unicodeScalars.first?.value ?? 0
+
+        let text = event.type == .keyDown ? (event.characters ?? "") : ""
+        if text.isEmpty {
+            key.text = nil
+            _ = ghostty_surface_key(surface, key)
+        } else {
+            text.withCString { pointer in
+                key.text = pointer
+                _ = ghostty_surface_key(surface, key)
+            }
+        }
     }
 
     private func applyScale(_ scale: CGFloat) {
