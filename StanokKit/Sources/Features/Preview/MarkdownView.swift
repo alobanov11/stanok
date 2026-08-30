@@ -125,6 +125,12 @@ struct MarkdownView: View {
         }
     }
 
+    private static func isContinuation(_ kind: MarkdownBlock.Kind) -> Bool {
+        if case .continuation = kind { return true }
+
+        return false
+    }
+
     private static func isTable(_ kind: MarkdownBlock.Kind) -> Bool {
         if case .tableRow = kind { return true }
 
@@ -165,6 +171,7 @@ struct MarkdownView: View {
         if let level = Self.heading(current) { return level <= 2 ? 26 : 18 }
         if Self.heading(previous) != nil { return 7 }
         if Self.isTable(previous), Self.isTable(current) { return 0 }
+        if Self.isContinuation(previous) || Self.isContinuation(current) { return 8 }
         if Self.isList(previous), Self.isList(current) {
             return Self.depth(of: current) < Self.depth(of: previous) ? 14 : 5
         }

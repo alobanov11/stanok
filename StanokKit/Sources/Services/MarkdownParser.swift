@@ -77,12 +77,59 @@ enum MarkdownParser {
             row = nil
 
             if let block = block(blocks.count, leaf, &lastItem) {
-                blocks.append(block)
+                blocks.append(contentsOf: split(block, from: blocks.count))
             }
         }
 
         flush(&blocks, &cells, row)
         return blocks
+    }
+
+    private static func lines(of text: AttributedString) -> [AttributedString] {
+        var parts: [AttributedString] = []
+        var start = text.startIndex
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            let next = text.characters.index(after: index)
+            if text.characters[index].isNewline {
+                parts.append(AttributedString(text[start..<index]))
+                start = next
+            }
+            index = next
+        }
+
+        parts.append(AttributedString(text[start..<text.endIndex]))
+        return parts.filter { !$0.characters.isEmpty }
+    }
+
+    private static func split(_ block: MarkdownBlock, from id: Int) -> [MarkdownBlock] {
+        switch block.kind {
+        case .code, .divider, .tableRow: return [block]
+        default: break
+        }
+
+        let parts = lines(of: block.text)
+        guard parts.count > 1 else { return [block] }
+
+        let tail = continuation(after: block.kind)
+        return parts.enumerated().map { offset, text in
+            MarkdownBlock(
+                id: id + offset,
+                kind: offset == 0 ? block.kind : tail,
+                text: text,
+                isQuoted: block.isQuoted
+            )
+        }
+    }
+
+    private static func continuation(after kind: MarkdownBlock.Kind) -> MarkdownBlock.Kind {
+        switch kind {
+        case let .bullet(depth): .continuation(depth: depth)
+        case let .numbered(_, depth): .continuation(depth: depth)
+        case let .continuation(depth): .continuation(depth: depth)
+        default: .paragraph
+        }
     }
 
     private static func flush(
