@@ -39,22 +39,16 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2AA02F930446886008EA09A /* Stanok */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = Stanok;
 			sourceTree = "<group>";
 		};
 		E2AA030730446888008EA09A /* StanokTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StanokTests;
 			sourceTree = "<group>";
 		};
 		E2AA031130446888008EA09A /* StanokUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StanokUITests;
 			sourceTree = "<group>";
 		};
@@ -261,25 +255,6 @@
 
 /* Begin PBXShellScriptBuildPhase section */
 		B20134EDF402F6F91C261028 /* SwiftLint */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = SwiftLint;
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.\nfor candidate in /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint; do\n  if [ -x \"$candidate\" ]; then\n    exec \"$candidate\" lint --quiet\n  fi\ndone\necho \"warning: swiftlint not found — run: brew install swiftlint\"\n";
-		};
-		EC77BED465832CF420F529B3 /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
