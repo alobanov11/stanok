@@ -11,7 +11,7 @@ import SwiftUI
 struct StanokApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            WorkspaceView()
         }
     }
 }

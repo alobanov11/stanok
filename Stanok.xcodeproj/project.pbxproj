@@ -29,7 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0074BC03542AF9469D479EBF /* GhosttyKit.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; name = GhosttyKit.xcframework; path = .build/ghostty/GhosttyKit.xcframework; sourceTree = "<group>"; };
+		0074BC03542AF9469D479EBF /* GhosttyKit.xcframework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.xcframework; name = GhosttyKit.xcframework; path = .build/ghostty/GhosttyKit.xcframework; sourceTree = "<group>"; };
 		68DD610276F8434E15A59EB6 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/Carbon.framework; sourceTree = DEVELOPER_DIR; };
 		E2AA02F730446886008EA09A /* Stanok.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Stanok.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2AA030430446888008EA09A /* StanokTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StanokTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -39,22 +39,16 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2AA02F930446886008EA09A /* Stanok */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = Stanok;
 			sourceTree = "<group>";
 		};
 		E2AA030730446888008EA09A /* StanokTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StanokTests;
 			sourceTree = "<group>";
 		};
 		E2AA031130446888008EA09A /* StanokUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = StanokUITests;
 			sourceTree = "<group>";
 		};
