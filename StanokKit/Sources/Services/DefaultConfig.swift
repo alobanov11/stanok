@@ -19,7 +19,7 @@ public enum DefaultConfig {
         background-opacity = 0
         scrollback-limit = 2000000
 
-        input = "source \(AppPaths.shellInit.path(percentEncoded: false))\\n"
+        input = " source \(AppPaths.shellInit.path(percentEncoded: false))\\n"
         """
     }
 
