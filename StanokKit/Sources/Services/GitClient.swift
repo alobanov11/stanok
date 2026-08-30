@@ -10,9 +10,21 @@ public enum GitClient {
     }
 
     public static func status(for url: URL) async -> GitStatus? {
-        let path = url.path(percentEncoded: false)
-        guard let branch = await run(["branch", "--show-current"], at: path) else { return nil }
+        guard let snapshot = await snapshot(for: url) else { return nil }
 
+        return GitStatus(branch: snapshot.branch, added: snapshot.added, removed: snapshot.removed)
+    }
+
+    public static func snapshot(for url: URL) async -> GitSnapshot? {
+        let path = url.path(percentEncoded: false)
+
+        guard let root = await run(["rev-parse", "--show-toplevel"], at: path), !root.isEmpty
+        else { return nil }
+
+        guard let gitDirectory = await run(["rev-parse", "--absolute-git-dir"], at: path)
+        else { return nil }
+
+        let branch = await run(["branch", "--show-current"], at: path) ?? ""
         let hasCommit = await run(["rev-parse", "--verify", "HEAD"], at: path) != nil
         let diffArguments = hasCommit
             ? ["diff", "HEAD", "--numstat", "-z", "--ignore-submodules=all"]
@@ -22,10 +34,16 @@ public enum GitClient {
         let (diffAdded, removed) = parseNumstat(numstat)
         let untracked = await untrackedAddedLines(at: path, root: url)
 
-        return GitStatus(
+        let statusData = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
+
+        return GitSnapshot(
             branch: branch.isEmpty ? nil : branch,
+            isDetached: branch.isEmpty,
+            root: root,
+            gitDirectory: gitDirectory,
             added: diffAdded + untracked,
-            removed: removed
+            removed: removed,
+            changes: GitStatusParser.parse(statusData ?? Data())
         )
     }
 
@@ -91,6 +109,17 @@ public enum GitClient {
     }
 
     private static func run(_ arguments: [String]) async -> String? {
+        guard let data = await runRaw(arguments), let text = String(data: data, encoding: .utf8)
+        else { return nil }
+
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func runRaw(_ arguments: [String], at path: String) async -> Data? {
+        await runRaw(["--no-optional-locks", "-C", path] + arguments)
+    }
+
+    private static func runRaw(_ arguments: [String]) async -> Data? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .utility).async {
                 let process = Process()
@@ -109,9 +138,7 @@ public enum GitClient {
                         continuation.resume(returning: nil)
                         return
                     }
-                    let text = String(decoding: data, as: UTF8.self)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    continuation.resume(returning: text)
+                    continuation.resume(returning: data)
                 } catch {
                     continuation.resume(returning: nil)
                 }
