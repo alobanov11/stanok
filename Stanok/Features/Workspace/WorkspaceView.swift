@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct WorkspaceView: View {
+
     var body: some View {
         VStack(spacing: 8) {
             Text("stanok").font(.largeTitle.weight(.semibold))

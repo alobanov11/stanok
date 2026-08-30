@@ -1,0 +1,144 @@
+included:
+  - Stanok
+  - StanokTests
+  - StanokUITests
+
+excluded:
+  - .build
+  - build
+  - DerivedData
+  - ThirdParty
+
+disabled_rules:
+  - orphaned_doc_comment
+  - vertical_whitespace_opening_braces
+  - comment_spacing
+  - nesting
+  - todo
+  - switch_case_alignment
+  - attributes
+  - function_parameter_count
+
+opt_in_rules:
+  - type_contents_order
+  - one_declaration_per_file
+  - file_name
+  - array_init
+  - convenience_type
+  - discouraged_object_literal
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - enum_case_associated_values_count
+  - fatal_error_message
+  - first_where
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - last_where
+  - legacy_random
+  - overridden_super_call
+  - strict_fileprivate
+  - yoda_condition
+
+type_contents_order:
+  severity: error
+  order:
+    - [case]
+    - [type_alias, associated_type]
+    - [subtype]
+    - [type_property]
+    - [instance_property]
+    - [ib_inspectable, ib_outlet]
+    - [initializer]
+    - [type_method]
+    - [view_life_cycle_method]
+    - [ib_action]
+    - [other_method]
+    - [subscript]
+    - [deinitializer]
+
+one_declaration_per_file:
+  severity: error
+
+file_name:
+  severity: error
+
+force_cast: warning
+force_try: warning
+
+function_body_length:
+  warning: 150
+
+type_body_length:
+  warning: 400
+  error: 600
+
+legacy_hashing: error
+
+identifier_name:
+  min_length: 2
+  max_length: 60
+  excluded:
+    - i
+    - j
+    - x
+    - y
+    - z
+  allowed_symbols: ["_"]
+
+type_name:
+  min_length: 3
+  max_length: 50
+  allowed_symbols: "_"
+
+cyclomatic_complexity:
+  ignores_case_statements: true
+
+file_length:
+  warning: 600
+  ignore_comment_only_lines: true
+
+line_length:
+  warning: 200
+  ignores_urls: true
+  ignores_function_declarations: true
+  ignores_comments: true
+
+private_over_fileprivate:
+  validate_extensions: true
+
+trailing_whitespace:
+  ignores_empty_lines: true
+  ignores_comments: true
+
+vertical_whitespace:
+  max_empty_lines: 2
+
+generic_type_name:
+  min_length: 1
+  max_length: 30
+
+large_tuple:
+  warning: 3
+  error: 5
+
+empty_count:
+  only_after_dot: true
+
+reporter: "xcode"
+
+custom_rules:
+  blank_line_after_type_brace:
+    name: "Blank line after type brace"
+    regex: '(?:struct|class|enum|protocol|extension|actor)\s+[^\n]*\{[ \t]*\n[ \t]*(?!\})\S'
+    message: "Add a blank line after the opening brace of a type."
+    severity: error
+
+  no_code_comments:
+    name: "No code comments"
+    regex: '(//|/\*)(?!\s*swiftlint:)'
+    match_kinds:
+      - comment
+      - doccomment
+    message: "Make the code say it — comments go stale."
+    severity: error

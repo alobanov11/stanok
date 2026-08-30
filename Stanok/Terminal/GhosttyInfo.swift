@@ -2,11 +2,12 @@ import Foundation
 import GhosttyKit
 
 enum GhosttyInfo {
+
     static var version: String {
         let info = ghostty_info()
         guard let pointer = info.version else { return "unknown" }
-        let bytes = UnsafeBufferPointer(start: pointer, count: Int(info.version_len))
-        return String(decoding: bytes.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+        let data = Data(bytes: pointer, count: Int(info.version_len))
+        return String(data: data, encoding: .utf8) ?? "unknown"
     }
 
     static var buildMode: String {

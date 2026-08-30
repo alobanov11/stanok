@@ -1,17 +1,12 @@
-//
-//  StanokTests.swift
-//  StanokTests
-//
-//  Created by Антон Лобанов on 30.08.2026.
-//
-
 import Testing
+
 @testable import Stanok
 
 struct StanokTests {
 
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+    @Test
+    func ghosttyReportsAVersion() {
+        #expect(GhosttyInfo.version != "unknown")
+        #expect(GhosttyInfo.buildMode == "release-fast")
     }
-
 }
