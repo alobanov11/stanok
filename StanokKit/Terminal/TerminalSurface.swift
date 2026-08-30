@@ -1,8 +1,7 @@
-import GhosttyKit
 import StanokKit
 import SwiftUI
 
-struct TerminalView: NSViewRepresentable {
+struct TerminalSurface: NSViewRepresentable {
 
     let runtime: GhosttyRuntime
 

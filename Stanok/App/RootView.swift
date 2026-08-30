@@ -1,4 +1,5 @@
 import StanokKit
+import StanokTerminal
 import SwiftUI
 
 struct RootView: View {

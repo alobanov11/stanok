@@ -15,7 +15,6 @@
 ```sh
 git submodule update --init --recursive
 ./scripts/build-ghostty.sh   # GhosttyKit.xcframework -> .build/ghostty/
-./scripts/link-ghostty.rb    # подключает его к таргету (Xcode должен быть закрыт)
 ```
 
 Затем открыть `Stanok.xcodeproj` и собрать схему `Stanok`.

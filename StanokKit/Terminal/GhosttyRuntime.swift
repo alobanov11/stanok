@@ -6,7 +6,7 @@ import StanokKit
 
 @MainActor
 @Observable
-final class GhosttyRuntime {
+public final class GhosttyRuntime {
 
     enum Failure: Error {
 
@@ -26,7 +26,7 @@ final class GhosttyRuntime {
     @ObservationIgnored
     private let surfaces = NSHashTable<GhosttySurfaceView>.weakObjects()
 
-    init() throws {
+    public init() throws {
         let status = ghostty_init(0, nil)
         guard status == 0 else { throw Failure.initialization(status) }
 
@@ -140,11 +140,7 @@ final class GhosttyRuntime {
         }
     }
 
-    func register(_ view: GhosttySurfaceView) {
-        surfaces.add(view)
-    }
-
-    func reloadConfig() {
+    public func reloadConfig() {
         guard let handle = Self.loadConfig() else { return }
 
         ghostty_app_update_config(app, handle)
@@ -153,6 +149,10 @@ final class GhosttyRuntime {
         }
         config = GhosttyConfig(handle: handle)
         Log.terminal.info("config reloaded")
+    }
+
+    func register(_ view: GhosttySurfaceView) {
+        surfaces.add(view)
     }
 
     func tick() {

@@ -14,7 +14,7 @@ phase.shell_script = <<~SH
   # Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.
   for candidate in /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint; do
     if [ -x "$candidate" ]; then
-      exec "$candidate" lint --quiet --force-exclude --use-alternative-excluding Stanok StanokKit/Sources
+      exec "$candidate" lint --quiet --force-exclude --use-alternative-excluding Stanok StanokKit/Sources StanokKit/Terminal
     fi
   done
   echo "warning: swiftlint not found — run: brew install swiftlint"

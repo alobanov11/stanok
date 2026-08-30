@@ -306,20 +306,12 @@ final class GhosttySurfaceView: NSView {
     private func applySize(_ size: NSSize) {
         guard let surface, size.width > 1, size.height > 1 else { return }
 
-        let scale = backingScale
         let backing = convertToBacking(NSRect(origin: .zero, size: size)).size
         ghostty_surface_set_size(
             surface,
             UInt32(max(backing.width, 1)),
             UInt32(max(backing.height, 1))
         )
-
-        let metrics = ghostty_surface_size(surface)
-        let cellWidth = Double(metrics.cell_width_px) / scale
-        let cellHeight = Double(metrics.cell_height_px) / scale
-        let grid = "\(metrics.columns)x\(metrics.rows)"
-        let cell = "\(cellWidth)x\(cellHeight)pt"
-        Log.terminal.info("grid \(grid) cell \(cell) scale \(scale)")
     }
 
 }
