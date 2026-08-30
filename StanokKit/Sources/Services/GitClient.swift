@@ -2,23 +2,92 @@ import Foundation
 
 public enum GitClient {
 
-    public static func status(for url: URL) async -> GitStatus? {
-        let path = url.path(percentEncoded: false)
-        guard let branch = await run(["-C", path, "rev-parse", "--abbrev-ref", "HEAD"])
-        else { return nil }
+    private enum Limit {
 
-        let shortstat = await run(["-C", path, "diff", "--shortstat"]) ?? ""
-        let (added, removed) = parse(shortstat)
-        return GitStatus(branch: branch.isEmpty ? nil : branch, added: added, removed: removed)
+        static let untrackedFileSize = 1_000_000
+        static let untrackedEntryCap = 2000
+        static let binarySniffSize = 8192
     }
 
-    private static func parse(_ shortstat: String) -> (added: Int, removed: Int) {
+    public static func status(for url: URL) async -> GitStatus? {
+        let path = url.path(percentEncoded: false)
+        guard let branch = await run(["branch", "--show-current"], at: path) else { return nil }
+
+        let hasCommit = await run(["rev-parse", "--verify", "HEAD"], at: path) != nil
+        let diffArguments = hasCommit
+            ? ["diff", "HEAD", "--numstat", "-z", "--ignore-submodules=all"]
+            : ["diff", "--cached", "--numstat", "-z", "--ignore-submodules=all"]
+
+        let numstat = await run(diffArguments, at: path) ?? ""
+        let (diffAdded, removed) = parseNumstat(numstat)
+        let untracked = await untrackedAddedLines(at: path, root: url)
+
+        return GitStatus(
+            branch: branch.isEmpty ? nil : branch,
+            added: diffAdded + untracked,
+            removed: removed
+        )
+    }
+
+    private static func parseNumstat(_ raw: String) -> (added: Int, removed: Int) {
+        let chunks = raw.split(separator: "\0", omittingEmptySubsequences: false)
         var added = 0
         var removed = 0
+        var index = 0
 
-        if let match = shortstat.firstMatch(of: /(\d+) insertion/) { added = Int(match.1) ?? 0 }
-        if let match = shortstat.firstMatch(of: /(\d+) deletion/) { removed = Int(match.1) ?? 0 }
+        while index < chunks.count {
+            let chunk = chunks[index]
+            index += 1
+            guard !chunk.isEmpty else { continue }
+
+            let fields = chunk.split(separator: "\t", omittingEmptySubsequences: false)
+            guard fields.count >= 2 else { continue }
+
+            if fields[0] != "-", fields[1] != "-" {
+                added += Int(fields[0]) ?? 0
+                removed += Int(fields[1]) ?? 0
+            }
+
+            if fields.count == 3, fields[2].isEmpty { index += 2 }
+        }
+
         return (added, removed)
+    }
+
+    private static func untrackedAddedLines(at path: String, root: URL) async -> Int {
+        let output = await run(["status", "--porcelain=v2", "-z", "-uall"], at: path) ?? ""
+        let paths = output
+            .split(separator: "\0", omittingEmptySubsequences: true)
+            .compactMap { entry in entry.hasPrefix("? ") ? String(entry.dropFirst(2)) : nil }
+
+        guard paths.count <= Limit.untrackedEntryCap else { return 0 }
+
+        return paths.reduce(0) { $0 + lineCount(at: root.appending(path: $1)) }
+    }
+
+    private static func lineCount(at url: URL) -> Int {
+        let values = try? url.resourceValues(forKeys: [.fileSizeKey])
+        guard let size = values?.fileSize, size > 0, size <= Limit.untrackedFileSize else {
+            return 0
+        }
+
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return 0 }
+
+        defer { try? handle.close() }
+
+        guard let head = try? handle.read(upToCount: Limit.binarySniffSize), !head.contains(0)
+        else { return 0 }
+
+        let tail = (try? handle.readToEnd()) ?? Data()
+        let headLines = head.lazy.count(where: { $0 == 0x0A })
+        let tailLines = tail.lazy.count(where: { $0 == 0x0A })
+        let lastByte = tail.last ?? head.last
+
+        return lastByte == 0x0A ? headLines + tailLines : headLines + tailLines + 1
+    }
+
+    private static func run(_ arguments: [String], at path: String) async -> String? {
+        await run(["--no-optional-locks", "-C", path] + arguments)
     }
 
     private static func run(_ arguments: [String]) async -> String? {

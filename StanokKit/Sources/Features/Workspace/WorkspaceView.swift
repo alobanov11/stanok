@@ -124,9 +124,12 @@ public struct WorkspaceView<Terminal: View>: View {
             ForEach(store.repositories) { repository in
                 ForEach(repository.sessions) { session in
                     if live.contains(session.id) {
-                        terminal(repository, session, isVisible(session)) { model.record($0) }
-                            .opacity(isVisible(session) ? 1 : 0)
-                            .allowsHitTesting(isVisible(session))
+                        terminal(repository, session, isVisible(session)) {
+                            model.record($0)
+                            Task { await git.refresh(repository) }
+                        }
+                        .opacity(isVisible(session) ? 1 : 0)
+                        .allowsHitTesting(isVisible(session))
                     }
                 }
             }
