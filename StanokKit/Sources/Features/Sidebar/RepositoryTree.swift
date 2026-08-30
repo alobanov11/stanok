@@ -52,54 +52,16 @@ struct RepositoryTree: View {
                 }
             }
 
-            SidebarToolbar(
-                canAddSession: selectedRepository != nil,
-                addRepository: pickRepository,
-                addSession: { addSession(to: selectedRepository) }
-            )
+            SidebarToolbar(addRepository: pickRepository)
         }
-    }
-
-    private var selectedRepository: Repository? {
-        selection.flatMap { store.repository(hosting: $0) } ?? store.repositories.first
     }
 
     private func repositoryRow(_ repository: Repository) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: repository.isReachable ? "folder" : "exclamationmark.triangle")
-                .font(.system(size: 12))
-                .frame(width: 16)
-                .foregroundStyle(repository
-                    .isReachable ? AnyShapeStyle(.secondary) : AnyShapeStyle(.orange)
-                )
-
-            Text(repository.name)
-                .font(.system(size: 13, weight: .medium))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(repository
-                    .isReachable ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary)
-                )
-
-            Spacer(minLength: 4)
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.tertiary)
-                .rotationEffect(.degrees(repository.isExpanded ? 90 : 0))
-                .frame(width: 12)
-        }
-        .padding(.leading, 10)
-        .padding(.trailing, 8)
-        .padding(.vertical, 7)
-        .contentShape(.rect(cornerRadius: 10))
-        .onTapGesture {
-            withAnimation(.smooth(duration: 0.22)) {
-                store.toggleExpansion(repository.id)
-            }
-        }
-        .help(repository.isReachable ? repository.url
-            .path(percentEncoded: false) : "Папка недоступна"
+        RepositoryRow(
+            repository: repository,
+            toggle: { toggleExpansion(repository) },
+            addSession: { addSession(to: repository) },
+            remove: { store.remove(repository) }
         )
         .contextMenu {
             Button("Открыть в Finder") {
@@ -119,7 +81,8 @@ struct RepositoryTree: View {
             isSelected: session.id == selection,
             isMuted: !repository.isReachable,
             isLive: live.contains(session.id),
-            indent: 20
+            indent: 20,
+            close: { closeSession(session) }
         )
         .onTapGesture {
             selection = session.id
@@ -132,6 +95,16 @@ struct RepositoryTree: View {
                 store.removeSession(session.id)
             }
         }
+    }
+
+    private func toggleExpansion(_ repository: Repository) {
+        withAnimation(.smooth(duration: 0.22)) { store.toggleExpansion(repository.id) }
+    }
+
+    private func closeSession(_ session: TerminalSession) {
+        if selection == session.id { selection = nil }
+
+        withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
     }
 
     private func addSession(to repository: Repository?) {

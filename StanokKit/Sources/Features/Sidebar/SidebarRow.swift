@@ -19,6 +19,8 @@ struct SidebarRow: View {
                 .truncationMode(.middle)
 
             Spacer(minLength: 0)
+
+            RowAction(icon: "xmark", hint: "Закрыть терминал", isVisible: isHovering, action: close)
         }
         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
         .foregroundStyle(isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
@@ -30,6 +32,9 @@ struct SidebarRow: View {
             in: .rect(cornerRadius: 10, style: .continuous)
         )
         .contentShape(.rect(cornerRadius: 10))
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
+        }
     }
 
     let icon: String
@@ -43,5 +48,10 @@ struct SidebarRow: View {
     let isLive: Bool
 
     let indent: CGFloat
+
+    let close: () -> Void
+
+    @State
+    private var isHovering = false
 
 }

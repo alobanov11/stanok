@@ -6,20 +6,13 @@ struct SidebarToolbar: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             button("folder.badge.plus", action: addRepository)
 
-            button("rectangle.badge.plus", action: addSession)
-                .disabled(!canAddSession)
-
             Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }
 
-    let canAddSession: Bool
-
     let addRepository: () -> Void
-
-    let addSession: () -> Void
 
     private func button(_ icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
