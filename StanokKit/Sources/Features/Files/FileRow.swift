@@ -84,7 +84,9 @@ struct FileRow: View {
         .padding(.trailing, 10)
         .padding(.vertical, 4)
         .background(
-            isSelected ? AnyShapeStyle(.white.opacity(0.12)) : AnyShapeStyle(.clear),
+            isDropTarget
+                ? AnyShapeStyle(Color.accentColor.opacity(0.28))
+                : isSelected ? AnyShapeStyle(.white.opacity(0.12)) : AnyShapeStyle(.clear),
             in: .rect(cornerRadius: 8, style: .continuous)
         )
         .contentShape(.rect(cornerRadius: 8))
@@ -106,6 +108,8 @@ struct FileRow: View {
     let status: GitFileStatus?
 
     let isSelected: Bool
+
+    var isDropTarget = false
 
     let actions: Actions?
 

@@ -8,7 +8,7 @@ enum FileOperations {
 
         var errorDescription: String? {
             switch self {
-            case .intoItself: "Нельзя вставить папку внутрь себя"
+            case .intoItself: "Нельзя поместить папку внутрь себя"
             }
         }
     }
@@ -37,19 +37,33 @@ enum FileOperations {
 
     static func copy(_ urls: [URL], into directory: URL) throws {
         for url in urls {
-            guard !contains(url, directory) else { throw Failure.intoItself }
+            guard !isNested(directory, inside: url) else { throw Failure.intoItself }
 
             let target = available(named: url.lastPathComponent, in: directory)
             try FileManager.default.copyItem(at: url, to: target)
         }
     }
 
-    private static func contains(_ parent: URL, _ child: URL) -> Bool {
-        let root = parent.standardizedFileURL.path(percentEncoded: false)
-        let nested = child.standardizedFileURL.path(percentEncoded: false)
-        guard root != nested else { return true }
+    static func move(_ urls: [URL], into directory: URL) throws {
+        for url in urls {
+            guard !isNested(directory, inside: url) else { throw Failure.intoItself }
 
-        return nested.hasPrefix(root.hasSuffix("/") ? root : root + "/")
+            let parent = url.deletingLastPathComponent().standardizedFileURL
+            guard parent != directory.standardizedFileURL else { continue }
+
+            let target = available(named: url.lastPathComponent, in: directory)
+            try FileManager.default.moveItem(at: url, to: target)
+        }
+    }
+
+    static func isNested(_ candidate: URL, inside root: URL) -> Bool {
+        let base = root.standardizedFileURL.resolvingSymlinksInPath()
+            .path(percentEncoded: false)
+        let path = candidate.standardizedFileURL.resolvingSymlinksInPath()
+            .path(percentEncoded: false)
+        guard base != path else { return true }
+
+        return path.hasPrefix(base.hasSuffix("/") ? base : base + "/")
     }
 
     private static func available(named name: String, in directory: URL) -> URL {

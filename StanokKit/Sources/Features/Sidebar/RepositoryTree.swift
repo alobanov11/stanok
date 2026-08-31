@@ -51,6 +51,11 @@ struct RepositoryTree: View {
                         .padding(.top, 60)
                 }
             }
+            .dropDestination(for: URL.self) { items, _ in
+                for url in items.reversed() where isDirectory(url) {
+                    selection = store.add(url)?.id ?? selection
+                }
+            }
 
             SidebarToolbar(addRepository: pickRepository)
         }
@@ -121,5 +126,11 @@ struct RepositoryTree: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         selection = store.add(url)?.id ?? selection
+    }
+
+    private func isDirectory(_ url: URL) -> Bool {
+        var flag: ObjCBool = false
+        let path = url.path(percentEncoded: false)
+        return FileManager.default.fileExists(atPath: path, isDirectory: &flag) && flag.boolValue
     }
 }

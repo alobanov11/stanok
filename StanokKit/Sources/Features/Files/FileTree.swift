@@ -31,6 +31,8 @@ struct FileTree: View {
                 }
                 .contextMenu { rootMenu(root) }
                 .onChange(of: selected) { _, target in reveal(target, in: root, proxy: proxy) }
+                .dragContainer(for: URL.self, itemID: \.self, in: dragNamespace) { $0 }
+                .dragConfiguration(dragConfiguration)
             }
         } else {
             placeholder
@@ -57,6 +59,13 @@ struct FileTree: View {
         Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
     }
 
+    private var dragConfiguration: DragConfiguration {
+        DragConfiguration(
+            operationsWithinApp: .init(allowCopy: true, allowMove: true, allowDelete: false),
+            operationsOutsideApp: .init(allowCopy: true, allowMove: false, allowDelete: false)
+        )
+    }
+
     let model: FileTreeModel
 
     let snapshot: GitSnapshot?
@@ -66,6 +75,9 @@ struct FileTree: View {
 
     let onOpen: (URL) -> Void
 
+    @Namespace
+    private var dragNamespace
+
     @State
     private var prompt: FilePrompt?
 
@@ -74,6 +86,18 @@ struct FileTree: View {
 
     @State
     private var failure: String?
+
+    @State
+    private var dropTarget: URL?
+
+    @State
+    private var dropOperation = DropOperation.copy
+
+    @State
+    private var expandTarget: URL?
+
+    @State
+    private var expandTask: Task<Void, Never>?
 
     private func status(for node: FileNode) -> GitFileStatus? {
         guard let snapshot else { return nil }
@@ -94,6 +118,7 @@ struct FileTree: View {
             depth: node.depth,
             status: status(for: node),
             isSelected: node.url == selected,
+            isDropTarget: node.url == dropTarget,
             actions: FileRow.Actions(
                 newFile: { ask(.newFile, at: container(of: node)) },
                 rename: { ask(.rename, at: node.url) },
@@ -111,6 +136,94 @@ struct FileTree: View {
             withAnimation(.smooth(duration: 0.2)) { node.toggle() }
         }
         .contextMenu { menu(node) }
+        .draggable(containerItemID: node.url, containerNamespace: dragNamespace)
+        .dropDestination(for: URL.self, isEnabled: true) { items, _ in
+            handleDrop(items, onto: node)
+        }
+        .dropConfiguration { session in dropConfiguration(for: node, session: session) }
+        .onDropSessionUpdated { session in sessionUpdated(session, for: node) }
+    }
+
+    private func dropConfiguration(for node: FileNode, session: DropSession) -> DropConfiguration {
+        let target = container(of: node)
+
+        guard let localSession = session.localSession else {
+            dropOperation = .copy
+            return DropConfiguration(operation: .copy)
+        }
+
+        let sources = localSession.draggedItemIDs(for: URL.self)
+        guard !sources.isEmpty, sources.allSatisfy({ !FileOperations.isNested(target, inside: $0) })
+        else {
+            return DropConfiguration(operation: .forbidden)
+        }
+
+        let operation: DropOperation = session.suggestedOperations.contains(.move) ? .move : .copy
+        if operation == .move {
+            let normalizedTarget = target.standardizedFileURL
+            let redundant = sources.allSatisfy {
+                $0.deletingLastPathComponent().standardizedFileURL == normalizedTarget
+            }
+            guard !redundant else { return DropConfiguration(operation: .forbidden) }
+        }
+
+        dropOperation = operation
+        return DropConfiguration(operation: operation)
+    }
+
+    private func sessionUpdated(_ session: DropSession, for node: FileNode) {
+        switch session.phase {
+        case .entering, .active:
+            dropTarget = node.url
+            scheduleExpansion(for: node)
+
+        case .exiting, .ended, .dataTransferCompleted:
+            if dropTarget == node.url { dropTarget = nil }
+            cancelExpansion(for: node)
+
+        default:
+            break
+        }
+    }
+
+    private func scheduleExpansion(for node: FileNode) {
+        guard node.isDirectory, !node.isExpanded else { return }
+        guard expandTarget != node.url else { return }
+
+        expandTask?.cancel()
+        expandTarget = node.url
+
+        expandTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled, expandTarget == node.url else { return }
+
+            withAnimation(.smooth(duration: 0.2)) { node.expand() }
+        }
+    }
+
+    private func cancelExpansion(for node: FileNode) {
+        guard expandTarget == node.url else { return }
+
+        expandTask?.cancel()
+        expandTask = nil
+        expandTarget = nil
+    }
+
+    private func handleDrop(_ items: [URL], onto node: FileNode) {
+        let sources = items.filter(\.isFileURL)
+        guard !sources.isEmpty else { return }
+
+        let target = container(of: node)
+        let operation = dropOperation
+        let succeeded = perform {
+            switch operation {
+            case .move: try FileOperations.move(sources, into: target)
+            default: try FileOperations.copy(sources, into: target)
+            }
+        }
+
+        dropTarget = nil
+        if succeeded, let last = sources.last { selected = last }
     }
 
     private func reveal(_ target: URL?, in root: FileNode, proxy: ScrollViewProxy) {
@@ -197,11 +310,14 @@ struct FileTree: View {
         }
     }
 
-    private func perform(_ action: () throws -> Void) {
+    @discardableResult
+    private func perform(_ action: () throws -> Void) -> Bool {
         do {
             try action()
+            return true
         } catch {
             failure = error.localizedDescription
+            return false
         }
     }
 }
