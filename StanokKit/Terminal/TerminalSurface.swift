@@ -9,7 +9,9 @@ struct TerminalSurface: NSViewRepresentable {
 
     let processLabel: String
 
-    let isActive: Bool
+    let isVisible: Bool
+
+    let isFocused: Bool
 
     let insertRequest: TerminalInsertRequest?
 
@@ -22,6 +24,8 @@ struct TerminalSurface: NSViewRepresentable {
     let onCloseRequested: (Bool) -> Void
 
     let onPwdChanged: (String) -> Void
+
+    let onFocused: () -> Void
 
     static func dismantleNSView(_ view: GhosttySurfaceView, coordinator: ()) {
         view.shutdown()
@@ -40,6 +44,7 @@ struct TerminalSurface: NSViewRepresentable {
         view.onTitleChanged = onTitleChanged
         view.onCloseRequested = onCloseRequested
         view.onPwdChanged = onPwdChanged
+        view.onFocused = onFocused
         runtime.register(view)
         view.apply(insertRequest: insertRequest)
         return view
@@ -51,7 +56,9 @@ struct TerminalSurface: NSViewRepresentable {
         view.onTitleChanged = onTitleChanged
         view.onCloseRequested = onCloseRequested
         view.onPwdChanged = onPwdChanged
-        view.setActive(isActive)
+        view.onFocused = onFocused
+        view.setVisible(isVisible)
+        view.setFocused(isFocused)
         view.apply(insertRequest: insertRequest)
     }
 }

@@ -4,6 +4,10 @@ import Foundation
 @Observable
 public final class SessionStore {
 
+    public var roots: [TerminalSession] {
+        sessions.filter { $0.parentID == nil }
+    }
+
     public private(set) var sessions: [TerminalSession] = []
 
     public private(set) var selectedSessionID: TerminalSession.ID?
@@ -33,9 +37,55 @@ public final class SessionStore {
         return session
     }
 
-    public func removeSession(_ sessionID: TerminalSession.ID) {
-        sessions.removeAll { $0.id == sessionID }
+    @discardableResult
+    public func splitSession(
+        _ sessionID: TerminalSession.ID,
+        direction: SplitDirection
+    ) -> TerminalSession? {
+        guard
+            let source = session(for: sessionID),
+            let root = root(of: sessionID),
+            let rootIndex = sessions.firstIndex(where: { $0.id == root.id })
+        else { return nil }
+
+        let layout = root.layout ?? .leaf(root.id)
+        guard layout.contains(sessionID) else { return nil }
+
+        let pane = TerminalSession(
+            name: "shell \(sessions.count + 1)",
+            url: source.url,
+            parentID: root.id
+        )
+
+        sessions[rootIndex].layout = layout.inserting(pane.id, direction, near: sessionID)
+        sessions.append(pane)
         save()
+        return pane
+    }
+
+    public func removeSession(_ sessionID: TerminalSession.ID) {
+        guard let session = session(for: sessionID) else { return }
+
+        if session.parentID == nil {
+            removeRoot(session)
+        } else {
+            removePane(session)
+        }
+
+        save()
+    }
+
+    public func root(of sessionID: TerminalSession.ID) -> TerminalSession? {
+        guard let session = session(for: sessionID) else { return nil }
+        guard let parentID = session.parentID else { return session }
+
+        return self.session(for: parentID)
+    }
+
+    public func panes(of root: TerminalSession) -> [TerminalSession] {
+        guard let layout = root.layout else { return [root] }
+
+        return layout.leafIDs.compactMap { id in sessions.first { $0.id == id } }
     }
 
     public func setLiveTitle(_ title: String?, for sessionID: TerminalSession.ID) {
@@ -80,6 +130,47 @@ public final class SessionStore {
         guard let sessionID else { return nil }
 
         return sessions.first { $0.id == sessionID }
+    }
+
+    private func removePane(_ pane: TerminalSession) {
+        sessions.removeAll { $0.id == pane.id }
+
+        guard
+            let parentID = pane.parentID,
+            let parentIndex = sessions.firstIndex(where: { $0.id == parentID })
+        else { return }
+
+        sessions[parentIndex].layout = pruned(
+            sessions[parentIndex].layout?.removing(pane.id),
+            soleLeaf: parentID
+        )
+    }
+
+    private func removeRoot(_ root: TerminalSession) {
+        let remaining = root.layout?.removing(root.id)
+        sessions.removeAll { $0.id == root.id }
+
+        guard
+            let remaining,
+            let heirID = remaining.leafIDs.first,
+            let heirIndex = sessions.firstIndex(where: { $0.id == heirID })
+        else {
+            sessions.removeAll { $0.parentID == root.id }
+            return
+        }
+
+        sessions[heirIndex].parentID = nil
+        sessions[heirIndex].layout = pruned(remaining, soleLeaf: heirID)
+
+        for index in sessions.indices where sessions[index].parentID == root.id {
+            sessions[index].parentID = heirID
+        }
+    }
+
+    private func pruned(_ layout: SplitLayout?, soleLeaf: UUID) -> SplitLayout? {
+        guard let layout, layout != .leaf(soleLeaf) else { return nil }
+
+        return layout
     }
 
     private func load() {

@@ -32,20 +32,22 @@ struct RootView: View {
     @ViewBuilder
     private var content: some View {
         if let runtime {
-            WorkspaceView { session, active, insert, finished, openURL, title, close, pwd in
+            WorkspaceView { request in
                 TerminalView(
                     runtime: runtime,
-                    workingDirectory: session.url,
-                    processLabel: session.id.uuidString,
-                    isActive: active,
-                    insertRequest: insert,
-                    onCommandFinished: finished,
-                    onOpenURL: openURL,
-                    onTitleChanged: title,
-                    onCloseRequested: close,
-                    onPwdChanged: pwd
+                    workingDirectory: request.session.url,
+                    processLabel: request.session.id.uuidString,
+                    isVisible: request.isVisible,
+                    isFocused: request.isFocused,
+                    insertRequest: request.insertRequest,
+                    onCommandFinished: request.onCommandFinished,
+                    onOpenURL: request.onOpenURL,
+                    onTitleChanged: request.onTitleChanged,
+                    onCloseRequested: request.onCloseRequested,
+                    onPwdChanged: request.onPwdChanged,
+                    onFocused: request.onFocused
                 )
-                .id(session.id)
+                .id(request.session.id)
             }
             .environment(\.agentSessionRegistry, agents)
             .fontDesign(.rounded)

@@ -2,53 +2,74 @@ import SwiftUI
 
 struct TerminalHeader: View {
 
-    private var badgeBackground: AnyShapeStyle {
-        filesMode == .all
-            ? AnyShapeStyle(.white.opacity(0.14))
-            : AnyShapeStyle(.white.opacity(0.05))
-    }
-
-    private var branchBackground: AnyShapeStyle {
-        filesMode == .branches
-            ? AnyShapeStyle(.white.opacity(0.14))
-            : AnyShapeStyle(.white.opacity(0.05))
-    }
-
-    private var changesBackground: AnyShapeStyle {
-        filesMode == .changes
-            ? AnyShapeStyle(.white.opacity(0.14))
-            : AnyShapeStyle(.white.opacity(0.05))
-    }
-
     private var hasChanges: Bool {
         status?.hasChanges ?? false
     }
 
+    private var badgeBackground: AnyShapeStyle {
+        AnyShapeStyle(.white.opacity(0.05))
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if let session {
-                folderBadge((session.liveDirectory ?? session.url).lastPathComponent)
-            }
+            folderBadge((session.liveDirectory ?? session.url).lastPathComponent)
 
-            if let branch = status?.branch {
+            if let status, let branch = status.branch {
                 branchBadge(branch)
-                changesBadge()
+
+                if status.hasChanges {
+                    changesBadge(status)
+                }
             }
 
             Spacer(minLength: 0)
         }
         .padding(.leading, leadingInset)
-        .padding(.trailing, 14)
+        .padding(.trailing, 48)
         .frame(height: WorkspaceLayout.headerHeight)
+        .overlay(alignment: .trailing) {
+            actionsMenu
+                .padding(.trailing, 12)
+        }
     }
 
-    let session: TerminalSession?
+    private var actionsMenu: some View {
+        Menu {
+            Menu("Добавить") {
+                Button("Снизу") { split(.bottom) }
+
+                Button("Справа") { split(.trailing) }
+
+                Button("Слева") { split(.leading) }
+
+                Button("Сверху") { split(.top) }
+            }
+
+            Button("Новый терминал", action: newTerminal)
+
+            Button("Закрыть", role: .destructive, action: close)
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 24, height: 20)
+                .contentShape(.capsule)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("Действия с терминалом")
+    }
+
+    let session: TerminalSession
 
     let status: GitStatus?
 
     let leadingInset: CGFloat
 
     let filesMode: FilePanelMode?
+
+    let isBusy: Bool
 
     let selectAll: () -> Void
 
@@ -60,7 +81,11 @@ struct TerminalHeader: View {
 
     let discardChanges: () -> Void
 
-    let isBusy: Bool
+    let split: (SplitDirection) -> Void
+
+    let newTerminal: () -> Void
+
+    let close: () -> Void
 
     private func folderBadge(_ name: String) -> some View {
         Button(action: selectAll) {
@@ -78,7 +103,7 @@ struct TerminalHeader: View {
             )
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(badgeBackground, in: .capsule)
+            .background(background(for: .all), in: .capsule)
             .contentShape(.capsule)
         }
         .buttonStyle(.plain)
@@ -90,28 +115,20 @@ struct TerminalHeader: View {
             busyLabel(branch)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(branchBackground, in: .capsule)
+                .background(background(for: .branches), in: .capsule)
                 .contentShape(.capsule)
         }
         .buttonStyle(.plain)
         .help(filesMode == .branches ? "Скрыть ветки" : "Показать ветки")
     }
 
-    private func changesBadge() -> some View {
+    private func changesBadge(_ status: GitStatus) -> some View {
         Button(action: selectChanges) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "plusminus")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-
-                if let status, status.hasChanges {
-                    counters(status)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(changesBackground, in: .capsule)
-            .contentShape(.capsule)
+            counters(status)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(background(for: .changes), in: .capsule)
+                .contentShape(.capsule)
         }
         .buttonStyle(.plain)
         .help(filesMode == .changes ? "Скрыть изменения" : "Показать изменения")
@@ -129,11 +146,8 @@ struct TerminalHeader: View {
     }
 
     private func counters(_ status: GitStatus) -> some View {
-        var added = AttributedString("+\(status.added)")
-        added.foregroundColor = .green
-
-        var removed = AttributedString("−\(status.removed)")
-        removed.foregroundColor = .red
+        let added = attributed("+\(status.added)", .green)
+        let removed = attributed("−\(status.removed)", .red)
 
         return Text(added + AttributedString("  ") + removed)
             .font(.system(size: 11))
@@ -187,4 +201,15 @@ struct TerminalHeader: View {
         .font(.system(size: 11))
         .foregroundStyle(.secondary)
     }
+
+    private func background(for mode: FilePanelMode) -> AnyShapeStyle {
+        filesMode == mode ? AnyShapeStyle(.white.opacity(0.14)) : badgeBackground
+    }
+
+    private func attributed(_ text: String, _ color: Color) -> AttributedString {
+        var value = AttributedString(text)
+        value.foregroundColor = color
+        return value
+    }
+
 }

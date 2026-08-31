@@ -43,6 +43,14 @@ final class FileTreeModel {
         startWatcher(at: url, gitDirectory: gitDirectory)
     }
 
+    func close() {
+        watcher?.stop()
+        watcher = nil
+        currentGitDirectory = nil
+        onGitChange = nil
+        root = nil
+    }
+
     func updateGitDirectory(_ gitDirectory: String?) {
         guard let root, gitDirectory != currentGitDirectory else { return }
 

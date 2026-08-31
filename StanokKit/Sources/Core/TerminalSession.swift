@@ -8,6 +8,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         case name
         case url
         case workspace
+        case parentID
+        case layout
     }
 
     public var displayName: String { liveTitle ?? name }
@@ -24,6 +26,10 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
 
     public var workspace: WorkspaceState
 
+    public var parentID: UUID?
+
+    public var layout: SplitLayout?
+
     public var liveTitle: String?
 
     public var liveDirectory: URL?
@@ -33,6 +39,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         name: String,
         url: URL,
         workspace: WorkspaceState = WorkspaceState(),
+        parentID: UUID? = nil,
+        layout: SplitLayout? = nil,
         liveTitle: String? = nil,
         liveDirectory: URL? = nil
     ) {
@@ -40,6 +48,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         self.name = name
         self.url = url
         self.workspace = workspace
+        self.parentID = parentID
+        self.layout = layout
         self.liveTitle = liveTitle
         self.liveDirectory = liveDirectory
     }
@@ -50,6 +60,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         self.name = try container.decode(String.self, forKey: .name)
         self.url = try container.decode(URL.self, forKey: .url)
         self.workspace = try container.decode(WorkspaceState.self, forKey: .workspace)
+        self.parentID = try container.decodeIfPresent(UUID.self, forKey: .parentID)
+        self.layout = try container.decodeIfPresent(SplitLayout.self, forKey: .layout)
         self.liveTitle = nil
         self.liveDirectory = nil
     }
@@ -59,5 +71,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
             && lhs.name == rhs.name
             && lhs.url == rhs.url
             && lhs.workspace == rhs.workspace
+            && lhs.parentID == rhs.parentID
+            && lhs.layout == rhs.layout
     }
 }

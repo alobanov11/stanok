@@ -9,11 +9,17 @@ enum WorkspaceGeometry {
     }
 
     static var outsideLeading: CGFloat {
-        WorkspaceLayout.sidebarWidth - WorkspaceLayout.toggleWidth - WorkspaceLayout.toggleGap
+        WorkspaceLayout.sidebarWidth
+            - controlWidth(sidebarExpanded: true)
+            - WorkspaceLayout.toggleGap
     }
 
     static var toggleTop: CGFloat {
         WorkspaceLayout.inset + (WorkspaceLayout.headerHeight - WorkspaceLayout.toggleHeight) / 2
+    }
+
+    static func controlWidth(sidebarExpanded: Bool) -> CGFloat {
+        sidebarExpanded ? WorkspaceLayout.toggleWidth * 2 : WorkspaceLayout.toggleWidth
     }
 
     static func toggleLeading(sidebarExpanded: Bool) -> CGFloat {

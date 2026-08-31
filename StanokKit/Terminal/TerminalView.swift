@@ -8,13 +8,15 @@ public struct TerminalView: View {
             runtime: runtime,
             workingDirectory: workingDirectory,
             processLabel: processLabel,
-            isActive: isActive,
+            isVisible: isVisible,
+            isFocused: isFocused,
             insertRequest: insertRequest,
             onCommandFinished: onCommandFinished,
             onOpenURL: onOpenURL,
             onTitleChanged: onTitleChanged,
             onCloseRequested: onCloseRequested,
-            onPwdChanged: onPwdChanged
+            onPwdChanged: onPwdChanged,
+            onFocused: onFocused
         )
     }
 
@@ -24,7 +26,9 @@ public struct TerminalView: View {
 
     private let processLabel: String
 
-    private let isActive: Bool
+    private let isVisible: Bool
+
+    private let isFocused: Bool
 
     private let insertRequest: TerminalInsertRequest?
 
@@ -38,27 +42,33 @@ public struct TerminalView: View {
 
     private let onPwdChanged: (String) -> Void
 
+    private let onFocused: () -> Void
+
     public init(
         runtime: GhosttyRuntime,
         workingDirectory: URL?,
         processLabel: String,
-        isActive: Bool,
+        isVisible: Bool,
+        isFocused: Bool,
         insertRequest: TerminalInsertRequest? = nil,
         onCommandFinished: @escaping (CommandRun) -> Void,
         onOpenURL: @escaping (String) -> Void,
         onTitleChanged: @escaping (String) -> Void = { _ in },
         onCloseRequested: @escaping (Bool) -> Void = { _ in },
-        onPwdChanged: @escaping (String) -> Void = { _ in }
+        onPwdChanged: @escaping (String) -> Void = { _ in },
+        onFocused: @escaping () -> Void = {}
     ) {
         self.runtime = runtime
         self.workingDirectory = workingDirectory
         self.processLabel = processLabel
-        self.isActive = isActive
+        self.isVisible = isVisible
+        self.isFocused = isFocused
         self.insertRequest = insertRequest
         self.onCommandFinished = onCommandFinished
         self.onOpenURL = onOpenURL
         self.onTitleChanged = onTitleChanged
         self.onCloseRequested = onCloseRequested
         self.onPwdChanged = onPwdChanged
+        self.onFocused = onFocused
     }
 }

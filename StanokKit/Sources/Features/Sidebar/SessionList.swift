@@ -3,6 +3,8 @@ import SwiftUI
 
 struct SessionList: View {
 
+    private static let paneIndent: CGFloat = 20
+
     let store: SessionStore
 
     let live: Set<TerminalSession.ID>
@@ -12,6 +14,8 @@ struct SessionList: View {
     let insertAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
 
     let copyAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
+
+    let closeSession: (TerminalSession) -> Void
 
     @Binding
     var selection: TerminalSession.ID?
@@ -32,28 +36,23 @@ struct SessionList: View {
                 }
                 .padding(.horizontal, 8)
             }
-            .overlay(alignment: .bottom) { bottomFade }
+            .mask { bottomFade }
 
             SidebarToolbar(filterText: $chatFilter)
         }
     }
 
     private var bottomFade: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0),
-                        .init(color: .black.opacity(0.5), location: 0.55),
-                        .init(color: .black, location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .frame(height: 36)
-            .allowsHitTesting(false)
+        VStack(spacing: 0) {
+            Color.black
+
+            LinearGradient(
+                colors: [.black, .black.opacity(0)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 28)
+        }
     }
 
     private var emptyState: some View {
@@ -72,11 +71,15 @@ struct SessionList: View {
 
     @ViewBuilder
     private var shells: some View {
-        if store.sessions.isEmpty {
+        if store.roots.isEmpty {
             emptyState
         } else {
-            ForEach(store.sessions) { session in
-                sessionRow(session)
+            ForEach(store.roots) { root in
+                sessionRow(root, indent: 0)
+
+                ForEach(store.panes(of: root).filter { $0.id != root.id }) { pane in
+                    sessionRow(pane, indent: SessionList.paneIndent)
+                }
             }
         }
     }
@@ -105,14 +108,14 @@ struct SessionList: View {
         insertAgentCommand(session.resumeAction, target)
     }
 
-    private func sessionRow(_ session: TerminalSession) -> some View {
+    private func sessionRow(_ session: TerminalSession, indent: CGFloat) -> some View {
         SidebarRow(
             icon: "apple.terminal",
             title: session.displayName,
             isSelected: session.id == selection,
             isMuted: !session.isReachable,
             isLive: live.contains(session.id),
-            indent: 0,
+            indent: indent,
             close: { closeSession(session) }
         )
         .onTapGesture { selection = session.id }
@@ -125,21 +128,6 @@ struct SessionList: View {
             }
             Button("Закрыть терминал", role: .destructive) { closeSession(session) }
         }
-    }
-
-    private func closeSession(_ session: TerminalSession) {
-        if selection == session.id { selection = neighbour(of: session.id)?.id }
-
-        withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
-    }
-
-    private func neighbour(of sessionID: TerminalSession.ID) -> TerminalSession? {
-        guard let index = store.sessions.firstIndex(where: { $0.id == sessionID })
-        else { return nil }
-
-        let after = store.sessions[store.sessions.index(after: index)...].first
-
-        return after ?? store.sessions[..<index].last
     }
 
     private func addSession(at url: URL) {

@@ -1,12 +1,26 @@
 import SwiftUI
 
-public typealias TerminalBuilder<Terminal: View> = (
-    TerminalSession,
-    Bool,
-    TerminalInsertRequest?,
-    @escaping (CommandRun) -> Void,
-    @escaping (String) -> Void,
-    @escaping (String) -> Void,
-    @escaping (Bool) -> Void,
-    @escaping (String) -> Void
-) -> Terminal
+public struct TerminalRequest {
+
+    public let session: TerminalSession
+
+    public let isVisible: Bool
+
+    public let isFocused: Bool
+
+    public let insertRequest: TerminalInsertRequest?
+
+    public let onCommandFinished: (CommandRun) -> Void
+
+    public let onOpenURL: (String) -> Void
+
+    public let onTitleChanged: (String) -> Void
+
+    public let onCloseRequested: (Bool) -> Void
+
+    public let onPwdChanged: (String) -> Void
+
+    public let onFocused: () -> Void
+}
+
+public typealias TerminalBuilder<Terminal: View> = (TerminalRequest) -> Terminal

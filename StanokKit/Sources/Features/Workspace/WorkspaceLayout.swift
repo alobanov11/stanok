@@ -14,7 +14,7 @@ enum WorkspaceLayout {
 
     static let minimumSplitWidth: CGFloat = 1000
 
-    static let sidebarTopInset: CGFloat = 54
+    static let sidebarTopInset: CGFloat = 68
 
     static let filesWidth: CGFloat = 300
 
@@ -27,6 +27,8 @@ enum WorkspaceLayout {
     static let toggleGap: CGFloat = 10
 
     static let headerHeight: CGFloat = 48
+
+    static let unfocusedPaneOpacity: CGFloat = 0.7
 
     static let toggleClearance: CGFloat = 40
 

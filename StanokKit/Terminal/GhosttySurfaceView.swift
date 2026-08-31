@@ -25,6 +25,8 @@ final class GhosttySurfaceView: NSView {
 
     var onPwdChanged: ((String) -> Void)?
 
+    var onFocused: (() -> Void)?
+
     private var tracking: NSTrackingArea?
 
     private var desiredCursor = NSCursor.iBeam
@@ -33,7 +35,9 @@ final class GhosttySurfaceView: NSView {
 
     private var link: CADisplayLink?
 
-    private var isActive = false
+    private var isVisible = false
+
+    private var isFocused = false
 
     private var heldModifierKeys: [UInt16: ghostty_input_mods_e] = [:]
 
@@ -83,9 +87,9 @@ final class GhosttySurfaceView: NSView {
 
         guard let window else { return }
 
-        if isActive {
+        if isFocused {
             DispatchQueue.main.async { [weak self] in
-                guard let self, self.window === window else { return }
+                guard let self, isFocused, self.window === window else { return }
                 window.makeFirstResponder(self)
             }
         }
@@ -94,7 +98,7 @@ final class GhosttySurfaceView: NSView {
         applySize(bounds.size)
 
         let link = displayLink(target: self, selector: #selector(render))
-        link.isPaused = !isActive
+        link.isPaused = !isVisible
         link.add(to: .main, forMode: .common)
         self.link = link
     }
@@ -136,6 +140,9 @@ final class GhosttySurfaceView: NSView {
         if let surface {
             ghostty_surface_set_focus(surface, true)
         }
+
+        if !isFocused { onFocused?() }
+
         return true
     }
 
@@ -285,19 +292,26 @@ final class GhosttySurfaceView: NSView {
         ghostty_surface_update_config(surface, config)
     }
 
-    func setActive(_ active: Bool) {
-        isActive = active
-        isHidden = !active
-        link?.isPaused = !active
+    func setVisible(_ visible: Bool) {
+        isVisible = visible
+        isHidden = !visible
+        link?.isPaused = !visible
 
         if let surface {
-            ghostty_surface_set_occlusion(surface, active)
-            if active { ghostty_surface_refresh(surface) }
+            ghostty_surface_set_occlusion(surface, visible)
+            if visible { ghostty_surface_refresh(surface) }
         }
+    }
 
-        if active {
+    func setFocused(_ focused: Bool) {
+        guard isFocused != focused else { return }
+
+        isFocused = focused
+
+        if focused {
             DispatchQueue.main.async { [weak self] in
-                guard let self, let window, window.firstResponder !== self else { return }
+                guard let self, isFocused else { return }
+                guard let window, window.firstResponder !== self else { return }
 
                 window.makeFirstResponder(self)
             }
@@ -305,9 +319,8 @@ final class GhosttySurfaceView: NSView {
         }
 
         DispatchQueue.main.async { [weak self] in
-            guard let self, let window, window.firstResponder === self else {
-                return
-            }
+            guard let self, !isFocused else { return }
+            guard let window, window.firstResponder === self else { return }
 
             window.makeFirstResponder(window.contentView)
         }
