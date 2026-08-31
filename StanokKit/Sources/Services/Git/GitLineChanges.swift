@@ -2,7 +2,7 @@ import Foundation
 
 enum GitLineChanges {
 
-    static func load(for url: URL) async -> [Int: LineChange] {
+    static func load(for url: URL) async -> GitFileChanges {
         let directory = url.deletingLastPathComponent().path(percentEncoded: false)
         let path = url.path(percentEncoded: false)
 
@@ -10,35 +10,48 @@ enum GitLineChanges {
             "-C", directory, "diff", "HEAD", "-U0", "--no-color", "--", path
         ])
 
-        guard diff.exitCode == 0 else { return [:] }
+        guard diff.exitCode == 0 else { return .none }
 
-        let text = String(data: diff.standardOutput, encoding: .utf8) ?? ""
-
-        return parse(text)
+        return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
     }
 
-    static func parse(_ diff: String) -> [Int: LineChange] {
-        var changes: [Int: LineChange] = [:]
+    static func parse(_ diff: String) -> GitFileChanges {
+        var kinds: [Int: LineChange] = [:]
+        var removed: [Int: [String]] = [:]
+        var anchor: Int?
 
-        for line in diff.split(separator: "\n", omittingEmptySubsequences: false)
-            where line.hasPrefix("@@") {
-            guard let hunk = hunk(from: String(line)) else { continue }
+        for raw in diff.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(raw)
 
-            guard hunk.added > 0 else {
-                changes[max(hunk.start, 1)] = .removed
+            if line.hasPrefix("@@") {
+                guard let hunk = hunk(from: line) else { continue }
+
+                anchor = max(hunk.start, 1)
+
+                guard hunk.added > 0 else {
+                    kinds[max(hunk.start, 1)] = .removed
+                    continue
+                }
+
+                let kind: LineChange = hunk.removed > 0 ? .modified : .added
+                for number in hunk.start..<(hunk.start + hunk.added) {
+                    kinds[number] = kind
+                }
                 continue
             }
 
-            let kind: LineChange = hunk.removed > 0 ? .modified : .added
-            for number in hunk.start..<(hunk.start + hunk.added) {
-                changes[number] = kind
-            }
+            guard let anchor, line.hasPrefix("-"), !line.hasPrefix("---") else { continue }
+
+            removed[anchor, default: []].append(String(line.dropFirst()))
         }
 
-        return changes
+        return GitFileChanges(kinds: kinds, removed: removed)
     }
+}
 
-    private static func hunk(from line: String) -> (start: Int, added: Int, removed: Int)? {
+private extension GitLineChanges {
+
+    static func hunk(from line: String) -> (start: Int, added: Int, removed: Int)? {
         let parts = line.split(separator: " ")
         guard parts.count >= 3, parts[1].hasPrefix("-"), parts[2].hasPrefix("+") else { return nil }
 
@@ -48,7 +61,7 @@ enum GitLineChanges {
         return (added.start, added.count, removed.count)
     }
 
-    private static func span(_ text: String) -> (start: Int, count: Int) {
+    static func span(_ text: String) -> (start: Int, count: Int) {
         let parts = text.split(separator: ",")
         let start = Int(parts.first ?? "") ?? 0
         let count = parts.count > 1 ? Int(parts[1]) ?? 0 : 1

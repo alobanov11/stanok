@@ -9,28 +9,28 @@ struct GitLineChangesTests {
     func anInsertionMarksTheNewLinesAsAdded() {
         let changes = GitLineChanges.parse("@@ -12,0 +13,3 @@\n+one\n+two\n+three")
 
-        #expect(changes == [13: .added, 14: .added, 15: .added])
+        #expect(changes.kinds == [13: .added, 14: .added, 15: .added])
     }
 
     @Test
     func aReplacementMarksTheNewLinesAsModified() {
         let changes = GitLineChanges.parse("@@ -12,2 +13,2 @@\n-old\n-old\n+new\n+new")
 
-        #expect(changes == [13: .modified, 14: .modified])
+        #expect(changes.kinds == [13: .modified, 14: .modified])
     }
 
     @Test
     func aDeletionLeavesOneMarkerWhereTheLinesWere() {
         let changes = GitLineChanges.parse("@@ -12,3 +11,0 @@\n-gone")
 
-        #expect(changes == [11: .removed])
+        #expect(changes.kinds == [11: .removed])
     }
 
     @Test
     func aHunkWithoutACountCoversASingleLine() {
         let changes = GitLineChanges.parse("@@ -5 +5 @@\n-old\n+new")
 
-        #expect(changes == [5: .modified])
+        #expect(changes.kinds == [5: .modified])
     }
 
     @Test
@@ -46,11 +46,23 @@ struct GitLineChangesTests {
         +new
         """
 
-        #expect(GitLineChanges.parse(diff) == [2: .added, 30: .modified])
+        #expect(GitLineChanges.parse(diff).kinds == [2: .added, 30: .modified])
     }
 
     @Test
     func textWithoutHunksChangesNothing() {
-        #expect(GitLineChanges.parse("").isEmpty)
+        #expect(GitLineChanges.parse("").kinds.isEmpty)
+    }
+
+    @Test
+    func removedLinesAreKeptToShowWhatWasThere() {
+        let diff = """
+        @@ -12,2 +13,1 @@
+        -было раз
+        -было два
+        +стало
+        """
+
+        #expect(GitLineChanges.parse(diff).removed == [13: ["было раз", "было два"]])
     }
 }

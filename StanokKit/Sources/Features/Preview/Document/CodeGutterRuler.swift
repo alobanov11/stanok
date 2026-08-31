@@ -4,12 +4,14 @@ final class CodeGutterRuler: NSRulerView {
 
     struct Source {
 
-        let changes: [Int: LineChange]
+        let changes: GitFileChanges
         let folds: CodeFoldMap
         let folded: Set<Int>
+        let expanded: Set<Int>
         let font: NSFont
         let width: CGFloat
-        let toggle: (Int) -> Void
+        let fold: (Int) -> Void
+        let showChange: (Int) -> Void
     }
 
     private enum Metric {
@@ -27,6 +29,8 @@ final class CodeGutterRuler: NSRulerView {
         }
     }
 
+    private var hovered: Int?
+
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let source, let text = clientView as? NSTextView else { return }
 
@@ -36,38 +40,65 @@ final class CodeGutterRuler: NSRulerView {
         ]
 
         enumerateVisibleFragments(from: rect.minY, in: text) { line, top, height in
+            guard let line else { return top < rect.maxY }
+
             let label = NSAttributedString(string: "\(line + 1)", attributes: numbers)
             let size = label.size()
             label.draw(at: NSPoint(x: source.width + Metric.gap - size.width, y: top))
 
-            if source.folds.fold(startingAt: line) != nil {
-                drawChevron(
-                    at: NSPoint(x: source.width + Metric.gap * 1.5, y: top + height / 2),
-                    collapsed: source.folded.contains(line)
-                )
-            }
-
-            guard let change = source.changes[line + 1] else { return top < rect.maxY }
-
-            NSColor.controlAccentColor.setFill()
-            NSRect(
-                x: ruleThickness - Metric.ribbon - 2,
-                y: top,
-                width: Metric.ribbon,
-                height: change == .removed ? 2 : height
-            ).fill()
+            drawFoldRibbon(for: line, top: top, height: height, source: source)
+            drawChangeRibbon(for: line, top: top, height: height, source: source)
 
             return top < rect.maxY
         }
     }
 
+    override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let line = line(at: point.y)
+        let owner = line.flatMap { source?.folds.owner(of: $0)?.header ?? source?.folds.fold(startingAt: $0)?.header }
+        let next = isInFoldColumn(point.x) ? owner : nil
+
+        guard next != hovered else { return }
+
+        hovered = next
+        needsDisplay = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        guard hovered != nil else { return }
+
+        hovered = nil
+        needsDisplay = true
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self
+        ))
+    }
+
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
 
-        guard let source, let line = line(at: point.y), source.folds.fold(startingAt: line) != nil
-        else { return super.mouseDown(with: event) }
+        guard let source, let line = line(at: point.y) else { return super.mouseDown(with: event) }
 
-        source.toggle(line)
+        if isInFoldColumn(point.x) {
+            let fold = source.folds.fold(startingAt: line) ?? source.folds.owner(of: line)
+            guard let fold else { return super.mouseDown(with: event) }
+
+            source.fold(fold.header)
+            return
+        }
+
+        guard source.changes.removed[line + 1] != nil else { return super.mouseDown(with: event) }
+
+        source.showChange(line + 1)
     }
 
     private func sourceLine(of fragment: NSTextLayoutFragment) -> Int? {
@@ -83,22 +114,39 @@ final class CodeGutterRuler: NSRulerView {
 
 private extension CodeGutterRuler {
 
-    func drawChevron(at point: NSPoint, collapsed: Bool) {
-        let path = NSBezierPath()
-        let size = Metric.chevron / 2
+    func isInFoldColumn(_ x: CGFloat) -> Bool {
+        guard let source else { return false }
 
-        if collapsed {
-            path.move(to: NSPoint(x: point.x, y: point.y - size))
-            path.line(to: NSPoint(x: point.x + size, y: point.y))
-            path.line(to: NSPoint(x: point.x, y: point.y + size))
-        } else {
-            path.move(to: NSPoint(x: point.x - size, y: point.y - size / 2))
-            path.line(to: NSPoint(x: point.x + size, y: point.y - size / 2))
-            path.line(to: NSPoint(x: point.x, y: point.y + size))
-        }
+        return x > source.width + Metric.gap && x < source.width + Metric.gap + Metric.chevron
+    }
 
-        NSColor.tertiaryLabelColor.setFill()
-        path.fill()
+    func drawFoldRibbon(for line: Int, top: CGFloat, height: CGFloat, source: Source) {
+        let fold = source.folds.fold(startingAt: line) ?? source.folds.owner(of: line)
+        guard let fold else { return }
+
+        let lit = hovered == fold.header || source.folded.contains(fold.header)
+        let x = source.width + Metric.gap + (Metric.chevron - Metric.ribbon) / 2
+        let rect = NSRect(x: x, y: top, width: Metric.ribbon, height: height)
+
+        NSColor.white.withAlphaComponent(lit ? 0.32 : 0.14).setFill()
+        NSBezierPath(
+            roundedRect: rect.insetBy(dx: 0, dy: line == fold.header || line == fold.end ? 1 : 0),
+            xRadius: Metric.ribbon / 2,
+            yRadius: Metric.ribbon / 2
+        ).fill()
+    }
+
+    func drawChangeRibbon(for line: Int, top: CGFloat, height: CGFloat, source: Source) {
+        guard let change = source.changes.kinds[line + 1] else { return }
+
+        let expanded = source.expanded.contains(line + 1)
+        NSColor.controlAccentColor.withAlphaComponent(expanded ? 1 : 0.75).setFill()
+        NSRect(
+            x: ruleThickness - Metric.ribbon - 2,
+            y: top,
+            width: Metric.ribbon,
+            height: change == .removed ? 2 : height
+        ).fill()
     }
 
     func line(at y: CGFloat) -> Int? {
@@ -119,7 +167,7 @@ private extension CodeGutterRuler {
     func enumerateVisibleFragments(
         from y: CGFloat,
         in text: NSTextView,
-        body: (Int, CGFloat, CGFloat) -> Bool
+        body: (Int?, CGFloat, CGFloat) -> Bool
     ) {
         guard let layout = text.textLayoutManager else { return }
 
@@ -134,9 +182,7 @@ private extension CodeGutterRuler {
                 from: text
             ).y
 
-            guard let line = sourceLine(of: fragment) else { return true }
-
-            return body(line, top, frame.height)
+            return body(sourceLine(of: fragment), top, frame.height)
         }
     }
 }

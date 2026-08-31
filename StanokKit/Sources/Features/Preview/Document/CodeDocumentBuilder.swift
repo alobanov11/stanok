@@ -6,12 +6,27 @@ enum CodeDocumentBuilder {
         lines: [[CodeToken]],
         folds: CodeFoldMap,
         folded: Set<Int>,
+        removed: [Int: [String]] = [:],
+        expanded: Set<Int> = [],
         font: NSFont
     ) -> PreviewDocument {
         let visible = folds.visibleLines(count: lines.count, folded: folded)
         let text = NSMutableAttributedString()
 
         for (position, index) in visible.enumerated() {
+            if expanded.contains(index + 1), let gone = removed[index + 1] {
+                for line in gone {
+                    text.append(NSAttributedString(
+                        string: line + "\n",
+                        attributes: [
+                            .font: font,
+                            .foregroundColor: NSColor.secondaryLabelColor,
+                            .backgroundColor: NSColor.systemRed.withAlphaComponent(0.18)
+                        ]
+                    ))
+                }
+            }
+
             let paragraph = NSMutableAttributedString()
 
             for token in lines[index] {

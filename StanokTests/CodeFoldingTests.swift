@@ -10,12 +10,45 @@ struct CodeFoldingTests {
     }
 
     @Test
-    func anIndentedBlockFoldsFromItsHeaderToItsLastLine() {
+    func aBracedBlockFoldsFromItsBraceToTheLineBeforeItsClose() {
         let folds = CodeFolding.folds(for: Self.lines([
             "func run() {",
             "    let a = 1",
             "    let b = 2",
             "}"
+        ]))
+
+        #expect(folds == [CodeFold(header: 0, end: 2, depth: 0)])
+    }
+
+    @Test
+    func bracesInsideStringsAndCommentsDoNotOpenBlocks() {
+        let folds = CodeFolding.folds(for: [
+            [CodeToken(text: "let a = ", kind: .plain), CodeToken(text: "\"{\"", kind: .string)],
+            [CodeToken(text: "// }", kind: .comment)],
+            [CodeToken(text: "let b = 2", kind: .plain)]
+        ])
+
+        #expect(folds.isEmpty)
+    }
+
+    @Test
+    func aFileWithoutBracesFallsBackToIndentation() {
+        let folds = CodeFolding.folds(for: Self.lines([
+            "def run():",
+            "    a = 1",
+            "    b = 2"
+        ]))
+
+        #expect(folds == [CodeFold(header: 0, end: 2, depth: 0)])
+    }
+
+    @Test
+    func anIndentedBlockFoldsFromItsHeaderToItsLastLine() {
+        let folds = CodeFolding.folds(for: Self.lines([
+            "func run():",
+            "    let a = 1",
+            "    let b = 2"
         ]))
 
         #expect(folds == [CodeFold(header: 0, end: 2, depth: 0)])

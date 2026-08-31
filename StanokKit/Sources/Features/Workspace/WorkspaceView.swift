@@ -34,6 +34,10 @@ public struct WorkspaceView<Terminal: View>: View {
         return rootSession.layout ?? .leaf(rootSession.id)
     }
 
+    private var navigator: PreviewNavigator {
+        navigators.navigator(for: rootSession?.id)
+    }
+
     private var linkRouter: LinkRouter {
         LinkRouter(navigator: navigator, openFile: inspectorControls.open)
     }
@@ -141,7 +145,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var branchStore = GitBranchStore()
 
     @State
-    private var navigator = PreviewNavigator()
+    private var navigators = PreviewNavigators()
 
     @State
     private var mainWidth: CGFloat = 0
@@ -207,7 +211,10 @@ public struct WorkspaceView<Terminal: View>: View {
 
             liveSessions.activate(new)
         }
-        .onChange(of: knownSessionIDs) { _, known in liveSessions.reconcile(known) }
+        .onChange(of: knownSessionIDs) { _, known in
+            liveSessions.reconcile(known)
+            navigators.prune(roots: Set(store.roots.map(\.id)))
+        }
         .onChange(of: filesMode) { _, mode in
             guard mode == .branches else { return }
 

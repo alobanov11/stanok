@@ -20,9 +20,11 @@ struct PreviewContentView: View {
             changes: preview.changes,
             folds: folds,
             folded: folded,
+            expanded: expanded,
             font: codeFont,
             width: digits * codeFont.maximumAdvancement.width + 4,
-            toggle: toggle
+            fold: fold,
+            showChange: showChange
         )
     }
 
@@ -37,7 +39,8 @@ struct PreviewContentView: View {
             preview.url.path(percentEncoded: false),
             "\(markdownSize)", markdownFamily, "\(markdownSpacing)",
             "\(codeSize)", resolvedCodeFamily,
-            folded.sorted().map(String.init).joined(separator: ",")
+            folded.sorted().map(String.init).joined(separator: ","),
+            expanded.sorted().map(String.init).joined(separator: ",")
         ].joined(separator: "|")
     }
 
@@ -67,6 +70,9 @@ struct PreviewContentView: View {
 
     @State
     private var folded: Set<Int> = []
+
+    @State
+    private var expanded: Set<Int> = []
 
     @Environment(\.openURL)
     private var openURL
@@ -110,6 +116,8 @@ private extension PreviewContentView {
                 lines: lines,
                 folds: folds,
                 folded: folded,
+                removed: preview.changes.removed,
+                expanded: expanded,
                 font: codeFont
             )
 
@@ -118,11 +126,19 @@ private extension PreviewContentView {
         }
     }
 
-    func toggle(_ line: Int) {
+    func fold(_ line: Int) {
         if folded.contains(line) {
             folded.remove(line)
         } else {
             folded.insert(line)
+        }
+    }
+
+    func showChange(_ line: Int) {
+        if expanded.contains(line) {
+            expanded.remove(line)
+        } else {
+            expanded.insert(line)
         }
     }
 }

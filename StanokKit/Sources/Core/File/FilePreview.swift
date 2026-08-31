@@ -21,5 +21,5 @@ struct FilePreview: Identifiable, Sendable {
     let modified: Date?
     let isTruncated: Bool
 
-    var changes: [Int: LineChange] = [:]
+    var changes = GitFileChanges.none
 }
