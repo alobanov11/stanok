@@ -54,6 +54,10 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
+    private var isPreviewSplit: Bool {
+        navigator.current != nil && mainWidth >= WorkspaceLayout.minimumSplitWidth
+    }
+
     @State
     private var model = WorkspaceModel()
 
@@ -86,6 +90,9 @@ public struct WorkspaceView<Terminal: View>: View {
 
     @State
     private var selectedFile: URL?
+
+    @State
+    private var mainWidth: CGFloat = 0
 
     @State
     private var fileTreeModel = FileTreeModel()
@@ -184,12 +191,6 @@ public struct WorkspaceView<Terminal: View>: View {
             .padding(.leading, WorkspaceGeometry.toggleLeading(sidebarExpanded: isSidebarExpanded))
     }
 
-    private var closeButton: some View {
-        CloseButton(action: closePreview)
-            .padding(.top, (WorkspaceLayout.headerHeight - WorkspaceLayout.toggleHeight) / 2)
-            .padding(.trailing, WorkspaceLayout.toggleGap)
-    }
-
     private var sidebar: some View {
         RepositoryTree(
             store: store,
@@ -248,19 +249,36 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var main: some View {
+        mainContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mainWidth = $0 }
+            .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
+            .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
+    }
+
+    private var mainContent: some View {
         ZStack {
-            VStack(spacing: 0) {
-                header
-                terminals
-            }
+            terminalStack
+                .padding(.trailing, isPreviewSplit ? mainWidth / 2 : 0)
 
             if let entry = navigator.current {
-                previewLayer(entry)
+                previewLayer(
+                    entry,
+                    leadingInset: isPreviewSplit
+                        ? WorkspaceGeometry.expandedHeaderLeading
+                        : panelLeading
+                )
+                .frame(width: isPreviewSplit ? mainWidth / 2 : nil)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
-        .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
+    }
+
+    private var terminalStack: some View {
+        VStack(spacing: 0) {
+            header
+            terminals
+        }
     }
 
     private let terminal: (
@@ -289,33 +307,14 @@ public struct WorkspaceView<Terminal: View>: View {
         self.terminal = terminal
     }
 
-    @ViewBuilder
-    private func previewLayer(_ entry: PreviewEntry) -> some View {
-        Group {
-            switch entry {
-            case let .file(preview):
-                PreviewPanel(
-                    preview: preview,
-                    leadingInset: panelLeading,
-                    previousName: navigator.previousName,
-                    onBack: stepBack
-                )
-
-            case let .web(preview):
-                WebPreviewPanel(
-                    preview: preview,
-                    leadingInset: panelLeading,
-                    previousName: navigator.previousName,
-                    onBack: stepBack
-                )
-            }
-        }
-        .background {
-            WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius)
-        }
-        .overlay(alignment: .topTrailing) { closeButton }
-        .zIndex(1)
-        .transition(.opacity)
+    private func previewLayer(_ entry: PreviewEntry, leadingInset: CGFloat) -> some View {
+        PreviewLayer(
+            entry: entry,
+            leadingInset: leadingInset,
+            previousName: navigator.previousName,
+            onBack: stepBack,
+            onClose: closePreview
+        )
     }
 
     private func filesPanel(_ mode: FilePanelMode) -> some View {
@@ -369,7 +368,11 @@ public struct WorkspaceView<Terminal: View>: View {
 
         selection = sessionID
         activate(sessionID)
-        dispatcher.dispatch(action, into: sessionID)
+        dispatcher.dispatch(
+            action,
+            into: sessionID,
+            runningProcessNames: processTracker.processNames(for: sessionID)
+        )
     }
 
     private func afterBranchSwitch() async {
