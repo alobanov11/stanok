@@ -3,27 +3,15 @@ import SwiftUI
 
 struct TrafficLights: NSViewRepresentable {
 
-    private static let types: [NSWindow.ButtonType] = [
-        .closeButton,
-        .miniaturizeButton,
-        .zoomButton
-    ]
-
     let isHidden: Bool
 
-    func makeNSView(context: Context) -> NSView {
-        NSView()
+    func makeNSView(context: Context) -> TrafficLightsView {
+        let view = TrafficLightsView()
+        view.hidesButtons = isHidden
+        return view
     }
 
-    func updateNSView(_ view: NSView, context: Context) {
-        let hidden = isHidden
-
-        DispatchQueue.main.async {
-            guard let window = view.window else { return }
-
-            for type in Self.types {
-                window.standardWindowButton(type)?.isHidden = hidden
-            }
-        }
+    func updateNSView(_ view: TrafficLightsView, context: Context) {
+        view.hidesButtons = isHidden
     }
 }
