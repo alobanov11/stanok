@@ -16,6 +16,13 @@ public final class RepositoryStore {
 
     private let file: URL
 
+    @ObservationIgnored
+    private lazy var saveScheduler = SaveScheduler<[Repository]>(
+        delay: .milliseconds(400)
+    ) { [weak self] snapshot in
+        self?.persist(snapshot)
+    }
+
     public init(file: URL = AppPaths.repositories) {
         self.file = file
         load()
@@ -93,18 +100,41 @@ public final class RepositoryStore {
         }
     }
 
+    public func updateWorkspace(
+        _ repositoryID: Repository.ID,
+        mutate: (inout WorkspaceState) -> Void
+    ) {
+        guard let index = repositories.firstIndex(where: { $0.id == repositoryID }) else { return }
+
+        mutate(&repositories[index].workspace)
+        saveScheduler.schedule(repositories)
+    }
+
+    public func flushPendingSave() {
+        saveScheduler.flush()
+    }
+
     public func repository(hosting sessionID: TerminalSession.ID) -> Repository? {
         repositories.first { $0.sessions.contains { $0.id == sessionID } }
     }
 
     private func load() {
-        guard
-            let data = try? Data(contentsOf: file),
-            let stored = try? JSONDecoder().decode([Repository].self, from: data)
-        else { return }
+        guard let data = try? Data(contentsOf: file) else { return }
 
-        repositories = stored
-        sort()
+        do {
+            repositories = try JSONDecoder().decode([Repository].self, from: data)
+            sort()
+        } catch {
+            Log.terminal.error("cannot decode repositories: \(error.localizedDescription)")
+            quarantine()
+        }
+    }
+
+    private func quarantine() {
+        let backup = file.appendingPathExtension("corrupt-\(Int(Date.now.timeIntervalSince1970))")
+
+        try? FileManager.default.removeItem(at: backup)
+        try? FileManager.default.moveItem(at: file, to: backup)
     }
 
     private func sort() {
@@ -112,6 +142,11 @@ public final class RepositoryStore {
     }
 
     private func save() {
+        saveScheduler.schedule(repositories)
+        saveScheduler.flush()
+    }
+
+    private func persist(_ repositories: [Repository]) {
         do {
             try FileManager.default.createDirectory(
                 at: file.deletingLastPathComponent(),

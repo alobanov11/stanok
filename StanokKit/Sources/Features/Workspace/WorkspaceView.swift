@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 public struct WorkspaceView<Terminal: View>: View {
@@ -34,8 +35,8 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var selection: TerminalSession.ID?
 
-    @State
-    private var isSidebarExpanded = true
+    @AppStorage(WorkspaceDefaults.Keys.isSidebarExpanded)
+    private var isSidebarExpanded = WorkspaceDefaults.Defaults.isSidebarExpanded
 
     @State
     private var filesMode: FilePanelMode?
@@ -57,6 +58,9 @@ public struct WorkspaceView<Terminal: View>: View {
 
     @State
     private var changeTreeModel = ChangeTreeModel()
+
+    @Environment(\.scenePhase)
+    private var scenePhase
 
     public var body: some View {
         HStack(spacing: 0) {
@@ -86,6 +90,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .task { selectFirstIfNeeded() }
         .task(id: selection) { await git.refresh(selectedRepository) }
         .task(id: selectedRepository?.url) { openFileTree() }
+        .task(id: selectedRepository?.id) { restoreWorkspace() }
         .onChange(of: selectedRepository?.id) { _, _ in resetPreview() }
         .onChange(of: selection) { _, new in
             guard let new else { return }
@@ -100,6 +105,21 @@ public struct WorkspaceView<Terminal: View>: View {
         }
         .onChange(of: git.snapshot(for: selectedRepository), initial: true) { _, snapshot in
             changeTreeModel.apply(snapshot)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase != .active else { return }
+
+            store.flushPendingSave()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)
+        ) { _ in
+            store.flushPendingSave()
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
+        ) { _ in
+            store.flushPendingSave()
         }
     }
 
@@ -246,6 +266,46 @@ public struct WorkspaceView<Terminal: View>: View {
         return URL(fileURLWithPath: raw)
     }
 
+    private static func relativePath(for url: URL, in root: URL) -> String? {
+        guard contains(root, url) else { return nil }
+
+        let base = root.standardizedFileURL.path(percentEncoded: false)
+        let target = url.standardizedFileURL.path(percentEncoded: false)
+        let prefix = base.hasSuffix("/") ? base : base + "/"
+        guard target != base, target.hasPrefix(prefix) else { return nil }
+
+        return String(target.dropFirst(prefix.count))
+    }
+
+    private static func resolvedURL(relative: String, in root: URL) -> URL? {
+        guard !relative.isEmpty, !relative.hasPrefix("/") else { return nil }
+        guard !relative.split(separator: "/").contains("..") else { return nil }
+
+        return root.appending(path: relative)
+    }
+
+    private static func resolvedSelectedFile(from repository: Repository) -> URL? {
+        guard let relative = repository.workspace.selectedFile else { return nil }
+
+        return resolvedURL(relative: relative, in: repository.url)
+    }
+
+    private static func filePanelMode(from raw: String?) -> FilePanelMode? {
+        switch raw {
+        case "all": return .all
+        case "changes": return .changes
+        default: return nil
+        }
+    }
+
+    private static func rawValue(for mode: FilePanelMode?) -> String? {
+        switch mode {
+        case .all: return "all"
+        case .changes: return "changes"
+        case nil: return nil
+        }
+    }
+
     private func isVisible(_ session: TerminalSession) -> Bool {
         session.id == selection && navigator.current == nil
     }
@@ -256,6 +316,16 @@ public struct WorkspaceView<Terminal: View>: View {
             gitDirectory: git.snapshot(for: selectedRepository)?.gitDirectory,
             onGitChange: { Task { await git.refresh(selectedRepository) } }
         )
+    }
+
+    private func restoreWorkspace() {
+        guard let repository = selectedRepository else { return }
+
+        if let resolved = Self.resolvedSelectedFile(from: repository) {
+            selectedFile = resolved
+        }
+
+        filesMode = Self.filePanelMode(from: repository.workspace.panelMode)
     }
 
     private func open(_ url: URL) {
@@ -274,6 +344,10 @@ public struct WorkspaceView<Terminal: View>: View {
 
         selectedFile = url
         showAllFiles()
+
+        if let relative = Self.relativePath(for: url, in: repository.url) {
+            store.updateWorkspace(repository.id) { $0.selectedFile = relative }
+        }
     }
 
     private func showAllFiles() {
@@ -284,6 +358,8 @@ public struct WorkspaceView<Terminal: View>: View {
         } else {
             filesMode = .all
         }
+
+        persistPanelMode()
     }
 
     private func route(_ url: URL) {
@@ -338,12 +414,24 @@ public struct WorkspaceView<Terminal: View>: View {
         } else {
             filesMode = mode
         }
+
+        persistPanelMode()
+    }
+
+    private func persistPanelMode() {
+        guard let repository = selectedRepository else { return }
+
+        store.updateWorkspace(repository.id) { $0.panelMode = Self.rawValue(for: filesMode) }
     }
 
     private func selectFirstIfNeeded() {
         guard selection == nil else { return }
+        guard let repository = store.repositories.first else { return }
 
-        selection = store.repositories.first?.sessions.first?.id
+        let remembered = repository.workspace.lastSessionID
+            .flatMap { id in repository.sessions.first { $0.id == id } }
+
+        selection = (remembered ?? repository.sessions.first)?.id
         if let selection { activate(selection) }
     }
 
@@ -354,6 +442,11 @@ public struct WorkspaceView<Terminal: View>: View {
         if live.count > WorkspaceLayout.liveSessionLimit {
             live.removeFirst(live.count - WorkspaceLayout.liveSessionLimit)
         }
+
+        guard let repositoryID = store.repository(hosting: id)?.id else { return }
+
+        store.touch(repositoryID)
+        store.updateWorkspace(repositoryID) { $0.lastSessionID = id }
     }
 
 }
