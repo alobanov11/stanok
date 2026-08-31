@@ -180,5 +180,4 @@ struct BranchTreeBuilderTests {
     private func remotesNode(_ root: BranchNode) throws -> BranchNode {
         try #require(root.children.first { $0.id == BranchTreeBuilder.remotesID })
     }
-
 }

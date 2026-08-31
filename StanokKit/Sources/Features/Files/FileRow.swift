@@ -114,28 +114,17 @@ struct FileRow: View {
     }
 
     let name: String
-
     var url: URL?
-
     let isDirectory: Bool
-
     let isExpanded: Bool
-
     let depth: Int
-
     let status: GitFileStatus?
-
     let isSelected: Bool
-
     var isDropTarget = false
-
     let actions: Actions?
-
     var trailing: String?
-
     var icon: Image?
 
     @State
     private var isHovering = false
-
 }

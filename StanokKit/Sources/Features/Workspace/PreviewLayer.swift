@@ -37,13 +37,8 @@ struct PreviewLayer: View {
     }
 
     let entry: PreviewEntry
-
     let leadingInset: CGFloat
-
     let previousName: String?
-
     let onBack: () -> Void
-
     let onClose: () -> Void
-
 }

@@ -75,5 +75,4 @@ struct WorkingDirectoryReportTests {
         #expect(identityPath == expectedIdentityPath)
         #expect(identityPath != reportedPath)
     }
-
 }

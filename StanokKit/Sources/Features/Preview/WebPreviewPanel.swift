@@ -38,11 +38,8 @@ struct WebPreviewPanel: View {
     }
 
     let preview: WebPreview
-
     let leadingInset: CGFloat
-
     let previousName: String?
-
     let onBack: () -> Void
 
     private func goBack() {
@@ -52,5 +49,4 @@ struct WebPreviewPanel: View {
             onBack()
         }
     }
-
 }

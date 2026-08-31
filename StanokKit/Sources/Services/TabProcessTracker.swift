@@ -18,9 +18,7 @@ public final class TabProcessTracker {
     }
 
     private let monitor: ProcessTreeMonitor
-
     private let labels: ShellProcessLabelStore
-
     private var trackedPIDs: [TerminalSession.ID: Int32] = [:]
 
     @ObservationIgnored

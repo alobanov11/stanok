@@ -112,5 +112,4 @@ struct ClaudeSessionRecordScannerTests {
 
         #expect(result.firstUserMessageText == nil)
     }
-
 }

@@ -9,7 +9,6 @@ public struct SessionFile: Codable, Equatable {
     }
 
     public var sessions: [TerminalSession]
-
     public var selectedSessionID: TerminalSession.ID?
 
     public init(sessions: [TerminalSession], selectedSessionID: TerminalSession.ID? = nil) {

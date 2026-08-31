@@ -24,11 +24,8 @@ struct QuoteGroupView: View {
     }
 
     let blocks: [MarkdownBlock]
-
     let fontSize: Double
-
     let lineSpacing: Double
-
     let markerWidths: [Int: CGFloat]
 
     private func gap(at index: Int) -> CGFloat {

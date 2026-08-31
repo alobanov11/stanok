@@ -3,7 +3,9 @@ import Foundation
 enum MarkdownSection: Sendable {
 
     case block(MarkdownBlock)
+
     case quote([MarkdownBlock])
+
     case table([MarkdownBlock])
 
     var firstID: Int {

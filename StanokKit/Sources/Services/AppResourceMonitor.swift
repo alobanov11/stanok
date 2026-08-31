@@ -9,7 +9,6 @@ public final class AppResourceMonitor {
     }
 
     private let monitor: ProcessTreeMonitor
-
     private let pid: Int32
 
     public init(monitor: ProcessTreeMonitor = ProcessTreeMonitor()) {

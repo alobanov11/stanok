@@ -3,15 +3,11 @@ import Foundation
 @MainActor
 final class SaveScheduler<State: Equatable> {
 
-    private let delay: Duration
-
-    private let write: (State) -> Void
-
     private var lastKnown: State?
-
     private var pendingWrite: State?
-
     private var task: Task<Void, Never>?
+    private let delay: Duration
+    private let write: (State) -> Void
 
     init(delay: Duration = .milliseconds(400), write: @escaping (State) -> Void) {
         self.delay = delay

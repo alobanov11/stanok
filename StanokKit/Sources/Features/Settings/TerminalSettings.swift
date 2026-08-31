@@ -61,5 +61,4 @@ public struct TerminalSettings: View {
     private let families = FontCatalog.monospaced
 
     public init() {}
-
 }

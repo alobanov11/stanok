@@ -4,13 +4,9 @@ import SwiftUI
 public struct WorkspaceCommandActions {
 
     public let toggleSidebar: () -> Void
-
     public let toggleAllFiles: () -> Void
-
     public let toggleChangedFiles: () -> Void
-
     public let newTerminalTab: (() -> Void)?
-
     public let closeTerminalTab: (() -> Void)?
 
     public init(

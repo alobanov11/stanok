@@ -14,7 +14,6 @@ struct SidebarToggle: View {
     }
 
     let toggle: () -> Void
-
     let addTerminal: (() -> Void)?
 
     private func button(
@@ -32,5 +31,4 @@ struct SidebarToggle: View {
         .buttonStyle(.plain)
         .help(hint)
     }
-
 }

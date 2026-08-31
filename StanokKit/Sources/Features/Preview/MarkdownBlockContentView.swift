@@ -33,11 +33,8 @@ struct MarkdownBlockContentView: View {
     }
 
     let block: MarkdownBlock
-
     let fontSize: Double
-
     let lineSpacing: Double
-
     let markerWidth: CGFloat
 
     @AppStorage(PreviewTypography.Keys.markdownFontFamily)

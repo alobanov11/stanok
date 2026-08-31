@@ -5,15 +5,10 @@ import StanokKit
 actor CoalescingProvider: AgentSessionProvider {
 
     nonisolated let id = "coalescing-fake"
-
     nonisolated let displayName = "Coalescing"
-
     nonisolated let relay = ChangeRelay()
-
     private(set) var callCount = 0
-
     private var continuation: CheckedContinuation<Void, Never>?
-
     private var results: [AgentSessionsLoadState] = []
 
     func push(_ result: AgentSessionsLoadState) {

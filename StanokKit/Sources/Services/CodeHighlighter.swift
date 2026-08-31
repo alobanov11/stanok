@@ -185,8 +185,20 @@ enum CodeHighlighter {
         }
     }
 
+    static let tabWidth = 4
+
     static func lines(_ code: String, language: String?) -> [[CodeToken]] {
-        var scanner = Scanner(code: Array(code), profile: .named(language))
-        return scanner.run()
+        let expanded = code.replacingOccurrences(
+            of: "\t",
+            with: String(repeating: " ", count: tabWidth)
+        )
+        var scanner = Scanner(code: Array(expanded), profile: .named(language))
+        var lines = scanner.run()
+
+        while let last = lines.last, last.allSatisfy(\.text.isEmpty) {
+            lines.removeLast()
+        }
+
+        return lines
     }
 }

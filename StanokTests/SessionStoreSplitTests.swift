@@ -54,8 +54,7 @@ struct SessionStoreSplitTests {
         #expect(second.parentID == root.id)
         #expect(updated.layout == .split(
             .horizontal,
-            .leaf(root.id),
-            .split(.vertical, .leaf(first.id), .leaf(second.id))
+            [.leaf(root.id), .split(.vertical, [.leaf(first.id), .leaf(second.id)])]
         ))
     }
 
@@ -85,7 +84,7 @@ struct SessionStoreSplitTests {
         let survivor = try #require(store.session(for: second.id))
         #expect(store.roots.map(\.id) == [first.id])
         #expect(heir.parentID == nil)
-        #expect(heir.layout == .split(.vertical, .leaf(first.id), .leaf(second.id)))
+        #expect(heir.layout == .split(.vertical, [.leaf(first.id), .leaf(second.id)]))
         #expect(survivor.parentID == first.id)
     }
 
@@ -110,7 +109,7 @@ struct SessionStoreSplitTests {
 
         #expect(restored.roots.map(\.id) == [root.id])
         #expect(restored.session(for: pane.id)?.parentID == root.id)
-        #expect(restoredRoot.layout == .split(.vertical, .leaf(root.id), .leaf(pane.id)))
+        #expect(restoredRoot.layout == .split(.vertical, [.leaf(root.id), .leaf(pane.id)]))
         #expect(restored.panes(of: restoredRoot).map(\.id) == [root.id, pane.id])
     }
 
@@ -133,5 +132,58 @@ struct SessionStoreSplitTests {
         store.removeSession(root.id)
 
         #expect(store.sessions.map(\.id) == [other.id])
+    }
+
+    @Test
+    func aPaneMissingFromItsRootLayoutIsPutBackOnLoad() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(
+                path: "session-store-split-tests-\(UUID().uuidString)",
+                directoryHint: .isDirectory
+            )
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let root = TerminalSession(name: "root", url: URL(filePath: "/tmp"))
+        let pane = TerminalSession(name: "pane", url: URL(filePath: "/tmp"), parentID: root.id)
+        let file = directory.appending(path: "sessions.json")
+        try JSONEncoder()
+            .encode(SessionFile(sessions: [root, pane], selectedSessionID: root.id))
+            .write(to: file)
+
+        let store = SessionStore(
+            file: file,
+            legacyFile: directory.appending(path: "repositories.json")
+        )
+        let restoredRoot = try #require(store.session(for: root.id))
+
+        #expect(store.roots.map(\.id) == [root.id])
+        #expect(restoredRoot.layout?.contains(pane.id) == true)
+        #expect(store.panes(of: restoredRoot).map(\.id) == [root.id, pane.id])
+    }
+
+    @Test
+    func aPaneWhoseTerminalIsGoneStandsOnItsOwn() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(
+                path: "session-store-split-tests-\(UUID().uuidString)",
+                directoryHint: .isDirectory
+            )
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let orphan = TerminalSession(name: "orphan", url: URL(filePath: "/tmp"), parentID: UUID())
+        let file = directory.appending(path: "sessions.json")
+        try JSONEncoder()
+            .encode(SessionFile(sessions: [orphan], selectedSessionID: orphan.id))
+            .write(to: file)
+
+        let store = SessionStore(
+            file: file,
+            legacyFile: directory.appending(path: "repositories.json")
+        )
+
+        #expect(store.roots.map(\.id) == [orphan.id])
+        #expect(store.session(for: orphan.id)?.parentID == nil)
     }
 }

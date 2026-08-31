@@ -34,7 +34,5 @@ struct TableGroupView: View {
     }
 
     let blocks: [MarkdownBlock]
-
     let fontSize: Double
-
 }

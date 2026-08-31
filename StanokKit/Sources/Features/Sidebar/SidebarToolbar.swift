@@ -43,5 +43,4 @@ struct SidebarToolbar: View {
         .background { CardStyle.flat.background(radius: WorkspaceLayout.cardRadius) }
         .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
     }
-
 }

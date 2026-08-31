@@ -45,16 +45,22 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2AA02F930446886008EA09A /* Stanok */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = Stanok;
 			sourceTree = "<group>";
 		};
 		E2AA030730446888008EA09A /* StanokTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StanokTests;
 			sourceTree = "<group>";
 		};
 		E2AA031130446888008EA09A /* StanokUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = StanokUITests;
 			sourceTree = "<group>";
 		};
@@ -138,6 +144,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E2AA031830446888008EA09A /* Build configuration list for PBXNativeTarget "Stanok" */;
 			buildPhases = (
+				823FB9B6CD4F14A569109341 /* Project Rules */,
 				DA315680F0D7E803348195EA /* SwiftLint */,
 				E2AA02F330446886008EA09A /* Sources */,
 				E2AA02F430446886008EA09A /* Frameworks */,
@@ -280,6 +287,25 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		823FB9B6CD4F14A569109341 /* Project Rules */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Project Rules";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SRCROOT\" || exit 0\n/usr/bin/python3 scripts/check-file-groups.py || exit 1\nexec /usr/bin/python3 scripts/check-declaration-order.py\n";
+		};
 		DA315680F0D7E803348195EA /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

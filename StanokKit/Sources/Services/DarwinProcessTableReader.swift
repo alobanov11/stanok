@@ -68,5 +68,4 @@ public struct DarwinProcessTableReader: ProcessTableReading {
             }
         }
     }
-
 }

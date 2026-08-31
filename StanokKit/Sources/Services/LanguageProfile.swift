@@ -161,15 +161,10 @@ struct LanguageProfile: Sendable {
     ]
 
     let lineComment: String?
-
     let blockOpen: String?
-
     let blockClose: String?
-
     let nestsBlockComments: Bool
-
     let quotes: Set<Character>
-
     let keywords: Set<String>
 
     static func named(_ language: String?) -> LanguageProfile {

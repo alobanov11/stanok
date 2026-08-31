@@ -316,7 +316,6 @@ public enum DefaultConfig {
           bindkey '^[[B' _stanok_down_dispatch
           bindkey '^[OB' _stanok_down_dispatch
         fi
-
         clear
         """
     }
@@ -329,7 +328,6 @@ public enum DefaultConfig {
     private static func write(_ contents: String, to url: URL) {
         let manager = FileManager.default
         guard !manager.fileExists(atPath: url.path(percentEncoded: false)) else { return }
-
         do {
             try manager.createDirectory(
                 at: url.deletingLastPathComponent(),

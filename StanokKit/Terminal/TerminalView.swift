@@ -3,6 +3,12 @@ import SwiftUI
 
 public struct TerminalView: View {
 
+    @State
+    private var scrollbar: TerminalScrollbar?
+
+    @State
+    private var scrollController = TerminalScrollController()
+
     public var body: some View {
         TerminalSurface(
             runtime: runtime,
@@ -16,32 +22,26 @@ public struct TerminalView: View {
             onTitleChanged: onTitleChanged,
             onCloseRequested: onCloseRequested,
             onPwdChanged: onPwdChanged,
-            onFocused: onFocused
+            onFocused: onFocused,
+            onScrollbar: { scrollbar = $0 },
+            scrollController: scrollController
         )
+        .overlay(alignment: .trailing) {
+            TerminalScrollbarOverlay(scrollbar: scrollbar, controller: scrollController)
+        }
     }
 
     private let runtime: GhosttyRuntime
-
     private let workingDirectory: URL?
-
     private let processLabel: String
-
     private let isVisible: Bool
-
     private let isFocused: Bool
-
     private let insertRequest: TerminalInsertRequest?
-
     private let onCommandFinished: (CommandRun) -> Void
-
     private let onOpenURL: (String) -> Void
-
     private let onTitleChanged: (String) -> Void
-
     private let onCloseRequested: (Bool) -> Void
-
     private let onPwdChanged: (String) -> Void
-
     private let onFocused: () -> Void
 
     public init(

@@ -68,7 +68,6 @@ struct CardStylePreview: View {
                 .padding(.vertical, Layout.inset)
         }
     }
-
 }
 
 #Preview("Стили карточки") {

@@ -2,11 +2,9 @@ import Foundation
 
 actor ConcurrencyGate {
 
-    private let limit: Int
-
     private var available: Int
-
     private var waiters: [CheckedContinuation<Void, Never>] = []
+    private let limit: Int
 
     init(limit: Int) {
         self.limit = max(1, limit)

@@ -43,5 +43,4 @@ struct WorkspaceCommands: Commands {
 
     @FocusedValue(\.workspaceCommands)
     private var actions: WorkspaceCommandActions?
-
 }

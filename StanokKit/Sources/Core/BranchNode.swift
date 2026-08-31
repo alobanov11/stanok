@@ -11,17 +11,11 @@ public final class BranchNode: Identifiable {
     }
 
     public nonisolated let id: String
-
-    public let name: String
-
-    public let isFolder: Bool
-
-    public let depth: Int
-
-    public let ref: GitBranchRef?
-
     public var isExpanded: Bool
-
+    public let name: String
+    public let isFolder: Bool
+    public let depth: Int
+    public let ref: GitBranchRef?
     public let children: [BranchNode]
 
     public init(

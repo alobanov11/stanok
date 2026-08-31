@@ -4,17 +4,10 @@ import SwiftUI
 struct SessionList: View {
 
     private static let paneIndent: CGFloat = 20
-
     let store: SessionStore
-
     let live: Set<TerminalSession.ID>
-
-    let processUsage: [TerminalSession.ID: ProcessTreeUsage]
-
     let insertAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
-
     let copyAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
-
     let closeSession: (TerminalSession) -> Void
 
     @Binding
@@ -22,6 +15,9 @@ struct SessionList: View {
 
     @State
     private var chatFilter = ""
+
+    @State
+    private var dropTarget: TerminalSession.ID?
 
     @Environment(\.agentSessionRegistry)
     private var agentSessionRegistry
@@ -36,14 +32,21 @@ struct SessionList: View {
                 }
                 .padding(.horizontal, 8)
             }
-            .mask { bottomFade }
+            .mask { listMask }
 
             SidebarToolbar(filterText: $chatFilter)
         }
     }
 
-    private var bottomFade: some View {
+    private var listMask: some View {
         VStack(spacing: 0) {
+            LinearGradient(
+                colors: [.black.opacity(0), .black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 24)
+
             Color.black
 
             LinearGradient(
@@ -74,8 +77,8 @@ struct SessionList: View {
         if store.roots.isEmpty {
             emptyState
         } else {
-            ForEach(store.roots) { root in
-                sessionRow(root, indent: 0)
+            ForEach(Array(store.roots.enumerated()), id: \.element.id) { index, root in
+                rootRow(root, at: index)
 
                 ForEach(store.panes(of: root).filter { $0.id != root.id }) { pane in
                     sessionRow(pane, indent: SessionList.paneIndent)
@@ -108,7 +111,37 @@ struct SessionList: View {
         insertAgentCommand(session.resumeAction, target)
     }
 
-    private func sessionRow(_ session: TerminalSession, indent: CGFloat) -> some View {
+    private func rootRow(_ root: TerminalSession, at index: Int) -> some View {
+        sessionRow(root, indent: 0, isDropTarget: dropTarget == root.id)
+            .draggable(root.id.uuidString) {
+                Text(root.displayName)
+                    .font(.system(size: 13))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+            }
+            .dropDestination(for: String.self) { items, _ in
+                move(items, to: index)
+            } isTargeted: { isTargeted in
+                dropTarget = isTargeted ? root.id : nil
+            }
+    }
+
+    private func move(_ items: [String], to index: Int) -> Bool {
+        guard
+            let raw = items.first,
+            let id = UUID(uuidString: raw),
+            store.roots.contains(where: { $0.id == id })
+        else { return false }
+
+        withAnimation(.smooth(duration: 0.22)) { store.moveRoot(id, to: index) }
+        return true
+    }
+
+    private func sessionRow(
+        _ session: TerminalSession,
+        indent: CGFloat,
+        isDropTarget: Bool = false
+    ) -> some View {
         SidebarRow(
             icon: "apple.terminal",
             title: session.displayName,
@@ -116,6 +149,7 @@ struct SessionList: View {
             isMuted: !session.isReachable,
             isLive: live.contains(session.id),
             indent: indent,
+            isDropTarget: isDropTarget,
             close: { closeSession(session) }
         )
         .onTapGesture { selection = session.id }

@@ -13,7 +13,6 @@ public final class SessionStore {
     public private(set) var selectedSessionID: TerminalSession.ID?
 
     private let file: URL
-
     private let legacyFile: URL
 
     @ObservationIgnored
@@ -61,6 +60,19 @@ public final class SessionStore {
         sessions.append(pane)
         save()
         return pane
+    }
+
+    public func moveRoot(_ sessionID: TerminalSession.ID, to index: Int) {
+        var order = roots.map(\.id)
+        guard let from = order.firstIndex(of: sessionID) else { return }
+
+        let destination = min(max(index, 0), order.count - 1)
+        guard from != destination else { return }
+
+        order.remove(at: from)
+        order.insert(sessionID, at: destination)
+        regroup(order)
+        save()
     }
 
     public func removeSession(_ sessionID: TerminalSession.ID) {
@@ -132,6 +144,21 @@ public final class SessionStore {
         return sessions.first { $0.id == sessionID }
     }
 
+    private func regroup(_ order: [TerminalSession.ID]) {
+        var grouped: [TerminalSession] = []
+
+        for rootID in order {
+            guard let root = sessions.first(where: { $0.id == rootID }) else { continue }
+
+            grouped.append(root)
+            grouped.append(contentsOf: sessions.filter { $0.parentID == rootID })
+        }
+
+        let placed = Set(grouped.map(\.id))
+        grouped.append(contentsOf: sessions.filter { !placed.contains($0.id) })
+        sessions = grouped
+    }
+
     private func removePane(_ pane: TerminalSession) {
         sessions.removeAll { $0.id == pane.id }
 
@@ -173,12 +200,62 @@ public final class SessionStore {
         return layout
     }
 
+    private func normalizeGroups() {
+        var changed = false
+
+        for index in sessions.indices {
+            guard let parentID = sessions[index].parentID else { continue }
+
+            guard
+                let parentIndex = sessions.firstIndex(where: { $0.id == parentID }),
+                sessions[parentIndex].parentID == nil
+            else {
+                sessions[index].parentID = nil
+                changed = true
+                continue
+            }
+
+            let layout = sessions[parentIndex].layout ?? .leaf(parentID)
+            guard !layout.contains(sessions[index].id) else { continue }
+
+            sessions[parentIndex].layout = layout.inserting(
+                sessions[index].id,
+                .trailing,
+                near: layout.leafIDs.last ?? parentID
+            )
+            changed = true
+        }
+
+        let known = Set(sessions.map(\.id))
+
+        for index in sessions.indices {
+            guard let layout = sessions[index].layout else { continue }
+
+            let strays = layout.leafIDs.filter { !known.contains($0) }
+            guard !strays.isEmpty else { continue }
+
+            var kept = layout
+            for stray in strays {
+                kept = kept.removing(stray) ?? .leaf(sessions[index].id)
+            }
+
+            sessions[index].layout = pruned(kept, soleLeaf: sessions[index].id)
+            changed = true
+        }
+
+        guard changed else { return }
+
+        persistVerified(currentSnapshot())
+    }
+
     private func load() {
         if FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) {
             loadSessionsFile()
         } else {
             migrateFromLegacyFile()
         }
+
+        normalizeGroups()
     }
 
     private func loadSessionsFile() {

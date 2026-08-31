@@ -4,7 +4,6 @@ import Foundation
 struct AgentCommandRouter {
 
     let dispatcher: TerminalCommandDispatcher
-
     let tracker: TabProcessTracker
 
     func copy(_ action: AgentResumeAction, for sessionID: TerminalSession.ID?) {

@@ -87,9 +87,7 @@ public struct PreviewSettings: View {
     }
 
     private let families = FontCatalog.monospaced
-
     private let readingFamilies = FontCatalog.reading
 
     public init() {}
-
 }

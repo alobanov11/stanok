@@ -75,7 +75,6 @@ struct BranchTree: View {
     var model: BranchTreeModel
 
     let actions: BranchActions
-
     let tracking: GitTracking
 
     @State

@@ -217,5 +217,4 @@ struct ClaudeSessionsLoaderTests {
         }
         #expect(sessions.map(\.title) == ["Newer", "Older"])
     }
-
 }

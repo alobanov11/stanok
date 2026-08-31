@@ -5,13 +5,9 @@ import Foundation
 final class FileTreeModel {
 
     private(set) var root: FileNode?
-
     private(set) var isUnavailable = false
-
     private var watcher: FileWatcher?
-
     private var onGitChange: (() -> Void)?
-
     private var currentGitDirectory: String?
 
     func open(_ url: URL?, gitDirectory: String?, onGitChange: @escaping () -> Void) {

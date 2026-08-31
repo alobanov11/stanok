@@ -49,7 +49,7 @@ struct PreviewPanel: View {
 
         case let .code(lines):
             ScrollView(.vertical) {
-                CodeBlockView(lines: lines, showsNumbers: true)
+                CodeBlockView(lines: lines, showsNumbers: true, changes: preview.changes)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -59,11 +59,7 @@ struct PreviewPanel: View {
     }
 
     let preview: FilePreview
-
     let leadingInset: CGFloat
-
     let previousName: String?
-
     let onBack: () -> Void
-
 }

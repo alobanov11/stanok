@@ -240,7 +240,6 @@ public struct WorkspaceView<Terminal: View>: View {
         SessionList(
             store: store,
             live: Set(live),
-            processUsage: processTracker.usage,
             insertAgentCommand: insertAgentCommand,
             copyAgentCommand: copyAgentCommand,
             closeSession: liveSessions.close,
@@ -255,7 +254,7 @@ public struct WorkspaceView<Terminal: View>: View {
             ZStack(alignment: .topLeading) {
                 ForEach(store.sessions) { session in
                     if live.contains(session.id) {
-                        pane(session, frame: frames[session.id], container: proxy.size)
+                        pane(session, frame: frames[session.id])
                     }
                 }
             }
@@ -313,12 +312,8 @@ public struct WorkspaceView<Terminal: View>: View {
         self.terminal = terminal
     }
 
-    private func pane(
-        _ session: TerminalSession,
-        frame: CGRect?,
-        container: CGSize
-    ) -> some View {
-        let rect = frame ?? CGRect(origin: .zero, size: container)
+    private func pane(_ session: TerminalSession, frame: CGRect?) -> some View {
+        let rect = frame ?? CGRect(origin: .zero, size: WorkspaceLayout.hiddenPaneSize)
         let isShown = frame != nil && !isPreviewFullScreen
         let isFocused = isShown && session.id == selection
 
@@ -341,19 +336,33 @@ public struct WorkspaceView<Terminal: View>: View {
         isLeading: Bool
     ) -> some View {
         VStack(spacing: 0) {
-            header(session, isLeading: isLeading)
+            if isLeading { header(session) }
+
             terminalContent(session, isShown: isShown, isFocused: isFocused)
         }
         .modifier(WorkspaceCard())
+        .overlay(alignment: .topTrailing) {
+            if !isLeading { floatingMenu(session) }
+        }
     }
 
-    private func header(_ session: TerminalSession, isLeading: Bool) -> some View {
+    private func floatingMenu(_ session: TerminalSession) -> some View {
+        TerminalActionsMenu(
+            split: { direction in split(session, direction) },
+            newTerminal: { addSession(at: session.url) },
+            close: { liveSessions.close(session) }
+        )
+        .padding(.horizontal, 4)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .padding(.top, 8)
+        .padding(.trailing, 8)
+    }
+
+    private func header(_ session: TerminalSession) -> some View {
         TerminalHeader(
             session: session,
             status: git.status(for: session),
-            leadingInset: isLeading
-                ? WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
-                : WorkspaceGeometry.expandedHeaderLeading,
+            leadingInset: WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded),
             filesMode: filesMode,
             isBusy: branchStore.isOperating(session) || isWorkingTreeBusy,
             selectAll: { selectFiles(.all, in: session) },
@@ -548,5 +557,4 @@ public struct WorkspaceView<Terminal: View>: View {
 
         selection = store.session(for: store.selectedSessionID)?.id ?? store.sessions.first?.id
     }
-
 }

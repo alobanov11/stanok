@@ -3,3 +3,5 @@
 xcuserdata/
 *.xcuserstate
 DerivedData/
+__pycache__/
+.omc/

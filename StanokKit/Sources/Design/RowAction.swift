@@ -15,9 +15,6 @@ struct RowAction: View {
     }
 
     let icon: String
-
     let hint: String
-
     let action: () -> Void
-
 }

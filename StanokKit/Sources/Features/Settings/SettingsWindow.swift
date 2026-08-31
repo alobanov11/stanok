@@ -45,5 +45,4 @@ public struct SettingsWindow: View {
     }
 
     public init() {}
-
 }

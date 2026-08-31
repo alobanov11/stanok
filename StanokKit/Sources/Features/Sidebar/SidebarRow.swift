@@ -2,6 +2,12 @@ import SwiftUI
 
 struct SidebarRow: View {
 
+    private var background: AnyShapeStyle {
+        if isDropTarget { return AnyShapeStyle(Color.accentColor.opacity(0.28)) }
+
+        return isSelected ? AnyShapeStyle(.white.opacity(0.12)) : AnyShapeStyle(.clear)
+    }
+
     private var iconStyle: AnyShapeStyle {
         if isMuted { return AnyShapeStyle(.tertiary) }
         return isLive ? AnyShapeStyle(Color.green) : AnyShapeStyle(.secondary)
@@ -35,7 +41,7 @@ struct SidebarRow: View {
         .padding(.trailing, 10)
         .padding(.vertical, 7)
         .background(
-            isSelected ? AnyShapeStyle(.white.opacity(0.12)) : AnyShapeStyle(.clear),
+            background,
             in: .rect(cornerRadius: 10, style: .continuous)
         )
         .contentShape(.rect(cornerRadius: 10))
@@ -45,17 +51,12 @@ struct SidebarRow: View {
     }
 
     let icon: String
-
     let title: String
-
     let isSelected: Bool
-
     let isMuted: Bool
-
     let isLive: Bool
-
     let indent: CGFloat
-
+    let isDropTarget: Bool
     let close: () -> Void
 
     init(
@@ -65,6 +66,7 @@ struct SidebarRow: View {
         isMuted: Bool,
         isLive: Bool,
         indent: CGFloat,
+        isDropTarget: Bool = false,
         close: @escaping () -> Void
     ) {
         self.icon = icon
@@ -73,7 +75,7 @@ struct SidebarRow: View {
         self.isMuted = isMuted
         self.isLive = isLive
         self.indent = indent
+        self.isDropTarget = isDropTarget
         self.close = close
     }
-
 }

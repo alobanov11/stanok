@@ -16,13 +16,9 @@ struct AgentChatListSection: View {
     }
 
     let providerID: String
-
     let title: String
-
     let filter: String
-
     let onCopy: (AgentSession) -> Void
-
     let onInsert: (AgentSession) -> Void
 
     @Environment(\.agentSessionRegistry)

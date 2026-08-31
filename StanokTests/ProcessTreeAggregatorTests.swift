@@ -170,5 +170,4 @@ struct ProcessTreeAggregatorTests {
             residentMemoryBytes: residentMemoryBytes
         )
     }
-
 }

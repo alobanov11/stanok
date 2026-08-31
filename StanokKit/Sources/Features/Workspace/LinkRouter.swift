@@ -5,7 +5,6 @@ import SwiftUI
 struct LinkRouter {
 
     let navigator: PreviewNavigator
-
     let openFile: (URL) -> Void
 
     func route(_ url: URL) {

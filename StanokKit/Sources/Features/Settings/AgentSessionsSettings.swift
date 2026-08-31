@@ -16,5 +16,4 @@ public struct AgentSessionsSettings: View {
     }
 
     public init() {}
-
 }

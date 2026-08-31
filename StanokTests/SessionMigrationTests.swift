@@ -60,7 +60,6 @@ struct SessionMigrationTests {
             ],
             "url" : "file:\/\/\/Users\/tom\/Projects\/_archive\/_IOS_ARCHIVE_\/relix-ios\/",
             "workspace" : {
-
             }
           },
           {
@@ -77,7 +76,6 @@ struct SessionMigrationTests {
             ],
             "url" : "file:\/\/\/Users\/tom\/",
             "workspace" : {
-
             }
           }
         ]
@@ -155,7 +153,6 @@ struct SessionMigrationTests {
             ],
             "url" : "file:\/\/\/Users\/tom\/Projects\/_archive\/_IOS_ARCHIVE_\/relix-ios\/",
             "workspace" : {
-
             }
           },
           {
@@ -172,7 +169,6 @@ struct SessionMigrationTests {
             ],
             "url" : "file:\/\/\/Users\/tom\/",
             "workspace" : {
-
             }
           }
         ]

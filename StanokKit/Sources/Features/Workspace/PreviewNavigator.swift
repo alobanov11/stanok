@@ -5,9 +5,7 @@ import SwiftUI
 final class PreviewNavigator {
 
     private static let transitionDuration = 0.18
-
     private static let maxStackSize = 20
-
     var current: PreviewEntry? { stack.last }
 
     var previousName: String? {
@@ -17,9 +15,7 @@ final class PreviewNavigator {
     }
 
     private(set) var stack: [PreviewEntry] = []
-
     private var token = UUID()
-
     private var loadTask: Task<FilePreview, Never>?
 
     func openFile(_ url: URL) async {

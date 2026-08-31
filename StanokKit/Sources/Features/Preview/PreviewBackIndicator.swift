@@ -16,7 +16,5 @@ struct PreviewBackIndicator: View {
     }
 
     let name: String
-
     let action: () -> Void
-
 }

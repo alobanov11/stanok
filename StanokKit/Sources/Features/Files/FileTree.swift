@@ -68,7 +68,6 @@ struct FileTree: View {
     }
 
     let model: FileTreeModel
-
     let snapshot: GitSnapshot?
 
     @Binding

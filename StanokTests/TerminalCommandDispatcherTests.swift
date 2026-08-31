@@ -112,5 +112,4 @@ struct TerminalCommandDispatcherTests {
             inSessionText: "/resume \(id)"
         )
     }
-
 }

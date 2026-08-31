@@ -11,7 +11,6 @@ public enum BranchTreeBuilder {
     }
 
     public static let branchesID = "Branches"
-
     public static let remotesID = "Remotes"
 
     public static func build(

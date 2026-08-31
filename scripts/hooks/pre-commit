@@ -16,4 +16,6 @@ git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift' > "$list"
 
 xargs -0 swiftformat --quiet < "$list"
 xargs -0 "$root/scripts/fix-type-blank-lines.py" < "$list"
+xargs -0 "$root/scripts/fix-property-spacing.py" < "$list"
+xargs -0 "$root/scripts/fix-declaration-order.py" < "$list"
 xargs -0 git add < "$list"

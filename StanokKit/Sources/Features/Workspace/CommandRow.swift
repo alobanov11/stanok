@@ -21,5 +21,4 @@ struct CommandRow: View {
     }
 
     let run: CommandRun
-
 }

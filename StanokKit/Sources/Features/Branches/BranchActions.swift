@@ -3,19 +3,12 @@ import Foundation
 struct BranchActions {
 
     let isOperating: Bool
-
     let checkDirty: () async -> Bool?
-
     let checkRefFormat: (String) async -> GitCommandOutcome
-
     let create: (String) async -> GitCommandOutcome
-
     let switchTo: (GitBranchRef) async -> GitCommandOutcome
-
     let delete: (String) async -> GitCommandOutcome
-
     let fetch: () -> Void
-
     let pull: () -> Void
 }
 
@@ -34,7 +27,6 @@ extension BranchActions {
             isOperating: isOperating,
             checkDirty: {
                 guard let session = session() else { return nil }
-
                 let path = session.url.path(percentEncoded: false)
                 return await GitBranchOperations.isDirty(at: path)
             },
@@ -42,7 +34,6 @@ extension BranchActions {
                 guard let session = session() else {
                     return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
                 }
-
                 let path = session.url.path(percentEncoded: false)
                 return await GitBranchOperations.checkRefFormat(name: name, at: path)
             },
@@ -50,7 +41,6 @@ extension BranchActions {
                 guard let session = session() else {
                     return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
                 }
-
                 let path = session.url.path(percentEncoded: false)
                 return await branchStore.perform(for: session) {
                     await GitBranchOperations.create(name: name, at: path)
@@ -60,13 +50,11 @@ extension BranchActions {
                 guard let session = session() else {
                     return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
                 }
-
                 let path = session.url.path(percentEncoded: false)
                 let outcome = await branchStore.perform(for: session) {
                     switch ref.kind {
                     case .local:
                         return await GitBranchOperations.switchTo(name: ref.displayName, at: path)
-
                     case .remote:
                         let remoteRef = String(ref.fullName.dropFirst("refs/remotes/".count))
                         return await GitBranchOperations.createTrackingAndSwitch(
@@ -76,7 +64,6 @@ extension BranchActions {
                         )
                     }
                 }
-
                 await afterSwitch()
                 return outcome
             },
@@ -84,7 +71,6 @@ extension BranchActions {
                 guard let session = session() else {
                     return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
                 }
-
                 let path = session.url.path(percentEncoded: false)
                 return await branchStore.perform(for: session) {
                     await GitBranchOperations.delete(name: name, at: path)

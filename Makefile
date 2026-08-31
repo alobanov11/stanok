@@ -1,4 +1,4 @@
-.PHONY: ghostty check-ghostty install
+.PHONY: ghostty check-ghostty check-layout install
 
 ghostty:
 	./scripts/build-ghostty.sh
@@ -9,6 +9,10 @@ check-ghostty:
 		exit 1; \
 	fi
 	@echo "StanokKit/GhosttyKit.xcframework resolves ok"
+
+check-layout:
+	./scripts/check-file-groups.py
+	./scripts/check-declaration-order.py
 
 install:
 	xcodebuild -project Stanok.xcodeproj -scheme Stanok -configuration Release \

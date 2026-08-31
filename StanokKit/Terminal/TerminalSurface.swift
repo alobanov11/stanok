@@ -4,28 +4,19 @@ import SwiftUI
 struct TerminalSurface: NSViewRepresentable {
 
     let runtime: GhosttyRuntime
-
     let workingDirectory: URL?
-
     let processLabel: String
-
     let isVisible: Bool
-
     let isFocused: Bool
-
     let insertRequest: TerminalInsertRequest?
-
     let onCommandFinished: (CommandRun) -> Void
-
     let onOpenURL: (String) -> Void
-
     let onTitleChanged: (String) -> Void
-
     let onCloseRequested: (Bool) -> Void
-
     let onPwdChanged: (String) -> Void
-
     let onFocused: () -> Void
+    let onScrollbar: (TerminalScrollbar) -> Void
+    let scrollController: TerminalScrollController
 
     static func dismantleNSView(_ view: GhosttySurfaceView, coordinator: ()) {
         view.shutdown()
@@ -45,6 +36,8 @@ struct TerminalSurface: NSViewRepresentable {
         view.onCloseRequested = onCloseRequested
         view.onPwdChanged = onPwdChanged
         view.onFocused = onFocused
+        view.onScrollbarChanged = onScrollbar
+        scrollController.scroll = { [weak view] rows in view?.scroll(rows: rows) }
         runtime.register(view)
         view.apply(insertRequest: insertRequest)
         return view
@@ -57,6 +50,8 @@ struct TerminalSurface: NSViewRepresentable {
         view.onCloseRequested = onCloseRequested
         view.onPwdChanged = onPwdChanged
         view.onFocused = onFocused
+        view.onScrollbarChanged = onScrollbar
+        scrollController.scroll = { [weak view] rows in view?.scroll(rows: rows) }
         view.setVisible(isVisible)
         view.setFocused(isFocused)
         view.apply(insertRequest: insertRequest)

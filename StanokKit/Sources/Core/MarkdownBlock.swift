@@ -15,12 +15,8 @@ struct MarkdownBlock: Identifiable, Sendable {
     }
 
     let id: Int
-
     let kind: Kind
-
     let text: AttributedString
-
     let isQuoted: Bool
-
     let containerID: Int?
 }

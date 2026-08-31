@@ -84,6 +84,20 @@ reference-type мир, который в value-type редьюсер не пом
   `remove` и `preserve`).
 - **pre-commit** (`core.hooksPath scripts/hooks`) — форматтер и автофикс
   на staged-файлах.
+- **`scripts/check-file-groups.py`** — фаза сборки: три и более файла с общим
+  началом имени в одном каталоге обязаны жить в своей папке. Имя папки берётся
+  без слов, уже названных папками выше (`Agents/Claude/ClaudeSession*` →
+  `Agents/Claude/Session/`), `Fold` и `Folding` считаются одним префиксом,
+  а `CommandRow` и `WorkspaceCommandActions` — разными: имена должны совпадать
+  буквально. Позвать руками: `make check-layout`.
+- **`scripts/check-file-groups.py`** — фаза сборки: три и более файла с общим
+  префиксом в одном каталоге обязаны жить в своей папке. Префикс считается без
+  тех слов, что уже названы папками выше (`Agents/Claude/ClaudeSession*` →
+  `Agents/Claude/Session/`), а `Fold` и `Folding` считаются одним префиксом.
+  Позвать руками: `make check-layout`.
+- **`scripts/check-file-groups.py`** — фаза сборки: три и более файла с общим
+  префиксом в одном каталоге обязаны жить в своей папке (`Split*` → `Core/Split/`).
+  Проверку можно позвать руками: `make check-layout`.
 
 Две границы автоматизации, которые важно знать:
 

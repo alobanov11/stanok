@@ -85,5 +85,4 @@ struct ShellProcessLabelStoreTests {
             encoding: .utf8
         )
     }
-
 }

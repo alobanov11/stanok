@@ -14,5 +14,4 @@ struct SectionHeader: View {
     }
 
     let title: String
-
 }

@@ -58,5 +58,4 @@ struct AgentChatRow: View {
 
     @State
     private var isHovering = false
-
 }

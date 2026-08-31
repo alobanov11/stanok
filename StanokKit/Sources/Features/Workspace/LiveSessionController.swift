@@ -4,13 +4,9 @@ import SwiftUI
 struct LiveSessionController {
 
     let store: SessionStore
-
     let dispatcher: TerminalCommandDispatcher
-
     let processTracker: TabProcessTracker
-
     let live: Binding<[TerminalSession.ID]>
-
     let selection: Binding<TerminalSession.ID?>
 
     func activate(_ id: TerminalSession.ID) {

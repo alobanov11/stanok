@@ -11,11 +11,8 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     }
 
     public var selectedFile: String?
-
     public var panelMode: String?
-
     public var expandedFolderPaths: [String]?
-
     public var scrollAnchorPath: String?
 
     public init(

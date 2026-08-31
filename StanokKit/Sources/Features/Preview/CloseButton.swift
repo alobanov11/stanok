@@ -19,5 +19,4 @@ struct CloseButton: View {
     }
 
     let action: () -> Void
-
 }
