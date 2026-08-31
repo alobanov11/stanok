@@ -33,10 +33,16 @@ public final class TerminalCommandDispatcher {
         insertRequests[id]
     }
 
-    public func dispatch(_ action: AgentResumeAction, into sessionID: TerminalSession.ID?) {
-        let command = ShellQuoting.posixQuote([action.executable] + action.arguments)
+    public func dispatch(
+        _ action: AgentResumeAction,
+        into sessionID: TerminalSession.ID?,
+        runningProcessNames: Set<String> = []
+    ) {
+        let command = resolvedCommand(for: action, runningProcessNames: runningProcessNames)
+        write(command)
+
         guard let sessionID, confirmedIdle.contains(sessionID) else {
-            copy(command, for: sessionID)
+            announceCopy(for: sessionID)
             return
         }
 
@@ -44,10 +50,26 @@ public final class TerminalCommandDispatcher {
         insertRequests[sessionID] = TerminalInsertRequest(text: command)
     }
 
-    private func copy(_ text: String, for sessionID: TerminalSession.ID?) {
+    private func resolvedCommand(
+        for action: AgentResumeAction,
+        runningProcessNames: Set<String>
+    ) -> String {
+        if
+            let runningProcessName = action.runningProcessName,
+            let inSessionText = action.inSessionText,
+            runningProcessNames.contains(runningProcessName) {
+            return inSessionText
+        }
+
+        return ShellQuoting.posixQuote([action.executable] + action.arguments)
+    }
+
+    private func write(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
 
+    private func announceCopy(for sessionID: TerminalSession.ID?) {
         let token = UUID()
         copyNotice = CopyNotice(sessionID: sessionID, token: token)
         Task { [weak self] in
