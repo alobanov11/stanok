@@ -4,9 +4,7 @@ struct PreviewLayer: View {
 
     var body: some View {
         panel
-            .background {
-                WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius)
-            }
+            .modifier(WorkspaceCard())
             .overlay(alignment: .topTrailing) { closeButton }
             .zIndex(1)
             .transition(.opacity)

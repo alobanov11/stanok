@@ -266,13 +266,13 @@ public struct WorkspaceView<Terminal: View>: View {
         mainContent
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mainWidth = $0 }
-            .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
-            .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
     }
 
     private var mainContent: some View {
         ZStack {
             terminalStack
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .modifier(WorkspaceCard())
                 .padding(.trailing, isPreviewSplit ? mainWidth / 2 : 0)
 
             if let entry = navigator.current {
@@ -282,7 +282,7 @@ public struct WorkspaceView<Terminal: View>: View {
                         ? WorkspaceGeometry.expandedHeaderLeading
                         : WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
                 )
-                .frame(width: isPreviewSplit ? mainWidth / 2 : nil)
+                .frame(width: isPreviewSplit ? mainWidth / 2 - WorkspaceLayout.inset : nil)
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
