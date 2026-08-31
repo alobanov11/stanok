@@ -13,7 +13,7 @@ enum GitProcessRunner {
 
     static func run(_ arguments: [String]) async -> Result {
         await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
+            GitProcessQueue.serial.async {
                 let process = Process()
                 process.executableURL = URL(filePath: "/usr/bin/env")
                 process.environment = ToolEnvironment.current

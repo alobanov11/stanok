@@ -121,7 +121,7 @@ public enum GitClient {
 
     private static func runRaw(_ arguments: [String]) async -> Data? {
         await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
+            GitProcessQueue.serial.async {
                 let process = Process()
                 process.executableURL = URL(filePath: "/usr/bin/env")
                 process.environment = ToolEnvironment.current

@@ -14,7 +14,10 @@ enum GitWorkingTreeOperations {
     }
 
     static func discard(at root: String) async -> GitCommandOutcome {
-        await outcome(["-C", root, "restore", "--staged", "--worktree", "--", "."])
+        let restored = await outcome(["-C", root, "restore", "--staged", "--worktree", "--", "."])
+        guard restored.succeeded else { return restored }
+
+        return await outcome(["-C", root, "clean", "-fd"])
     }
 
     static func stash(at root: String, message: String) async -> GitCommandOutcome {
