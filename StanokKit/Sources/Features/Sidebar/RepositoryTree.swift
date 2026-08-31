@@ -106,7 +106,7 @@ struct RepositoryTree: View {
             if session.isAgentsExpanded {
                 AgentSessionsSection(
                     projectURL: repository.url,
-                    indent: 20,
+                    indent: 40,
                     onSelect: { agentSession in
                         insertAgentCommand(agentSession.resumeAction, session.id)
                     }
