@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Подсказки по раскладке файлов: кандидаты на папку, на схлопывание и на переименование.
+"""Раскладка файлов: где заводить папку, где её убирать и где имя лишнее.
 
-Сборку не ломает: это вопросы к автору, а не правила.
+Нарушение ломает сборку: это решения, которые нельзя оставлять на потом.
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def merged(groups: dict[str, list[Path]]) -> dict[str, list[Path]]:
 
 def anchor(path: Path, text: str) -> str:
     """Xcode делает кликабельным только то, что начинается с файла и строки."""
-    return f"{path}:1:1: warning: {text}"
+    return f"{path}:1:1: error: {text}"
 
 
 def group_hints(directory: Path, files: list[Path], folders: set[str]) -> list[str]:
@@ -116,8 +116,8 @@ def group_hints(directory: Path, files: list[Path], folders: set[str]) -> list[s
         names = ", ".join(path.name for path in paths)
         hints.append(anchor(
             paths[0],
-            f"{len(paths)} файла начинаются на {name}, рядом ещё {outside} — точно ли им "
-            f"место в одном каталоге? Кандидат на {directory}/{name}/ ({names})"
+            f"{len(paths)} файла начинаются на {name}, рядом ещё {outside} — вынесите их "
+            f"в {directory}/{name}/ ({names})"
         ))
 
     return hints
@@ -139,8 +139,8 @@ def folder_hints(root: Path, directory: Path, files: list[Path]) -> list[str]:
     if depth > Limit.DEPTH:
         hints.append(anchor(
             files[0],
-            f"папка {directory} лежит на {depth} уровне — точно ли файлы должны быть "
-            f"так глубоко?"
+            f"папка {directory} лежит на {depth} уровне — вложенность глубже "
+            f"{Limit.DEPTH} уровней, поднимите файлы выше"
         ))
 
     return hints
@@ -171,13 +171,13 @@ def name_hints(root: Path, directory: Path, files: list[Path]) -> list[str]:
         hints.append(anchor(
             path,
             f"имя повторяет папку {'/'.join(directory.relative_to(root).parts)} "
-            f"— точно ли не {shorter}?"
+            f"— переименуйте в {shorter} или уберите лишнюю папку"
         ))
 
     return hints
 
 
-def hints(root: Path) -> list[str]:
+def violations(root: Path) -> list[str]:
     found: list[str] = []
 
     for directory in sorted({path.parent for path in root.rglob("*.swift")}):
@@ -194,17 +194,16 @@ def hints(root: Path) -> list[str]:
 def main() -> int:
     found: list[str] = []
     for root in ROOTS:
-        found += hints(Path(root))
+        found += violations(Path(root))
 
     if not found:
         print("layout ok")
         return 0
 
     for line in found:
-        print(line)
+        print(line, file=sys.stderr)
 
-    print(f"{len(found)} кандидатов на рефакторинг — сборку это не ломает")
-    return 0
+    return 1
 
 
 if __name__ == "__main__":

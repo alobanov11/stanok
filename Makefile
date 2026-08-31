@@ -24,7 +24,7 @@ format:
 
 lint:
 	@$(SWIFTLINT) lint --quiet
-	@./scripts/review-layout.py
+	@./scripts/check-layout.py
 	@./scripts/check-declaration-order.py
 
 install:
