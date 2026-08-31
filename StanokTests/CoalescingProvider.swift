@@ -6,6 +6,8 @@ actor CoalescingProvider: AgentSessionProvider {
 
     nonisolated let id = "coalescing-fake"
 
+    nonisolated let displayName = "Coalescing"
+
     nonisolated let relay = ChangeRelay()
 
     private(set) var callCount = 0

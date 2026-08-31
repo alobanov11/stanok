@@ -7,7 +7,7 @@ public final class TerminalCommandDispatcher {
 
     public struct CopyNotice: Equatable {
 
-        public let sessionID: TerminalSession.ID
+        public let sessionID: TerminalSession.ID?
 
         let token: UUID
     }
@@ -33,9 +33,9 @@ public final class TerminalCommandDispatcher {
         insertRequests[id]
     }
 
-    public func dispatch(_ action: AgentResumeAction, into sessionID: TerminalSession.ID) {
+    public func dispatch(_ action: AgentResumeAction, into sessionID: TerminalSession.ID?) {
         let command = ShellQuoting.posixQuote([action.executable] + action.arguments)
-        guard confirmedIdle.contains(sessionID) else {
+        guard let sessionID, confirmedIdle.contains(sessionID) else {
             copy(command, for: sessionID)
             return
         }
@@ -44,7 +44,7 @@ public final class TerminalCommandDispatcher {
         insertRequests[sessionID] = TerminalInsertRequest(text: command)
     }
 
-    private func copy(_ text: String, for sessionID: TerminalSession.ID) {
+    private func copy(_ text: String, for sessionID: TerminalSession.ID?) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
 

@@ -203,7 +203,7 @@ public struct WorkspaceView<Terminal: View>: View {
 
     @ViewBuilder
     private var copyNoticeOverlay: some View {
-        if let copyNotice = dispatcher.copyNotice, copyNotice.sessionID == selection {
+        if let copyNotice = dispatcher.copyNotice, isVisible(copyNotice) {
             CopyNoticeBanner()
                 .padding(.top, WorkspaceLayout.headerHeight + 8)
                 .transition(.opacity)
@@ -299,6 +299,10 @@ public struct WorkspaceView<Terminal: View>: View {
         session.id == selection && navigator.current == nil
     }
 
+    private func isVisible(_ copyNotice: TerminalCommandDispatcher.CopyNotice) -> Bool {
+        copyNotice.sessionID == nil || copyNotice.sessionID == selection
+    }
+
     private func openFileTree() {
         fileTreeModel.open(
             selectedRepository?.url,
@@ -381,8 +385,11 @@ public struct WorkspaceView<Terminal: View>: View {
         withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
     }
 
-    private func insertAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID) {
-        guard store.repository(hosting: sessionID) != nil else { return }
+    private func insertAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID?) {
+        guard let sessionID, store.repository(hosting: sessionID) != nil else {
+            dispatcher.dispatch(action, into: nil)
+            return
+        }
 
         selection = sessionID
         activate(sessionID)

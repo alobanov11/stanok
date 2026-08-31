@@ -4,11 +4,24 @@ import Foundation
 @Observable
 public final class AgentSessionRegistry {
 
+    public struct ProviderInfo: Identifiable, Sendable {
+
+        public let id: String
+
+        public let displayName: String
+    }
+
     private struct TrackingKey: Hashable {
 
         let providerID: String
 
         let projectURL: URL
+    }
+
+    public var registeredProviders: [ProviderInfo] {
+        providers.values
+            .map { ProviderInfo(id: $0.id, displayName: $0.displayName) }
+            .sorted { $0.id < $1.id }
     }
 
     private(set) var snapshots: [URL: AgentSessionsLoadState] = [:]
@@ -59,6 +72,10 @@ public final class AgentSessionRegistry {
 
     public func sessions(for projectURL: URL) -> AgentSessionsLoadState {
         snapshots[projectURL] ?? .loading
+    }
+
+    public func sessions(for projectURL: URL, providerID: String) -> AgentSessionsLoadState {
+        perProviderState[TrackingKey(providerID: providerID, projectURL: projectURL)] ?? .loading
     }
 
     public func observe(_ projectURL: URL) {

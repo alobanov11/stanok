@@ -23,18 +23,6 @@ struct SidebarRow: View {
 
             Spacer(minLength: 0)
 
-            if let toggleSecondaryLevel {
-                Button(action: toggleSecondaryLevel) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(isSecondaryLevelExpanded ? 90 : 0))
-                        .frame(width: 16, height: 16)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-            }
-
             RowAction(icon: "xmark", hint: "Закрыть терминал", isVisible: isHovering, action: close)
         }
         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
@@ -66,10 +54,6 @@ struct SidebarRow: View {
 
     let close: () -> Void
 
-    let isSecondaryLevelExpanded: Bool
-
-    let toggleSecondaryLevel: (() -> Void)?
-
     init(
         icon: String,
         title: String,
@@ -77,9 +61,7 @@ struct SidebarRow: View {
         isMuted: Bool,
         isLive: Bool,
         indent: CGFloat,
-        close: @escaping () -> Void,
-        isSecondaryLevelExpanded: Bool = false,
-        toggleSecondaryLevel: (() -> Void)? = nil
+        close: @escaping () -> Void
     ) {
         self.icon = icon
         self.title = title
@@ -88,8 +70,6 @@ struct SidebarRow: View {
         self.isLive = isLive
         self.indent = indent
         self.close = close
-        self.isSecondaryLevelExpanded = isSecondaryLevelExpanded
-        self.toggleSecondaryLevel = toggleSecondaryLevel
     }
 
 }

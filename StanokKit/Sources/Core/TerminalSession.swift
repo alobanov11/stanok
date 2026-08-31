@@ -7,7 +7,6 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         case id
         case name
         case isPinned
-        case isAgentsExpanded
     }
 
     public let id: UUID
@@ -16,18 +15,14 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
 
     public var isPinned: Bool
 
-    public var isAgentsExpanded: Bool
-
     public init(
         id: UUID = UUID(),
         name: String,
-        isPinned: Bool = false,
-        isAgentsExpanded: Bool = false
+        isPinned: Bool = false
     ) {
         self.id = id
         self.name = name
         self.isPinned = isPinned
-        self.isAgentsExpanded = isAgentsExpanded
     }
 
     public init(from decoder: any Decoder) throws {
@@ -35,7 +30,5 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
         self.isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
-        self.isAgentsExpanded = try container
-            .decodeIfPresent(Bool.self, forKey: .isAgentsExpanded) ?? false
     }
 }

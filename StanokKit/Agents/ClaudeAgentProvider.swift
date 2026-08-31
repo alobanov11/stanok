@@ -13,6 +13,8 @@ public final class ClaudeAgentProvider: AgentSessionProvider, Sendable {
 
     public var id: String { Self.providerID }
 
+    public var displayName: String { "Claude" }
+
     private let projectsRoot: URL
 
     private let loader: ClaudeSessionsLoader

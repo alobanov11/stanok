@@ -2,7 +2,9 @@ import SwiftUI
 
 struct AgentSessionsSection: View {
 
-    private var state: AgentSessionsLoadState { registry.sessions(for: projectURL) }
+    private var state: AgentSessionsLoadState {
+        registry.sessions(for: projectURL, providerID: providerID)
+    }
 
     var body: some View {
         Group {
@@ -27,6 +29,8 @@ struct AgentSessionsSection: View {
     }
 
     let projectURL: URL
+
+    let providerID: String
 
     let indent: CGFloat
 

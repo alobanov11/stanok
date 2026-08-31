@@ -87,17 +87,11 @@ public final class RepositoryStore {
         save()
     }
 
-    public func toggleAgentsExpansion(_ sessionID: TerminalSession.ID) {
-        for repositoryIndex in repositories.indices {
-            guard
-                let index = repositories[repositoryIndex].sessions
-                    .firstIndex(where: { $0.id == sessionID })
-            else { continue }
+    public func toggleAgentsExpansion(_ repositoryID: Repository.ID) {
+        guard let index = repositories.firstIndex(where: { $0.id == repositoryID }) else { return }
 
-            repositories[repositoryIndex].sessions[index].isAgentsExpanded.toggle()
-            save()
-            return
-        }
+        repositories[index].isAgentsExpanded.toggle()
+        save()
     }
 
     public func togglePin(_ sessionID: TerminalSession.ID) {
