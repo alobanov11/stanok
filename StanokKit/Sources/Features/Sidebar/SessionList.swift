@@ -72,9 +72,11 @@ struct SessionList: View {
     }
 
     private func resumeAgentChat(_ session: AgentSession) {
-        guard let folder = session.folder else { return }
+        guard let target = selection ?? session.folder.map({ store.addSession(url: $0).id })
+        else { return }
 
-        insertAgentCommand(session.resumeAction, store.addSession(url: folder).id)
+        selection = target
+        insertAgentCommand(session.resumeAction, target)
     }
 
     private func sessionRow(_ session: TerminalSession) -> some View {
@@ -100,9 +102,18 @@ struct SessionList: View {
     }
 
     private func closeSession(_ session: TerminalSession) {
-        if selection == session.id { selection = nil }
+        if selection == session.id { selection = neighbour(of: session.id)?.id }
 
         withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
+    }
+
+    private func neighbour(of sessionID: TerminalSession.ID) -> TerminalSession? {
+        guard let index = store.sessions.firstIndex(where: { $0.id == sessionID })
+        else { return nil }
+
+        let after = store.sessions[store.sessions.index(after: index)...].first
+
+        return after ?? store.sessions[..<index].last
     }
 
     private func addSession(at url: URL) {
