@@ -17,7 +17,7 @@ public struct WorkspaceView<Terminal: View>: View {
             get: { selectedFile },
             set: { newValue in
                 if let newValue {
-                    reveal(newValue)
+                    fileSelection.reveal(newValue)
                 } else {
                     selectedFile = nil
                 }
@@ -29,14 +29,26 @@ public struct WorkspaceView<Terminal: View>: View {
         WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
     }
 
+    private var fileSelection: FileSelectionController {
+        FileSelectionController(
+            selectedFile: $selectedFile,
+            filesMode: $filesMode,
+            store: store,
+            navigator: navigator,
+            repository: { selectedRepository }
+        )
+    }
+
+    private var linkRouter: LinkRouter {
+        LinkRouter(navigator: navigator, openFile: fileSelection.open)
+    }
+
     private var branchActions: BranchActions {
-        BranchActions(
+        BranchActions.make(
             isOperating: branchStore.isOperating(selectedRepository),
-            checkDirty: checkDirty,
-            checkRefFormat: checkRefFormat,
-            create: createBranch,
-            switchTo: switchBranch,
-            delete: deleteBranch,
+            repository: { selectedRepository },
+            branchStore: branchStore,
+            afterSwitch: afterBranchSwitch,
             fetch: { dispatchGitCommand(["fetch", "--all", "--prune"]) },
             pull: { dispatchGitCommand(["pull", "--ff-only"]) }
         )
@@ -103,7 +115,7 @@ public struct WorkspaceView<Terminal: View>: View {
                 .padding(.leading, isSidebarExpanded ? 0 : WorkspaceLayout.inset)
                 .padding(.trailing, WorkspaceLayout.inset)
                 .padding(.vertical, WorkspaceLayout.inset)
-                .environment(\.openURL, OpenURLAction(handler: handleLink))
+                .environment(\.openURL, OpenURLAction(handler: linkRouter.handleLink))
 
             if let filesMode {
                 filesPanel(filesMode)
@@ -124,7 +136,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .task(id: selection) { await git.refresh(selectedRepository) }
         .task(id: selection) { await branchStore.refresh(selectedRepository) }
         .task(id: selectedRepository?.url) { openFileTree() }
-        .task(id: selectedRepository?.id) { restoreWorkspace() }
+        .task(id: selectedRepository?.id) { fileSelection.restoreWorkspace() }
         .onChange(of: selectedRepository?.id) { _, _ in resetPreview() }
         .onChange(of: filesMode) { _, mode in
             guard mode == .branches else { return }
@@ -213,7 +225,7 @@ public struct WorkspaceView<Terminal: View>: View {
                             { model.record($0)
                                 dispatcher.markAtPrompt(session.id)
                                 Task { await git.refresh(repository) } },
-                            { openTerminalLink($0, in: repository) },
+                            { linkRouter.openTerminalLink($0, in: repository) },
                             { store.setLiveTitle($0.isEmpty ? nil : $0, for: session.id) },
                             { _ in closeSession(session) }
                         )
@@ -315,7 +327,7 @@ public struct WorkspaceView<Terminal: View>: View {
             branchActions: branchActions,
             snapshot: git.snapshot(for: selectedRepository),
             selected: selectedFileBinding,
-            onOpen: open
+            onOpen: fileSelection.open
         )
         .frame(width: WorkspaceLayout.filesWidth)
         .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
@@ -340,72 +352,6 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
-    private func restoreWorkspace() {
-        guard let repository = selectedRepository else { return }
-
-        if let resolved = WorkspacePaths.resolvedSelectedFile(from: repository) {
-            selectedFile = resolved
-        }
-
-        filesMode = WorkspacePaths.filePanelMode(from: repository.workspace.panelMode)
-    }
-
-    private func open(_ url: URL) {
-        reveal(url)
-
-        Task {
-            await navigator.openFile(url)
-        }
-    }
-
-    private func reveal(_ url: URL) {
-        guard
-            let repository = selectedRepository,
-            WorkspacePaths.contains(repository.url, url)
-        else { return }
-
-        selectedFile = url
-
-        if filesMode != .changes {
-            showAllFiles()
-        }
-
-        if let relative = WorkspacePaths.relativePath(for: url, in: repository.url) {
-            store.updateWorkspace(repository.id) { $0.selectedFile = relative }
-        }
-    }
-
-    private func showAllFiles() {
-        guard filesMode != .all else { return }
-
-        if filesMode == nil {
-            withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { filesMode = .all }
-        } else {
-            filesMode = .all
-        }
-
-        persistPanelMode()
-    }
-
-    private func route(_ url: URL) {
-        if url.scheme == "http" || url.scheme == "https" {
-            navigator.openWeb(url)
-            return
-        }
-
-        guard url.isFileURL else {
-            NSWorkspace.shared.open(url)
-            return
-        }
-
-        open(URL(fileURLWithPath: url.path))
-    }
-
-    private func handleLink(_ url: URL) -> OpenURLAction.Result {
-        route(url)
-        return .handled
-    }
-
     private func closeSession(_ session: TerminalSession) {
         if selection == session.id { selection = nil }
 
@@ -424,75 +370,6 @@ public struct WorkspaceView<Terminal: View>: View {
         selection = sessionID
         activate(sessionID)
         dispatcher.dispatch(action, into: sessionID)
-    }
-
-    private func openTerminalLink(_ raw: String, in repository: Repository) {
-        let resolved = WorkspacePaths.resolvedURL(from: raw, relativeTo: repository.url)
-        guard let url = resolved else { return }
-
-        route(url)
-    }
-
-    private func checkDirty() async -> Bool? {
-        guard let repository = selectedRepository else { return nil }
-
-        return await GitBranchOperations.isDirty(at: repository.url.path(percentEncoded: false))
-    }
-
-    private func checkRefFormat(_ name: String) async -> GitCommandOutcome {
-        guard let repository = selectedRepository else {
-            return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
-        }
-
-        let path = repository.url.path(percentEncoded: false)
-        return await GitBranchOperations.checkRefFormat(name: name, at: path)
-    }
-
-    private func createBranch(_ name: String) async -> GitCommandOutcome {
-        guard let repository = selectedRepository else {
-            return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
-        }
-
-        let path = repository.url.path(percentEncoded: false)
-        return await branchStore.perform(for: repository) {
-            await GitBranchOperations.create(name: name, at: path)
-        }
-    }
-
-    private func deleteBranch(_ name: String) async -> GitCommandOutcome {
-        guard let repository = selectedRepository else {
-            return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
-        }
-
-        let path = repository.url.path(percentEncoded: false)
-        return await branchStore.perform(for: repository) {
-            await GitBranchOperations.delete(name: name, at: path)
-        }
-    }
-
-    private func switchBranch(_ ref: GitBranchRef) async -> GitCommandOutcome {
-        guard let repository = selectedRepository else {
-            return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
-        }
-
-        let path = repository.url.path(percentEncoded: false)
-        let outcome = await branchStore.perform(for: repository) {
-            switch ref.kind {
-            case .local:
-                return await GitBranchOperations.switchTo(name: ref.displayName, at: path)
-
-            case .remote:
-                let remoteRef = String(ref.fullName.dropFirst("refs/remotes/".count))
-                return await GitBranchOperations.createTrackingAndSwitch(
-                    local: ref.displayName,
-                    remoteRef: remoteRef,
-                    at: path
-                )
-            }
-        }
-
-        await afterBranchSwitch()
-        return outcome
     }
 
     private func afterBranchSwitch() async {
@@ -539,16 +416,7 @@ public struct WorkspaceView<Terminal: View>: View {
             : nil
 
         withAnimation(animation) { filesMode = transition.nextMode }
-        persistPanelMode()
-    }
-
-    private func persistPanelMode() {
-        guard let repository = selectedRepository else { return }
-
-        store
-            .updateWorkspace(repository.id) {
-                $0.panelMode = WorkspacePaths.rawValue(for: filesMode)
-            }
+        fileSelection.persistPanelMode()
     }
 
     private func selectFirstIfNeeded() {
