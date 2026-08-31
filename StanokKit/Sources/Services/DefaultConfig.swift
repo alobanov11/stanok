@@ -24,7 +24,10 @@ public enum DefaultConfig {
     }
 
     private static var shellInit: String {
-        """
+        let pidDirectory = AppPaths.shellProcessLabels.path(percentEncoded: false)
+        let tabIDVariable = ShellProcessLabelStore.environmentVariable
+
+        return """
         autoload -Uz add-zsh-hook add-zle-hook-widget
         zmodload zsh/complist
         zmodload zsh/stat
@@ -36,6 +39,12 @@ public enum DefaultConfig {
         typeset -g STANOK_HIST_HALFLIFE=${STANOK_HIST_HALFLIFE:-604800}
         typeset -g STANOK_MENU_LIMIT=${STANOK_MENU_LIMIT:-30}
         typeset -g STANOK_TITLE_MIN_DURATION=${STANOK_TITLE_MIN_DURATION:-1}
+
+        if [[ -n $\(tabIDVariable) ]]; then
+          mkdir -p -- "\(pidDirectory)" 2>/dev/null
+          print -r -- $$ >| "\(pidDirectory)/$\(tabIDVariable)" 2>/dev/null
+          unset \(tabIDVariable)
+        fi
 
         typeset -gA _stanok_hist_weight
         typeset -g _stanok_hist_offset=0

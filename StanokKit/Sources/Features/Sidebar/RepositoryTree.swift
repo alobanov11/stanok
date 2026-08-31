@@ -10,6 +10,8 @@ struct RepositoryTree: View {
 
     let live: Set<TerminalSession.ID>
 
+    let processUsage: [TerminalSession.ID: ProcessTreeUsage]
+
     let insertAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
 
     @Environment(\.agentSessionRegistry)
@@ -45,7 +47,7 @@ struct RepositoryTree: View {
                             }
 
                             ForEach(agentSessionRegistry.registeredProviders) { provider in
-                                providerFolder(provider, in: repository)
+                                agentSessions(provider, in: repository)
                             }
                         }
                     }
@@ -95,6 +97,7 @@ struct RepositoryTree: View {
             isSelected: session.id == selection,
             isMuted: !repository.isReachable,
             isLive: live.contains(session.id),
+            usageText: TabResourceDisplay.text(for: processUsage[session.id]),
             indent: 20,
             close: { closeSession(session) }
         )
@@ -108,38 +111,23 @@ struct RepositoryTree: View {
         }
     }
 
-    private func providerFolder(
+    private func agentSessions(
         _ provider: AgentSessionRegistry.ProviderInfo,
         in repository: Repository
     ) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            AgentProviderRow(
-                title: provider.displayName,
-                indent: 20,
-                isExpanded: repository.isAgentsExpanded,
-                toggle: { toggleAgentsExpansion(repository) }
-            )
-
-            if repository.isAgentsExpanded {
-                AgentSessionsSection(
-                    projectURL: repository.url,
-                    providerID: provider.id,
-                    indent: 40,
-                    onSelect: { agentSession in
-                        let sessionID = selectedSessionID(in: repository)
-                        insertAgentCommand(agentSession.resumeAction, sessionID)
-                    }
-                )
+        AgentSessionsSection(
+            projectURL: repository.url,
+            providerID: provider.id,
+            indent: 20,
+            onSelect: { agentSession in
+                let sessionID = selectedSessionID(in: repository)
+                insertAgentCommand(agentSession.resumeAction, sessionID)
             }
-        }
+        )
     }
 
     private func toggleExpansion(_ repository: Repository) {
         withAnimation(.smooth(duration: 0.22)) { store.toggleExpansion(repository.id) }
-    }
-
-    private func toggleAgentsExpansion(_ repository: Repository) {
-        withAnimation(.smooth(duration: 0.22)) { store.toggleAgentsExpansion(repository.id) }
     }
 
     private func selectedSessionID(in repository: Repository) -> TerminalSession.ID? {

@@ -4,14 +4,6 @@ import SwiftUI
 
 public struct WorkspaceView<Terminal: View>: View {
 
-    private var insideOffset: CGFloat {
-        WorkspaceLayout.inset + WorkspaceLayout.toggleGap
-    }
-
-    private var outsideLeading: CGFloat {
-        WorkspaceLayout.sidebarWidth - WorkspaceLayout.toggleWidth - WorkspaceLayout.toggleGap
-    }
-
     private var knownSessionIDs: Set<TerminalSession.ID> {
         Set(store.repositories.flatMap { $0.sessions.map(\.id) })
     }
@@ -33,14 +25,8 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
-    private var headerLeading: CGFloat {
-        guard !isSidebarExpanded else { return 14 }
-
-        return WorkspaceLayout.toggleWidth + WorkspaceLayout.toggleGap * 2
-    }
-
-    private var toggleTop: CGFloat {
-        WorkspaceLayout.inset + (WorkspaceLayout.headerHeight - WorkspaceLayout.toggleHeight) / 2
+    private var panelLeading: CGFloat {
+        WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
     }
 
     private var branchActions: BranchActions {
@@ -98,6 +84,9 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var dispatcher = TerminalCommandDispatcher()
 
+    @State
+    private var processTracker = TabProcessTracker()
+
     @Environment(\.scenePhase)
     private var scenePhase
 
@@ -126,6 +115,11 @@ public struct WorkspaceView<Terminal: View>: View {
         .ignoresSafeArea()
         .background(WindowBackground().ignoresSafeArea())
         .frame(minWidth: 880, minHeight: 520)
+        .focusedValue(\.workspaceCommands, .make(
+            toggleSidebar: toggleSidebar, selectFilesMode: selectFilesMode,
+            repository: selectedRepository, store: store,
+            selection: $selection, closeSession: closeSession
+        ))
         .task { selectFirstIfNeeded() }
         .task(id: selection) { await git.refresh(selectedRepository) }
         .task(id: selection) { await branchStore.refresh(selectedRepository) }
@@ -174,8 +168,8 @@ public struct WorkspaceView<Terminal: View>: View {
 
     private var toggle: some View {
         SidebarToggle(action: toggleSidebar)
-            .padding(.top, toggleTop)
-            .padding(.leading, isSidebarExpanded ? outsideLeading : insideOffset)
+            .padding(.top, WorkspaceGeometry.toggleTop)
+            .padding(.leading, WorkspaceGeometry.toggleLeading(sidebarExpanded: isSidebarExpanded))
     }
 
     private var closeButton: some View {
@@ -189,6 +183,7 @@ public struct WorkspaceView<Terminal: View>: View {
             store: store,
             selection: $selection,
             live: Set(live),
+            processUsage: processTracker.usage,
             insertAgentCommand: insertAgentCommand
         )
     }
@@ -197,7 +192,7 @@ public struct WorkspaceView<Terminal: View>: View {
         TerminalHeader(
             repository: selectedRepository,
             status: git.status(for: selectedRepository),
-            leadingInset: headerLeading,
+            leadingInset: WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded),
             filesMode: filesMode,
             selectAll: { selectFilesMode(.all) },
             selectChanges: { selectFilesMode(.changes) },
@@ -289,7 +284,7 @@ public struct WorkspaceView<Terminal: View>: View {
             case let .file(preview):
                 PreviewPanel(
                     preview: preview,
-                    leadingInset: headerLeading,
+                    leadingInset: panelLeading,
                     previousName: navigator.previousName,
                     onBack: stepBack
                 )
@@ -297,7 +292,7 @@ public struct WorkspaceView<Terminal: View>: View {
             case let .web(preview):
                 WebPreviewPanel(
                     preview: preview,
-                    leadingInset: headerLeading,
+                    leadingInset: panelLeading,
                     previousName: navigator.previousName,
                     onBack: stepBack
                 )
@@ -415,6 +410,7 @@ public struct WorkspaceView<Terminal: View>: View {
         if selection == session.id { selection = nil }
 
         live.removeAll { $0 == session.id }
+        processTracker.endTracking(session.id)
         dispatcher.forget(session.id)
         withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
     }
@@ -537,14 +533,12 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func selectFilesMode(_ mode: FilePanelMode) {
-        if filesMode == mode {
-            withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { filesMode = nil }
-        } else if filesMode == nil {
-            withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { filesMode = mode }
-        } else {
-            filesMode = mode
-        }
+        let transition = FilePanelModeTransition.resolve(current: filesMode, requested: mode)
+        let animation: Animation? = transition.animates
+            ? .smooth(duration: WorkspaceLayout.toggleDuration)
+            : nil
 
+        withAnimation(animation) { filesMode = transition.nextMode }
         persistPanelMode()
     }
 
@@ -568,7 +562,11 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func reconcileLiveSessions(_ known: Set<TerminalSession.ID>) {
+        let removed = live.filter { !known.contains($0) }
         live.removeAll { !known.contains($0) }
+        for id in removed {
+            processTracker.endTracking(id)
+        }
 
         if let selection, !known.contains(selection) {
             self.selection = nil
@@ -578,9 +576,14 @@ public struct WorkspaceView<Terminal: View>: View {
     private func activate(_ id: TerminalSession.ID) {
         live.removeAll { $0 == id }
         live.append(id)
+        processTracker.beginTracking(id)
 
         if live.count > WorkspaceLayout.liveSessionLimit {
-            live.removeFirst(live.count - WorkspaceLayout.liveSessionLimit)
+            let overflow = live.count - WorkspaceLayout.liveSessionLimit
+            for evictedID in live.prefix(overflow) {
+                processTracker.endTracking(evictedID)
+            }
+            live.removeFirst(overflow)
         }
 
         guard let repositoryID = store.repository(hosting: id)?.id else { return }

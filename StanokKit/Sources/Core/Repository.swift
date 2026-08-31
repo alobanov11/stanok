@@ -11,7 +11,6 @@ public struct Repository: Identifiable, Codable, Equatable {
         case lastOpenedAt
         case openCount
         case workspace
-        case isAgentsExpanded
     }
 
     public var name: String { url.lastPathComponent }
@@ -34,8 +33,6 @@ public struct Repository: Identifiable, Codable, Equatable {
 
     public var workspace: WorkspaceState
 
-    public var isAgentsExpanded: Bool
-
     public init(
         url: URL,
         id: UUID = UUID(),
@@ -43,8 +40,7 @@ public struct Repository: Identifiable, Codable, Equatable {
         isExpanded: Bool = true,
         lastOpenedAt: Date = .distantPast,
         openCount: Int = 0,
-        workspace: WorkspaceState = WorkspaceState(),
-        isAgentsExpanded: Bool = false
+        workspace: WorkspaceState = WorkspaceState()
     ) {
         self.id = id
         self.url = url
@@ -53,7 +49,6 @@ public struct Repository: Identifiable, Codable, Equatable {
         self.lastOpenedAt = lastOpenedAt
         self.openCount = openCount
         self.workspace = workspace
-        self.isAgentsExpanded = isAgentsExpanded
     }
 
     public init(from decoder: any Decoder) throws {
@@ -66,7 +61,5 @@ public struct Repository: Identifiable, Codable, Equatable {
         self.openCount = try container.decode(Int.self, forKey: .openCount)
         self.workspace = try container.decodeIfPresent(WorkspaceState.self, forKey: .workspace)
             ?? WorkspaceState()
-        self.isAgentsExpanded = try container
-            .decodeIfPresent(Bool.self, forKey: .isAgentsExpanded) ?? false
     }
 }

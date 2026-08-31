@@ -7,6 +7,7 @@ public struct TerminalView: View {
         TerminalSurface(
             runtime: runtime,
             workingDirectory: workingDirectory,
+            processLabel: processLabel,
             isActive: isActive,
             insertRequest: insertRequest,
             onCommandFinished: onCommandFinished,
@@ -19,6 +20,8 @@ public struct TerminalView: View {
     private let runtime: GhosttyRuntime
 
     private let workingDirectory: URL?
+
+    private let processLabel: String
 
     private let isActive: Bool
 
@@ -35,6 +38,7 @@ public struct TerminalView: View {
     public init(
         runtime: GhosttyRuntime,
         workingDirectory: URL?,
+        processLabel: String,
         isActive: Bool,
         insertRequest: TerminalInsertRequest? = nil,
         onCommandFinished: @escaping (CommandRun) -> Void,
@@ -44,6 +48,7 @@ public struct TerminalView: View {
     ) {
         self.runtime = runtime
         self.workingDirectory = workingDirectory
+        self.processLabel = processLabel
         self.isActive = isActive
         self.insertRequest = insertRequest
         self.onCommandFinished = onCommandFinished
