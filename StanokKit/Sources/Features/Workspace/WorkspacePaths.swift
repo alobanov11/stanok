@@ -45,6 +45,7 @@ enum WorkspacePaths {
         switch raw {
         case "all": return .all
         case "changes": return .changes
+        case "branches": return .branches
         default: return nil
         }
     }
@@ -53,6 +54,7 @@ enum WorkspacePaths {
         switch mode {
         case .all: return "all"
         case .changes: return "changes"
+        case .branches: return "branches"
         case nil: return nil
         }
     }

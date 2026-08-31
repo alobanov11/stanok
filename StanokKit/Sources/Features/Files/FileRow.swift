@@ -4,11 +4,16 @@ struct FileRow: View {
 
     struct Actions {
 
-        let newFile: () -> Void
+        struct Item {
 
-        let rename: () -> Void
+            let icon: String
 
-        let delete: () -> Void
+            let hint: String
+
+            let action: () -> Void
+        }
+
+        let items: [Item]
     }
 
     @ViewBuilder
@@ -38,27 +43,28 @@ struct FileRow: View {
     private var actionButtons: some View {
         if let actions {
             HStack(spacing: 0) {
-                RowAction(
-                    icon: "doc.badge.plus",
-                    hint: "Новый файл",
-                    isVisible: isHovering,
-                    action: actions.newFile
-                )
-
-                RowAction(
-                    icon: "pencil",
-                    hint: "Переименовать",
-                    isVisible: isHovering,
-                    action: actions.rename
-                )
-
-                RowAction(
-                    icon: "trash",
-                    hint: "Удалить",
-                    isVisible: isHovering,
-                    action: actions.delete
-                )
+                ForEach(Array(actions.items.enumerated()), id: \.offset) { _, item in
+                    RowAction(
+                        icon: item.icon,
+                        hint: item.hint,
+                        isVisible: isHovering,
+                        action: item.action
+                    )
+                }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var leadingIcon: some View {
+        if let icon {
+            icon
+                .resizable()
+                .frame(width: 15, height: 15)
+        } else {
+            Image(nsImage: FileIcons.icon(for: url, isDirectory: isDirectory))
+                .resizable()
+                .frame(width: 15, height: 15)
         }
     }
 
@@ -66,9 +72,7 @@ struct FileRow: View {
         HStack(spacing: 6) {
             chevron
 
-            Image(nsImage: FileIcons.icon(for: url, isDirectory: isDirectory))
-                .resizable()
-                .frame(width: 15, height: 15)
+            leadingIcon
 
             Text(name)
                 .font(Typography.row)
@@ -112,6 +116,8 @@ struct FileRow: View {
     var isDropTarget = false
 
     let actions: Actions?
+
+    var icon: Image?
 
     @State
     private var isHovering = false

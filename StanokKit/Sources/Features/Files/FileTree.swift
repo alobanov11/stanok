@@ -117,11 +117,23 @@ struct FileTree: View {
             status: status(for: node),
             isSelected: node.url == selected,
             isDropTarget: node.url == dropTarget,
-            actions: FileRow.Actions(
-                newFile: { ask(.newFile, at: container(of: node)) },
-                rename: { ask(.rename, at: node.url) },
-                delete: { perform { try FileOperations.trash(node.url) } }
-            )
+            actions: FileRow.Actions(items: [
+                .init(
+                    icon: "doc.badge.plus",
+                    hint: "Новый файл",
+                    action: { ask(.newFile, at: container(of: node)) }
+                ),
+                .init(
+                    icon: "pencil",
+                    hint: "Переименовать",
+                    action: { ask(.rename, at: node.url) }
+                ),
+                .init(
+                    icon: "trash",
+                    hint: "Удалить",
+                    action: { perform { try FileOperations.trash(node.url) } }
+                )
+            ])
         )
         .onTapGesture {
             selected = node.url
