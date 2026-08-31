@@ -6,7 +6,8 @@ let package = Package(
     platforms: [.macOS("26.0")],
     products: [
         .library(name: "StanokKit", targets: ["StanokKit"]),
-        .library(name: "StanokTerminal", targets: ["StanokTerminal"])
+        .library(name: "StanokTerminal", targets: ["StanokTerminal"]),
+        .library(name: "StanokAgents", targets: ["StanokAgents"])
     ],
     targets: [
         .target(name: "StanokKit", path: "Sources"),
@@ -16,6 +17,11 @@ let package = Package(
             dependencies: ["StanokKit", "GhosttyKit"],
             path: "Terminal",
             linkerSettings: [.linkedLibrary("stdc++"), .linkedFramework("Carbon")]
+        ),
+        .target(
+            name: "StanokAgents",
+            dependencies: ["StanokKit"],
+            path: "Agents"
         )
     ]
 )

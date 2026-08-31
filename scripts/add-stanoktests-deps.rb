@@ -10,7 +10,7 @@ package_reference = project.root_object.package_references.find do |ref|
   ref.isa == 'XCLocalSwiftPackageReference' && ref.relative_path == 'StanokKit'
 end or abort 'XCLocalSwiftPackageReference "StanokKit" not found'
 
-%w[StanokKit StanokTerminal].each do |product_name|
+%w[StanokKit StanokTerminal StanokAgents].each do |product_name|
   target.package_product_dependencies.delete_if { |dep| dep.product_name == product_name }
 
   dependency = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)
@@ -27,4 +27,4 @@ end or abort 'XCLocalSwiftPackageReference "StanokKit" not found'
 end
 
 project.save
-puts 'linked local package products StanokKit and StanokTerminal into target StanokTests'
+puts 'linked local package products StanokKit, StanokTerminal and StanokAgents into target StanokTests'

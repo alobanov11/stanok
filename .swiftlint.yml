@@ -2,6 +2,7 @@ included:
   - Stanok
   - StanokKit/Sources
   - StanokKit/Terminal
+  - StanokKit/Agents
   - StanokTests
   - StanokUITests
 

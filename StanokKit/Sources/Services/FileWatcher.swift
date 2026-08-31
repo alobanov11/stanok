@@ -2,7 +2,7 @@ import CoreServices
 import Foundation
 
 @MainActor
-final class FileWatcher {
+public final class FileWatcher {
 
     private final class Context: @unchecked Sendable {
 
@@ -143,7 +143,10 @@ final class FileWatcher {
 
     private var watchedRoot: URL?
 
-    init(onDirectoriesChanged: @escaping (Set<URL>) -> Void, onGitChange: @escaping () -> Void) {
+    public init(
+        onDirectoriesChanged: @escaping (Set<URL>) -> Void,
+        onGitChange: @escaping () -> Void
+    ) {
         self.onDirectoriesChanged = onDirectoriesChanged
         self.onGitChange = onGitChange
     }
@@ -165,7 +168,7 @@ final class FileWatcher {
         return relative.hasPrefix("refs/")
     }
 
-    func watch(_ url: URL, gitDirectory: String?) {
+    public func watch(_ url: URL, gitDirectory: String?) {
         stop()
 
         nextGeneration += 1
@@ -228,7 +231,7 @@ final class FileWatcher {
         }
     }
 
-    func stop() {
+    public func stop() {
         directoriesFlush?.cancel()
         directoriesFlush = nil
         gitFlush?.cancel()
