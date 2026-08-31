@@ -90,9 +90,9 @@ struct SessionList: View {
     }
 
     private func resumeAgentChat(_ session: AgentSession) {
-        guard let target = selection ?? session.folder.map({ store.addSession(url: $0).id })
-        else { return }
+        guard let folder = session.folder else { return }
 
+        let target = store.addSession(url: folder).id
         selection = target
         insertAgentCommand(session.resumeAction, target)
     }
