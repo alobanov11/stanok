@@ -12,15 +12,11 @@ struct RowAction: View {
         }
         .buttonStyle(.plain)
         .help(hint)
-        .opacity(isVisible ? 1 : 0)
-        .allowsHitTesting(isVisible)
     }
 
     let icon: String
 
     let hint: String
-
-    let isVisible: Bool
 
     let action: () -> Void
 
