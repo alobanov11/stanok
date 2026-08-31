@@ -35,25 +35,40 @@ enum FileOperations {
         try FileManager.default.trashItem(at: url, resultingItemURL: nil)
     }
 
-    static func copy(_ urls: [URL], into directory: URL) throws {
+    @discardableResult
+    static func copy(_ urls: [URL], into directory: URL) throws -> [URL] {
+        var targets: [URL] = []
+
         for url in urls {
             guard !isNested(directory, inside: url) else { throw Failure.intoItself }
 
             let target = available(named: url.lastPathComponent, in: directory)
             try FileManager.default.copyItem(at: url, to: target)
+            targets.append(target)
         }
+
+        return targets
     }
 
-    static func move(_ urls: [URL], into directory: URL) throws {
+    @discardableResult
+    static func move(_ urls: [URL], into directory: URL) throws -> [URL] {
+        var targets: [URL] = []
+
         for url in urls {
             guard !isNested(directory, inside: url) else { throw Failure.intoItself }
 
             let parent = url.deletingLastPathComponent().standardizedFileURL
-            guard parent != directory.standardizedFileURL else { continue }
+            guard parent != directory.standardizedFileURL else {
+                targets.append(url)
+                continue
+            }
 
             let target = available(named: url.lastPathComponent, in: directory)
             try FileManager.default.moveItem(at: url, to: target)
+            targets.append(target)
         }
+
+        return targets
     }
 
     static func isNested(_ candidate: URL, inside root: URL) -> Bool {

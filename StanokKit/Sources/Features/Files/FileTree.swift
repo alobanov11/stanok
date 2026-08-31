@@ -214,51 +214,14 @@ struct FileTree: View {
 
         var results: [URL] = []
         let succeeded = perform {
-            for source in sources {
-                results.append(Self.resolvedTarget(for: source, operation: operation, in: target))
-
-                switch operation {
-                case .move: try FileOperations.move([source], into: target)
-                default: try FileOperations.copy([source], into: target)
-                }
+            switch operation {
+            case .move: results = try FileOperations.move(sources, into: target)
+            default: results = try FileOperations.copy(sources, into: target)
             }
         }
 
         dropTarget = nil
         if succeeded, let last = results.last { selected = last }
-    }
-
-    private static func resolvedTarget(
-        for source: URL,
-        operation: DropOperation,
-        in directory: URL
-    ) -> URL {
-        if operation == .move {
-            let parent = source.deletingLastPathComponent().standardizedFileURL
-            guard parent != directory.standardizedFileURL else { return source }
-        }
-
-        return availableName(source.lastPathComponent, in: directory)
-    }
-
-    private static func availableName(_ name: String, in directory: URL) -> URL {
-        let manager = FileManager.default
-        var candidate = directory.appending(path: name)
-        guard manager.fileExists(atPath: candidate.path(percentEncoded: false)) else {
-            return candidate
-        }
-
-        let base = (name as NSString).deletingPathExtension
-        let suffix = (name as NSString).pathExtension
-        var index = 2
-
-        repeat {
-            let next = suffix.isEmpty ? "\(base) \(index)" : "\(base) \(index).\(suffix)"
-            candidate = directory.appending(path: next)
-            index += 1
-        } while manager.fileExists(atPath: candidate.path(percentEncoded: false))
-
-        return candidate
     }
 
     private func reveal(_ target: URL?, in root: FileNode, proxy: ScrollViewProxy) {
