@@ -12,7 +12,12 @@ public enum GitClient {
     public static func status(for url: URL) async -> GitStatus? {
         guard let snapshot = await snapshot(for: url) else { return nil }
 
-        return GitStatus(branch: snapshot.branch, added: snapshot.added, removed: snapshot.removed)
+        return GitStatus(
+            branch: snapshot.branch,
+            added: snapshot.added,
+            removed: snapshot.removed,
+            tracking: snapshot.tracking
+        )
     }
 
     public static func snapshot(for url: URL) async -> GitSnapshot? {
@@ -35,6 +40,9 @@ public enum GitClient {
         let untracked = await untrackedAddedLines(at: path, root: url)
 
         let statusData = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
+        let tracking = await GitTracking.parse(
+            run(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], at: path)
+        )
 
         return GitSnapshot(
             branch: branch.isEmpty ? nil : branch,
@@ -43,7 +51,8 @@ public enum GitClient {
             gitDirectory: gitDirectory,
             added: diffAdded + untracked,
             removed: removed,
-            changes: GitStatusParser.parse(statusData ?? Data())
+            changes: GitStatusParser.parse(statusData ?? Data()),
+            tracking: tracking
         )
     }
 

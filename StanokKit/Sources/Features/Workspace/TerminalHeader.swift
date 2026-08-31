@@ -154,8 +154,26 @@ struct TerminalHeader: View {
             }
             .font(.system(size: 11))
         } else {
-            label("arrow.trianglehead.branch", branch)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                label("arrow.trianglehead.branch", branch)
+
+                if let tracking = status?.tracking, tracking.hasDivergence {
+                    divergence(tracking)
+                }
+            }
         }
+    }
+
+    private func divergence(_ tracking: GitTracking) -> some View {
+        var text = AttributedString()
+        if tracking.ahead > 0 { text += AttributedString("\(tracking.ahead)↑") }
+        if tracking.ahead > 0, tracking.behind > 0 { text += AttributedString(" ") }
+        if tracking.behind > 0 { text += AttributedString("\(tracking.behind)↓") }
+
+        return Text(text)
+            .font(.system(size: 11))
+            .monospacedDigit()
+            .foregroundStyle(.tertiary)
     }
 
     private func label(_ icon: String, _ text: String) -> some View {
