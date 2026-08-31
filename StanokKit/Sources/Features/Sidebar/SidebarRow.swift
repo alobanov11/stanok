@@ -23,6 +23,12 @@ struct SidebarRow: View {
 
             Spacer(minLength: 0)
 
+            if let usageText {
+                Text(usageText)
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
             RowAction(icon: "xmark", hint: "Закрыть терминал", isVisible: isHovering, action: close)
         }
         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
@@ -50,6 +56,8 @@ struct SidebarRow: View {
 
     let isLive: Bool
 
+    let usageText: String?
+
     let indent: CGFloat
 
     let close: () -> Void
@@ -60,6 +68,7 @@ struct SidebarRow: View {
         isSelected: Bool,
         isMuted: Bool,
         isLive: Bool,
+        usageText: String?,
         indent: CGFloat,
         close: @escaping () -> Void
     ) {
@@ -68,6 +77,7 @@ struct SidebarRow: View {
         self.isSelected = isSelected
         self.isMuted = isMuted
         self.isLive = isLive
+        self.usageText = usageText
         self.indent = indent
         self.close = close
     }

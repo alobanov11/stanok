@@ -7,6 +7,8 @@ struct TerminalSurface: NSViewRepresentable {
 
     let workingDirectory: URL?
 
+    let processLabel: String
+
     let isActive: Bool
 
     let insertRequest: TerminalInsertRequest?
@@ -28,7 +30,8 @@ struct TerminalSurface: NSViewRepresentable {
         let view = GhosttySurfaceView(
             app: runtime.app,
             fontSize: fontSize,
-            workingDirectory: workingDirectory
+            workingDirectory: workingDirectory,
+            processLabel: processLabel
         )
         view.onCommandFinished = onCommandFinished
         view.onOpenURL = onOpenURL

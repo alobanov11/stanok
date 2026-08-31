@@ -25,4 +25,10 @@ public enum AppPaths {
             .appending(path: "shell", directoryHint: .isDirectory)
             .appending(path: "init.zsh", directoryHint: .notDirectory)
     }
+
+    public static var shellProcessLabels: URL {
+        configDirectory
+            .appending(path: "shell", directoryHint: .isDirectory)
+            .appending(path: "pids", directoryHint: .isDirectory)
+    }
 }

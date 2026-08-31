@@ -12,6 +12,7 @@ struct RepositoryStoreTests {
         [
           {
             "id" : "D8ABF81A-C37B-442F-AF82-6529C9EEEF7F",
+            "isAgentsExpanded" : true,
             "isExpanded" : true,
             "lastOpenedAt" : 809816842.768836,
             "openCount" : 2,
@@ -89,7 +90,6 @@ struct RepositoryStoreTests {
                 == ["wiki", "relix-ios", "tabby-app-ios", "tom"]
         )
         #expect(repositories.allSatisfy { $0.workspace == WorkspaceState() })
-        #expect(repositories.allSatisfy { !$0.isAgentsExpanded })
     }
 
     @Test

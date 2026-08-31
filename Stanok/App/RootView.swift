@@ -36,6 +36,7 @@ struct RootView: View {
                 TerminalView(
                     runtime: runtime,
                     workingDirectory: repository.url,
+                    processLabel: session.id.uuidString,
                     isActive: active,
                     insertRequest: insert,
                     onCommandFinished: finished,

@@ -79,6 +79,9 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var dispatcher = TerminalCommandDispatcher()
 
+    @State
+    private var processTracker = TabProcessTracker()
+
     @Environment(\.scenePhase)
     private var scenePhase
 
@@ -161,6 +164,7 @@ public struct WorkspaceView<Terminal: View>: View {
             store: store,
             selection: $selection,
             live: Set(live),
+            processUsage: processTracker.usage,
             insertAgentCommand: insertAgentCommand
         )
     }
@@ -384,6 +388,7 @@ public struct WorkspaceView<Terminal: View>: View {
         if selection == session.id { selection = nil }
 
         live.removeAll { $0 == session.id }
+        processTracker.endTracking(session.id)
         dispatcher.forget(session.id)
         withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
     }
@@ -457,7 +462,11 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func reconcileLiveSessions(_ known: Set<TerminalSession.ID>) {
+        let removed = live.filter { !known.contains($0) }
         live.removeAll { !known.contains($0) }
+        for id in removed {
+            processTracker.endTracking(id)
+        }
 
         if let selection, !known.contains(selection) {
             self.selection = nil
@@ -467,9 +476,14 @@ public struct WorkspaceView<Terminal: View>: View {
     private func activate(_ id: TerminalSession.ID) {
         live.removeAll { $0 == id }
         live.append(id)
+        processTracker.beginTracking(id)
 
         if live.count > WorkspaceLayout.liveSessionLimit {
-            live.removeFirst(live.count - WorkspaceLayout.liveSessionLimit)
+            let overflow = live.count - WorkspaceLayout.liveSessionLimit
+            for evictedID in live.prefix(overflow) {
+                processTracker.endTracking(evictedID)
+            }
+            live.removeFirst(overflow)
         }
 
         guard let repositoryID = store.repository(hosting: id)?.id else { return }
