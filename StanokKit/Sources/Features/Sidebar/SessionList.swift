@@ -11,6 +11,8 @@ struct SessionList: View {
 
     let insertAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
 
+    let copyAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
+
     @Binding
     var selection: TerminalSession.ID?
 
@@ -30,9 +32,28 @@ struct SessionList: View {
                 }
                 .padding(.horizontal, 8)
             }
+            .overlay(alignment: .bottom) { bottomFade }
 
             SidebarToolbar(filterText: $chatFilter)
         }
+    }
+
+    private var bottomFade: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black.opacity(0.5), location: 0.55),
+                        .init(color: .black, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .frame(height: 36)
+            .allowsHitTesting(false)
     }
 
     private var emptyState: some View {
@@ -66,15 +87,22 @@ struct SessionList: View {
                 providerID: provider.id,
                 title: provider.displayName,
                 filter: chatFilter,
-                onSelect: resumeAgentChat
+                onCopy: copyAgentChat,
+                onInsert: resumeAgentChat
             )
         }
+    }
+
+    private func copyAgentChat(_ session: AgentSession) {
+        copyAgentCommand(session.resumeAction, selection)
     }
 
     private func resumeAgentChat(_ session: AgentSession) {
         guard let folder = session.folder else { return }
 
-        insertAgentCommand(session.resumeAction, store.addSession(url: folder).id)
+        let target = store.addSession(url: folder).id
+        selection = target
+        insertAgentCommand(session.resumeAction, target)
     }
 
     private func sessionRow(_ session: TerminalSession) -> some View {
@@ -100,9 +128,18 @@ struct SessionList: View {
     }
 
     private func closeSession(_ session: TerminalSession) {
-        if selection == session.id { selection = nil }
+        if selection == session.id { selection = neighbour(of: session.id)?.id }
 
         withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
+    }
+
+    private func neighbour(of sessionID: TerminalSession.ID) -> TerminalSession? {
+        guard let index = store.sessions.firstIndex(where: { $0.id == sessionID })
+        else { return nil }
+
+        let after = store.sessions[store.sessions.index(after: index)...].first
+
+        return after ?? store.sessions[..<index].last
     }
 
     private func addSession(at url: URL) {

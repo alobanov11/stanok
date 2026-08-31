@@ -50,8 +50,12 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
+    private var agentCommands: AgentCommandRouter {
+        AgentCommandRouter(dispatcher: dispatcher, tracker: processTracker)
+    }
+
     private var isPreviewSplit: Bool {
-        navigator.current != nil && mainWidth >= WorkspaceLayout.minimumSplitWidth
+        WorkspaceGeometry.isPreviewSplit(hasPreview: navigator.current != nil, width: mainWidth)
     }
 
     @State
@@ -205,6 +209,7 @@ public struct WorkspaceView<Terminal: View>: View {
             live: Set(live),
             processUsage: processTracker.usage,
             insertAgentCommand: insertAgentCommand,
+            copyAgentCommand: copyAgentCommand,
             selection: $selection
         )
     }
@@ -270,14 +275,17 @@ public struct WorkspaceView<Terminal: View>: View {
         mainContent
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mainWidth = $0 }
-            .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
-            .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
     }
 
     private var mainContent: some View {
         ZStack {
-            terminalStack
-                .padding(.trailing, isPreviewSplit ? mainWidth / 2 : 0)
+            VStack(spacing: 0) {
+                header
+                terminals
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .modifier(WorkspaceCard())
+            .padding(.trailing, isPreviewSplit ? mainWidth / 2 : 0)
 
             if let entry = navigator.current {
                 previewLayer(
@@ -286,16 +294,10 @@ public struct WorkspaceView<Terminal: View>: View {
                         ? WorkspaceGeometry.expandedHeaderLeading
                         : WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
                 )
-                .frame(width: isPreviewSplit ? mainWidth / 2 : nil)
+                .frame(width: isPreviewSplit ? mainWidth / 2 - WorkspaceLayout.inset : nil)
                 .frame(maxWidth: .infinity, alignment: .trailing)
+                .transition(WorkspaceGeometry.previewTransition(split: isPreviewSplit))
             }
-        }
-    }
-
-    private var terminalStack: some View {
-        VStack(spacing: 0) {
-            header
-            terminals
         }
     }
 
@@ -330,7 +332,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func isVisible(_ session: TerminalSession) -> Bool {
-        session.id == selection && navigator.current == nil
+        session.id == selection && (navigator.current == nil || isPreviewSplit)
     }
 
     private func openFileTree() {
@@ -359,19 +361,19 @@ public struct WorkspaceView<Terminal: View>: View {
         withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
     }
 
+    private func copyAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID?) {
+        agentCommands.copy(action, for: sessionID)
+    }
+
     private func insertAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID?) {
         guard let sessionID, store.session(for: sessionID) != nil else {
-            dispatcher.dispatch(action, into: nil)
+            agentCommands.insert(action, into: nil)
             return
         }
 
         selection = sessionID
         activate(sessionID)
-        dispatcher.dispatch(
-            action,
-            into: sessionID,
-            runningProcessNames: processTracker.processNames(for: sessionID)
-        )
+        agentCommands.insert(action, into: sessionID)
     }
 
     private func perform(_ action: WorkingTreeAction) async {
@@ -455,6 +457,8 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func activate(_ id: TerminalSession.ID) {
+        if !live.contains(id) { dispatcher.markAtPrompt(id) }
+
         live.removeAll { $0 == id }
         live.append(id)
         processTracker.beginTracking(id)

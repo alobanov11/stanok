@@ -33,6 +33,15 @@ public final class TerminalCommandDispatcher {
         insertRequests[id]
     }
 
+    public func copy(
+        _ action: AgentResumeAction,
+        for sessionID: TerminalSession.ID?,
+        runningProcessNames: Set<String> = []
+    ) {
+        write(resolvedCommand(for: action, runningProcessNames: runningProcessNames))
+        announceCopy(for: sessionID)
+    }
+
     public func dispatch(
         _ action: AgentResumeAction,
         into sessionID: TerminalSession.ID?,
@@ -47,7 +56,7 @@ public final class TerminalCommandDispatcher {
         }
 
         confirmedIdle.remove(sessionID)
-        insertRequests[sessionID] = TerminalInsertRequest(text: command)
+        insertRequests[sessionID] = TerminalInsertRequest(text: command + "\n")
     }
 
     private func resolvedCommand(
@@ -61,7 +70,12 @@ public final class TerminalCommandDispatcher {
             return inSessionText
         }
 
-        return ShellQuoting.posixQuote([action.executable] + action.arguments)
+        let launch = ShellQuoting.posixQuote([action.executable] + action.arguments)
+        guard let directory = action.workingDirectory else { return launch }
+
+        let path = ShellQuoting.posixQuote([directory.path(percentEncoded: false)])
+
+        return "cd \(path) && \(launch)"
     }
 
     private func write(_ text: String) {

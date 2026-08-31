@@ -21,7 +21,9 @@ struct AgentChatListSection: View {
 
     let filter: String
 
-    let onSelect: (AgentSession) -> Void
+    let onCopy: (AgentSession) -> Void
+
+    let onInsert: (AgentSession) -> Void
 
     @Environment(\.agentSessionRegistry)
     private var registry
@@ -52,7 +54,8 @@ struct AgentChatListSection: View {
         } else {
             ForEach(filtered) { session in
                 AgentChatRow(session: session)
-                    .onTapGesture { onSelect(session) }
+                    .onTapGesture(count: 2) { onInsert(session) }
+                    .onTapGesture { onCopy(session) }
             }
         }
     }
