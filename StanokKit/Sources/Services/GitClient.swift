@@ -124,6 +124,7 @@ public enum GitClient {
             DispatchQueue.global(qos: .utility).async {
                 let process = Process()
                 process.executableURL = URL(filePath: "/usr/bin/env")
+                process.environment = ToolEnvironment.current
                 process.arguments = ["git"] + arguments
 
                 let pipe = Pipe()
