@@ -51,7 +51,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var isPreviewSplit: Bool {
-        navigator.current != nil && mainWidth >= WorkspaceLayout.minimumSplitWidth
+        WorkspaceGeometry.isPreviewSplit(hasPreview: navigator.current != nil, width: mainWidth)
     }
 
     @State
@@ -284,6 +284,7 @@ public struct WorkspaceView<Terminal: View>: View {
                 )
                 .frame(width: isPreviewSplit ? mainWidth / 2 - WorkspaceLayout.inset : nil)
                 .frame(maxWidth: .infinity, alignment: .trailing)
+                .transition(WorkspaceGeometry.previewTransition(split: isPreviewSplit))
             }
         }
     }
@@ -344,7 +345,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func isVisible(_ session: TerminalSession) -> Bool {
-        session.id == selection && navigator.current == nil
+        session.id == selection && (navigator.current == nil || isPreviewSplit)
     }
 
     private func openFileTree() {

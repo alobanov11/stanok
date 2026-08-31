@@ -7,7 +7,6 @@ struct PreviewLayer: View {
             .modifier(WorkspaceCard())
             .overlay(alignment: .topTrailing) { closeButton }
             .zIndex(1)
-            .transition(.opacity)
     }
 
     @ViewBuilder

@@ -1,4 +1,4 @@
-import CoreFoundation
+import SwiftUI
 
 enum WorkspaceGeometry {
 
@@ -18,6 +18,14 @@ enum WorkspaceGeometry {
 
     static func toggleLeading(sidebarExpanded: Bool) -> CGFloat {
         sidebarExpanded ? outsideLeading : insideOffset
+    }
+
+    static func isPreviewSplit(hasPreview: Bool, width: CGFloat) -> Bool {
+        hasPreview && width >= WorkspaceLayout.minimumSplitWidth
+    }
+
+    static func previewTransition(split: Bool) -> AnyTransition {
+        split ? .move(edge: .trailing).combined(with: .opacity) : .opacity
     }
 
     static func headerLeading(sidebarExpanded: Bool) -> CGFloat {
