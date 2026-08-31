@@ -4,14 +4,6 @@ import SwiftUI
 
 public struct WorkspaceView<Terminal: View>: View {
 
-    private var insideOffset: CGFloat {
-        WorkspaceLayout.inset + WorkspaceLayout.toggleGap
-    }
-
-    private var outsideLeading: CGFloat {
-        WorkspaceLayout.sidebarWidth - WorkspaceLayout.toggleWidth - WorkspaceLayout.toggleGap
-    }
-
     private var knownSessionIDs: Set<TerminalSession.ID> {
         Set(store.repositories.flatMap { $0.sessions.map(\.id) })
     }
@@ -33,14 +25,8 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
-    private var headerLeading: CGFloat {
-        guard !isSidebarExpanded else { return 14 }
-
-        return WorkspaceLayout.toggleWidth + WorkspaceLayout.toggleGap * 2
-    }
-
-    private var toggleTop: CGFloat {
-        WorkspaceLayout.inset + (WorkspaceLayout.headerHeight - WorkspaceLayout.toggleHeight) / 2
+    private var panelLeading: CGFloat {
+        WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
     }
 
     @State
@@ -149,8 +135,8 @@ public struct WorkspaceView<Terminal: View>: View {
 
     private var toggle: some View {
         SidebarToggle(action: toggleSidebar)
-            .padding(.top, toggleTop)
-            .padding(.leading, isSidebarExpanded ? outsideLeading : insideOffset)
+            .padding(.top, WorkspaceGeometry.toggleTop)
+            .padding(.leading, WorkspaceGeometry.toggleLeading(sidebarExpanded: isSidebarExpanded))
     }
 
     private var closeButton: some View {
@@ -173,7 +159,7 @@ public struct WorkspaceView<Terminal: View>: View {
         TerminalHeader(
             repository: selectedRepository,
             status: git.status(for: selectedRepository),
-            leadingInset: headerLeading,
+            leadingInset: WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded),
             filesMode: filesMode,
             selectAll: { selectFilesMode(.all) },
             selectChanges: { selectFilesMode(.changes) }
@@ -264,7 +250,7 @@ public struct WorkspaceView<Terminal: View>: View {
             case let .file(preview):
                 PreviewPanel(
                     preview: preview,
-                    leadingInset: headerLeading,
+                    leadingInset: panelLeading,
                     previousName: navigator.previousName,
                     onBack: stepBack
                 )
@@ -272,7 +258,7 @@ public struct WorkspaceView<Terminal: View>: View {
             case let .web(preview):
                 WebPreviewPanel(
                     preview: preview,
-                    leadingInset: headerLeading,
+                    leadingInset: panelLeading,
                     previousName: navigator.previousName,
                     onBack: stepBack
                 )
