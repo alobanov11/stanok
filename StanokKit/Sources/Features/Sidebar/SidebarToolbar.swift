@@ -34,7 +34,7 @@ struct SidebarToolbar: View {
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
 
-            TextField("Фильтр чатов", text: $filterText)
+            TextField("Поиск", text: $filterText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11))
         }

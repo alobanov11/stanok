@@ -29,9 +29,10 @@ struct AgentChatRow: View {
 
                     if let folder = session.folder {
                         Text("·")
-                        Text(folder.path(percentEncoded: false))
+                        Text(folder.lastPathComponent)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                            .help(folder.path(percentEncoded: false))
                     }
                 }
                 .font(.system(size: 10))
