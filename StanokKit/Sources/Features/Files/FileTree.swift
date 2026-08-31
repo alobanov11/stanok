@@ -151,7 +151,9 @@ struct FileTree: View {
         guard let localSession = session.localSession else { return .copy }
 
         let sources = localSession.draggedItemIDs(for: URL.self)
-        guard !sources.isEmpty, sources.allSatisfy({ !FileOperations.isNested(target, inside: $0) })
+        guard
+            !sources.isEmpty,
+            sources.allSatisfy({ !FileOperations.looksNested(target, inside: $0) })
         else {
             return .forbidden
         }
@@ -169,7 +171,7 @@ struct FileTree: View {
     private func sessionUpdated(_ session: DropSession, for node: FileNode) {
         switch session.phase {
         case .entering, .active:
-            dropTarget = node.url
+            if dropTarget != node.url { dropTarget = node.url }
             scheduleExpansion(for: node)
 
         case .exiting, .ended, .dataTransferCompleted:

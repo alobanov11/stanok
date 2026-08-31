@@ -71,6 +71,14 @@ enum FileOperations {
         return targets
     }
 
+    static func looksNested(_ candidate: URL, inside root: URL) -> Bool {
+        let base = root.standardizedFileURL.path(percentEncoded: false)
+        let path = candidate.standardizedFileURL.path(percentEncoded: false)
+        guard base != path else { return true }
+
+        return path.hasPrefix(base.hasSuffix("/") ? base : base + "/")
+    }
+
     static func isNested(_ candidate: URL, inside root: URL) -> Bool {
         let base = root.standardizedFileURL.resolvingSymlinksInPath()
             .path(percentEncoded: false)
