@@ -43,6 +43,19 @@ public struct WorkspaceView<Terminal: View>: View {
         WorkspaceLayout.inset + (WorkspaceLayout.headerHeight - WorkspaceLayout.toggleHeight) / 2
     }
 
+    private var branchActions: BranchActions {
+        BranchActions(
+            isOperating: branchStore.isOperating(selectedRepository),
+            checkDirty: checkDirty,
+            checkRefFormat: checkRefFormat,
+            create: createBranch,
+            switchTo: switchBranch,
+            delete: deleteBranch,
+            fetch: { dispatchGitCommand(["fetch", "--all", "--prune"]) },
+            pull: { dispatchGitCommand(["pull", "--ff-only"]) }
+        )
+    }
+
     @State
     private var model = WorkspaceModel()
 
@@ -63,6 +76,12 @@ public struct WorkspaceView<Terminal: View>: View {
 
     @State
     private var git = GitStatusStore()
+
+    @State
+    private var branchStore = GitBranchStore()
+
+    @State
+    private var branchListModel = BranchListModel()
 
     @State
     private var navigator = PreviewNavigator()
@@ -109,9 +128,15 @@ public struct WorkspaceView<Terminal: View>: View {
         .frame(minWidth: 880, minHeight: 520)
         .task { selectFirstIfNeeded() }
         .task(id: selection) { await git.refresh(selectedRepository) }
+        .task(id: selection) { await branchStore.refresh(selectedRepository) }
         .task(id: selectedRepository?.url) { openFileTree() }
         .task(id: selectedRepository?.id) { restoreWorkspace() }
         .onChange(of: selectedRepository?.id) { _, _ in resetPreview() }
+        .onChange(of: filesMode) { _, mode in
+            guard mode == .branches else { return }
+
+            Task { await branchStore.refresh(selectedRepository) }
+        }
         .onChange(of: selection) { _, new in
             guard let new else { return }
 
@@ -126,6 +151,9 @@ public struct WorkspaceView<Terminal: View>: View {
         }
         .onChange(of: git.snapshot(for: selectedRepository), initial: true) { _, snapshot in
             changeTreeModel.apply(snapshot)
+        }
+        .onChange(of: branchStore.snapshot(for: selectedRepository), initial: true) { _, snapshot in
+            branchListModel.apply(snapshot)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase != .active else { return }
@@ -172,7 +200,8 @@ public struct WorkspaceView<Terminal: View>: View {
             leadingInset: headerLeading,
             filesMode: filesMode,
             selectAll: { selectFilesMode(.all) },
-            selectChanges: { selectFilesMode(.changes) }
+            selectChanges: { selectFilesMode(.changes) },
+            selectBranches: { selectFilesMode(.branches) }
         )
     }
 
@@ -287,6 +316,8 @@ public struct WorkspaceView<Terminal: View>: View {
             mode: mode,
             fileTreeModel: fileTreeModel,
             changeTreeModel: changeTreeModel,
+            branchListModel: branchListModel,
+            branchActions: branchActions,
             snapshot: git.snapshot(for: selectedRepository),
             selected: selectedFileBinding,
             onOpen: open
@@ -404,6 +435,86 @@ public struct WorkspaceView<Terminal: View>: View {
         guard let url = resolved else { return }
 
         route(url)
+    }
+
+    private func checkDirty() async -> Bool? {
+        guard let repository = selectedRepository else { return nil }
+
+        return await GitBranchOperations.isDirty(at: repository.url.path(percentEncoded: false))
+    }
+
+    private func checkRefFormat(_ name: String) async -> GitCommandOutcome {
+        guard let repository = selectedRepository else {
+            return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
+        }
+
+        let path = repository.url.path(percentEncoded: false)
+        return await GitBranchOperations.checkRefFormat(name: name, at: path)
+    }
+
+    private func createBranch(_ name: String) async -> GitCommandOutcome {
+        guard let repository = selectedRepository else {
+            return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
+        }
+
+        let path = repository.url.path(percentEncoded: false)
+        return await branchStore.perform(for: repository) {
+            await GitBranchOperations.create(name: name, at: path)
+        }
+    }
+
+    private func deleteBranch(_ name: String) async -> GitCommandOutcome {
+        guard let repository = selectedRepository else {
+            return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
+        }
+
+        let path = repository.url.path(percentEncoded: false)
+        return await branchStore.perform(for: repository) {
+            await GitBranchOperations.delete(name: name, at: path)
+        }
+    }
+
+    private func switchBranch(_ ref: GitBranchRef) async -> GitCommandOutcome {
+        guard let repository = selectedRepository else {
+            return GitCommandOutcome(succeeded: false, message: "Нет открытого репозитория")
+        }
+
+        let path = repository.url.path(percentEncoded: false)
+        let outcome = await branchStore.perform(for: repository) {
+            switch ref.kind {
+            case .local:
+                return await GitBranchOperations.switchTo(name: ref.displayName, at: path)
+
+            case .remote:
+                let remoteRef = String(ref.fullName.dropFirst("refs/remotes/".count))
+                return await GitBranchOperations.createTrackingAndSwitch(
+                    local: ref.displayName,
+                    remoteRef: remoteRef,
+                    at: path
+                )
+            }
+        }
+
+        await afterBranchSwitch()
+        return outcome
+    }
+
+    private func afterBranchSwitch() async {
+        await git.refresh(selectedRepository)
+        await branchStore.refresh(selectedRepository)
+        fileTreeModel.reloadAll()
+
+        if case let .file(preview) = navigator.current {
+            await navigator.openFile(preview.url)
+        }
+    }
+
+    private func dispatchGitCommand(_ arguments: [String]) {
+        guard let repository = selectedRepository else { return }
+
+        let path = repository.url.path(percentEncoded: false)
+        let action = AgentResumeAction(executable: "git", arguments: ["-C", path] + arguments)
+        dispatcher.dispatch(action, into: selection)
     }
 
     private func closePreview() {

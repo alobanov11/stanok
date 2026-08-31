@@ -8,6 +8,12 @@ struct TerminalHeader: View {
             : AnyShapeStyle(.white.opacity(0.05))
     }
 
+    private var branchBackground: AnyShapeStyle {
+        filesMode == .branches
+            ? AnyShapeStyle(.white.opacity(0.14))
+            : AnyShapeStyle(.white.opacity(0.05))
+    }
+
     private var changesBackground: AnyShapeStyle {
         filesMode == .changes
             ? AnyShapeStyle(.white.opacity(0.14))
@@ -20,7 +26,8 @@ struct TerminalHeader: View {
                 folderBadge(repository.name)
             }
 
-            if status?.branch != nil {
+            if let branch = status?.branch {
+                branchBadge(branch)
                 changesBadge()
             }
 
@@ -42,6 +49,8 @@ struct TerminalHeader: View {
     let selectAll: () -> Void
 
     let selectChanges: () -> Void
+
+    let selectBranches: () -> Void
 
     private func folderBadge(_ name: String) -> some View {
         Button(action: selectAll) {
@@ -66,12 +75,24 @@ struct TerminalHeader: View {
         .help(filesMode == .all ? "Скрыть файлы" : "Показать файлы")
     }
 
+    private func branchBadge(_ branch: String) -> some View {
+        Button(action: selectBranches) {
+            label("arrow.trianglehead.branch", branch)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(branchBackground, in: .capsule)
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .help(filesMode == .branches ? "Скрыть ветки" : "Показать ветки")
+    }
+
     private func changesBadge() -> some View {
         Button(action: selectChanges) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                if let branch = status?.branch {
-                    label("arrow.trianglehead.branch", branch)
-                }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
 
                 if let status, status.hasChanges {
                     counters(status)

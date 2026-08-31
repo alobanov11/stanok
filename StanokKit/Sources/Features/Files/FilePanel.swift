@@ -10,9 +10,16 @@ struct FilePanel: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private var title: String {
+        switch mode {
+        case .all, .changes: "Файлы"
+        case .branches: "Ветки"
+        }
+    }
+
     private var header: some View {
         HStack(spacing: 0) {
-            Text("Файлы")
+            Text(title)
                 .font(Typography.heading)
                 .tracking(Typography.headingTracking)
                 .foregroundStyle(.secondary)
@@ -31,6 +38,9 @@ struct FilePanel: View {
 
         case .changes:
             ChangeTree(model: changeTreeModel, selected: $selected, onOpen: onOpen)
+
+        case .branches:
+            BranchTree(model: branchListModel, actions: branchActions)
         }
     }
 
@@ -39,6 +49,10 @@ struct FilePanel: View {
     let fileTreeModel: FileTreeModel
 
     let changeTreeModel: ChangeTreeModel
+
+    let branchListModel: BranchListModel
+
+    let branchActions: BranchActions
 
     let snapshot: GitSnapshot?
 
