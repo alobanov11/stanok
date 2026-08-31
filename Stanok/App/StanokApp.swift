@@ -9,6 +9,9 @@ struct StanokApp: App {
             RootView()
         }
         .windowStyle(.hiddenTitleBar)
+        .commands {
+            WorkspaceCommands()
+        }
 
         Settings {
             SettingsWindow()

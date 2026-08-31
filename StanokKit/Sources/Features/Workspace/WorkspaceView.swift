@@ -96,6 +96,11 @@ public struct WorkspaceView<Terminal: View>: View {
         .ignoresSafeArea()
         .background(WindowBackground().ignoresSafeArea())
         .frame(minWidth: 880, minHeight: 520)
+        .focusedValue(\.workspaceCommands, .make(
+            toggleSidebar: toggleSidebar, selectFilesMode: selectFilesMode,
+            repository: selectedRepository, store: store,
+            selection: $selection, closeSession: closeSession
+        ))
         .task { selectFirstIfNeeded() }
         .task(id: selection) { await git.refresh(selectedRepository) }
         .task(id: selectedRepository?.url) { openFileTree() }
@@ -417,14 +422,12 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func selectFilesMode(_ mode: FilePanelMode) {
-        if filesMode == mode {
-            withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { filesMode = nil }
-        } else if filesMode == nil {
-            withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { filesMode = mode }
-        } else {
-            filesMode = mode
-        }
+        let transition = FilePanelModeTransition.resolve(current: filesMode, requested: mode)
+        let animation: Animation? = transition.animates
+            ? .smooth(duration: WorkspaceLayout.toggleDuration)
+            : nil
 
+        withAnimation(animation) { filesMode = transition.nextMode }
         persistPanelMode()
     }
 
