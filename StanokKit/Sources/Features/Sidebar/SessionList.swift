@@ -39,13 +39,21 @@ struct SessionList: View {
     }
 
     private var bottomFade: some View {
-        LinearGradient(
-            colors: [.black.opacity(0), .black.opacity(0.28)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .frame(height: 28)
-        .allowsHitTesting(false)
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .mask {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .black.opacity(0.5), location: 0.55),
+                        .init(color: .black, location: 1)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .frame(height: 36)
+            .allowsHitTesting(false)
     }
 
     private var emptyState: some View {
