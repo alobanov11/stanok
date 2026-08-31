@@ -20,7 +20,8 @@ final class ClaudeSessionsLoader: Sendable {
             return nil
         }
 
-        let title = resolution.title ?? "Без названия"
+        guard let title = resolution.title else { return nil }
+
         return AgentSession(
             id: AgentSessionKey(
                 providerID: ClaudeAgentProvider.providerID,
