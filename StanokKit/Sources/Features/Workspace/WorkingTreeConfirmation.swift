@@ -25,10 +25,7 @@ struct WorkingTreeConfirmation: ViewModifier {
                 isPresented: isConfirming,
                 presenting: action
             ) { pending in
-                Button(
-                    pending.confirmLabel,
-                    role: pending.isDestructive ? .destructive : nil
-                ) {
+                Button("Выполнить", role: pending.isDestructive ? .destructive : nil) {
                     Task { await perform(pending) }
                 }
 

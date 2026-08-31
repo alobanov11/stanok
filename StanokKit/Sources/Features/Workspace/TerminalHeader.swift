@@ -60,6 +60,8 @@ struct TerminalHeader: View {
 
     let discardChanges: () -> Void
 
+    let isBusy: Bool
+
     private func folderBadge(_ name: String) -> some View {
         Button(action: selectAll) {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -85,7 +87,7 @@ struct TerminalHeader: View {
 
     private func branchBadge(_ branch: String) -> some View {
         Button(action: selectBranches) {
-            label("arrow.trianglehead.branch", branch)
+            busyLabel(branch)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(branchBackground, in: .capsule)
@@ -114,11 +116,15 @@ struct TerminalHeader: View {
         .buttonStyle(.plain)
         .help(filesMode == .changes ? "Скрыть изменения" : "Показать изменения")
         .contextMenu {
-            Button("Отложить в заначку", action: stashChanges)
+            Button(WorkingTreeAction.stash.command, action: stashChanges)
                 .disabled(!hasChanges)
 
-            Button("Сбросить изменения", role: .destructive, action: discardChanges)
-                .disabled(!hasChanges)
+            Button(
+                WorkingTreeAction.discard.command,
+                role: .destructive,
+                action: discardChanges
+            )
+            .disabled(!hasChanges)
         }
     }
 
@@ -132,6 +138,24 @@ struct TerminalHeader: View {
         return Text(added + AttributedString("  ") + removed)
             .font(.system(size: 11))
             .monospacedDigit()
+    }
+
+    @ViewBuilder
+    private func busyLabel(_ branch: String) -> some View {
+        if isBusy {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(width: 11, height: 11)
+
+                Text(branch)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .font(.system(size: 11))
+        } else {
+            label("arrow.trianglehead.branch", branch)
+        }
     }
 
     private func label(_ icon: String, _ text: String) -> some View {

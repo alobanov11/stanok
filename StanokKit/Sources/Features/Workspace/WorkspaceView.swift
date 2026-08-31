@@ -101,6 +101,9 @@ public struct WorkspaceView<Terminal: View>: View {
     private var workingTreeError: String?
 
     @State
+    private var isWorkingTreeBusy = false
+
+    @State
     private var fileTreeModel = FileTreeModel()
 
     @State
@@ -217,7 +220,8 @@ public struct WorkspaceView<Terminal: View>: View {
             selectChanges: { selectFilesMode(.changes) },
             selectBranches: { selectFilesMode(.branches) },
             stashChanges: { workingTreeAction = .stash },
-            discardChanges: { workingTreeAction = .discard }
+            discardChanges: { workingTreeAction = .discard },
+            isBusy: branchStore.isOperating(selectedRepository) || isWorkingTreeBusy
         )
         .modifier(
             WorkingTreeConfirmation(
@@ -393,7 +397,10 @@ public struct WorkspaceView<Terminal: View>: View {
     private func perform(_ action: WorkingTreeAction) async {
         guard let root = git.snapshot(for: selectedRepository)?.root else { return }
 
+        isWorkingTreeBusy = true
         let outcome = await GitWorkingTreeOperations.run(action, at: root)
+        isWorkingTreeBusy = false
+
         guard outcome.succeeded else {
             workingTreeError = outcome.message
             return
