@@ -35,10 +35,10 @@ enum WorkspacePaths {
         return root.appending(path: relative)
     }
 
-    static func resolvedSelectedFile(from repository: Repository) -> URL? {
-        guard let relative = repository.workspace.selectedFile else { return nil }
+    static func resolvedSelectedFile(from session: TerminalSession) -> URL? {
+        guard let relative = session.workspace.selectedFile else { return nil }
 
-        return resolvedURL(relative: relative, in: repository.url)
+        return resolvedURL(relative: relative, in: session.url)
     }
 
     static func filePanelMode(from raw: String?) -> FilePanelMode? {

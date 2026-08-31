@@ -4,63 +4,72 @@ import Foundation
 @Observable
 final class GitBranchStore {
 
-    private var cache: [Repository.ID: GitBranchSnapshot] = [:]
+    private var cache: [String: GitBranchSnapshot] = [:]
 
-    private var operating: Set<Repository.ID> = []
+    private var rootByPath: [String: String] = [:]
 
-    private var generation: [Repository.ID: Int] = [:]
+    private var operating: Set<String> = []
 
-    private var inFlight: Set<Repository.ID> = []
+    private var generation: [String: Int] = [:]
 
-    private var pending: Set<Repository.ID> = []
+    private var inFlight: Set<String> = []
 
-    func snapshot(for repository: Repository?) -> GitBranchSnapshot? {
-        guard let repository else { return nil }
+    private var pending: Set<String> = []
 
-        return cache[repository.id]
+    func snapshot(for session: TerminalSession?) -> GitBranchSnapshot? {
+        guard let session else { return nil }
+
+        let root = rootByPath[session.url.path(percentEncoded: false)]
+        return root.flatMap { cache[$0] }
     }
 
-    func isOperating(_ repository: Repository?) -> Bool {
-        guard let repository else { return false }
+    func isOperating(_ session: TerminalSession?) -> Bool {
+        guard let session else { return false }
 
-        return operating.contains(repository.id)
+        return operating.contains(session.url.path(percentEncoded: false))
     }
 
-    func refresh(_ repository: Repository?) async {
-        guard let repository else { return }
-        guard !operating.contains(repository.id) else { return }
+    func refresh(_ session: TerminalSession?) async {
+        guard let session else { return }
 
-        guard !inFlight.contains(repository.id) else {
-            pending.insert(repository.id)
+        let path = session.url.path(percentEncoded: false)
+        guard !operating.contains(path) else { return }
+
+        guard !inFlight.contains(path) else {
+            pending.insert(path)
             return
         }
 
-        inFlight.insert(repository.id)
-        defer { inFlight.remove(repository.id) }
+        inFlight.insert(path)
+        defer { inFlight.remove(path) }
 
         repeat {
-            pending.remove(repository.id)
-            let generationAtStart = generation[repository.id, default: 0]
-            let snapshot = await GitBranchClient.listBranches(for: repository.url)
-            let isCurrent = generation[repository.id, default: 0] == generationAtStart
+            pending.remove(path)
+            let generationAtStart = generation[path, default: 0]
+            let snapshot = await GitBranchClient.listBranches(for: session.url)
+            let isCurrent = generation[path, default: 0] == generationAtStart
 
-            if isCurrent, cache[repository.id] != snapshot {
-                cache[repository.id] = snapshot
+            if isCurrent {
+                rootByPath[path] = snapshot.root
+                if let root = snapshot.root, cache[root] != snapshot {
+                    cache[root] = snapshot
+                }
             }
-        } while pending.contains(repository.id)
+        } while pending.contains(path)
     }
 
     func perform(
-        for repository: Repository,
+        for session: TerminalSession,
         _ operation: @escaping () async -> GitCommandOutcome
     ) async -> GitCommandOutcome {
-        operating.insert(repository.id)
-        generation[repository.id, default: 0] += 1
+        let path = session.url.path(percentEncoded: false)
+        operating.insert(path)
+        generation[path, default: 0] += 1
 
         let outcome = await operation()
 
-        operating.remove(repository.id)
-        Task { await refresh(repository) }
+        operating.remove(path)
+        Task { await refresh(session) }
 
         return outcome
     }

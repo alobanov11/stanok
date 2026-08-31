@@ -27,8 +27,8 @@ struct LinkRouter {
         return .handled
     }
 
-    func openTerminalLink(_ raw: String, in repository: Repository) {
-        let resolved = WorkspacePaths.resolvedURL(from: raw, relativeTo: repository.url)
+    func openTerminalLink(_ raw: String, in session: TerminalSession) {
+        let resolved = WorkspacePaths.resolvedURL(from: raw, relativeTo: session.url)
         guard let url = resolved else { return }
 
         route(url)

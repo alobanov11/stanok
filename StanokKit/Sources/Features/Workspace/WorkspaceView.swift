@@ -5,11 +5,11 @@ import SwiftUI
 public struct WorkspaceView<Terminal: View>: View {
 
     private var knownSessionIDs: Set<TerminalSession.ID> {
-        Set(store.repositories.flatMap { $0.sessions.map(\.id) })
+        Set(store.sessions.map(\.id))
     }
 
-    private var selectedRepository: Repository? {
-        selection.flatMap { store.repository(hosting: $0) }
+    private var selectedSession: TerminalSession? {
+        store.session(for: selection)
     }
 
     private var selectedFileBinding: Binding<URL?> {
@@ -35,7 +35,7 @@ public struct WorkspaceView<Terminal: View>: View {
             filesMode: $filesMode,
             store: store,
             navigator: navigator,
-            repository: { selectedRepository }
+            session: { selectedSession }
         )
     }
 
@@ -45,8 +45,8 @@ public struct WorkspaceView<Terminal: View>: View {
 
     private var branchActions: BranchActions {
         BranchActions.make(
-            isOperating: branchStore.isOperating(selectedRepository),
-            repository: { selectedRepository },
+            isOperating: branchStore.isOperating(selectedSession),
+            session: { selectedSession },
             branchStore: branchStore,
             afterSwitch: afterBranchSwitch,
             fetch: { dispatchGitCommand(["fetch", "--all", "--prune"]) },
@@ -62,7 +62,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var model = WorkspaceModel()
 
     @State
-    private var store = RepositoryStore()
+    private var store = SessionStore()
 
     @State
     private var selection: TerminalSession.ID?
@@ -136,19 +136,19 @@ public struct WorkspaceView<Terminal: View>: View {
         .frame(minWidth: 880, minHeight: 520)
         .focusedValue(\.workspaceCommands, .make(
             toggleSidebar: toggleSidebar, selectFilesMode: selectFilesMode,
-            repository: selectedRepository, store: store,
+            session: selectedSession, store: store,
             selection: $selection, closeSession: closeSession
         ))
         .task { selectFirstIfNeeded() }
-        .task(id: selection) { await git.refresh(selectedRepository) }
-        .task(id: selection) { await branchStore.refresh(selectedRepository) }
-        .task(id: selectedRepository?.url) { openFileTree() }
-        .task(id: selectedRepository?.id) { fileSelection.restoreWorkspace() }
-        .onChange(of: selectedRepository?.id) { _, _ in resetPreview() }
+        .task(id: selection) { await git.refresh(selectedSession) }
+        .task(id: selection) { await branchStore.refresh(selectedSession) }
+        .task(id: selectedSession?.url) { openFileTree() }
+        .task(id: selectedSession?.id) { fileSelection.restoreWorkspace() }
+        .onChange(of: selectedSession?.id) { _, _ in resetPreview() }
         .onChange(of: filesMode) { _, mode in
             guard mode == .branches else { return }
 
-            Task { await branchStore.refresh(selectedRepository) }
+            Task { await branchStore.refresh(selectedSession) }
         }
         .onChange(of: selection) { _, new in
             guard let new else { return }
@@ -157,15 +157,15 @@ public struct WorkspaceView<Terminal: View>: View {
         }
         .onChange(of: knownSessionIDs) { _, known in reconcileLiveSessions(known) }
         .onChange(
-            of: git.snapshot(for: selectedRepository)?.gitDirectory,
+            of: git.snapshot(for: selectedSession)?.gitDirectory,
             initial: true
         ) { _, new in
             fileTreeModel.updateGitDirectory(new)
         }
-        .onChange(of: git.snapshot(for: selectedRepository), initial: true) { _, snapshot in
+        .onChange(of: git.snapshot(for: selectedSession), initial: true) { _, snapshot in
             changeTreeModel.apply(snapshot)
         }
-        .onChange(of: branchStore.snapshot(for: selectedRepository), initial: true) { _, snapshot in
+        .onChange(of: branchStore.snapshot(for: selectedSession), initial: true) { _, snapshot in
             branchTreeModel.apply(snapshot)
         }
         .onChange(of: scenePhase) { _, phase in
@@ -192,19 +192,19 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var sidebar: some View {
-        RepositoryTree(
+        SessionList(
             store: store,
-            selection: $selection,
             live: Set(live),
             processUsage: processTracker.usage,
-            insertAgentCommand: insertAgentCommand
+            insertAgentCommand: insertAgentCommand,
+            selection: $selection
         )
     }
 
     private var header: some View {
         TerminalHeader(
-            repository: selectedRepository,
-            status: git.status(for: selectedRepository),
+            session: selectedSession,
+            status: git.status(for: selectedSession),
             leadingInset: WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded),
             filesMode: filesMode,
             selectAll: { selectFilesMode(.all) },
@@ -215,24 +215,21 @@ public struct WorkspaceView<Terminal: View>: View {
 
     private var terminals: some View {
         ZStack {
-            ForEach(store.repositories) { repository in
-                ForEach(repository.sessions) { session in
-                    if live.contains(session.id) {
-                        terminal(
-                            repository,
-                            session,
-                            isVisible(session),
-                            dispatcher.insertRequest(for: session.id),
-                            { model.record($0)
-                                dispatcher.markAtPrompt(session.id)
-                                Task { await git.refresh(repository) } },
-                            { linkRouter.openTerminalLink($0, in: repository) },
-                            { store.setLiveTitle($0.isEmpty ? nil : $0, for: session.id) },
-                            { _ in closeSession(session) }
-                        )
-                        .opacity(isVisible(session) ? 1 : 0)
-                        .allowsHitTesting(isVisible(session))
-                    }
+            ForEach(store.sessions) { session in
+                if live.contains(session.id) {
+                    terminal(
+                        session,
+                        isVisible(session),
+                        dispatcher.insertRequest(for: session.id),
+                        { model.record($0)
+                            dispatcher.markAtPrompt(session.id)
+                            Task { await git.refresh(session) } },
+                        { linkRouter.openTerminalLink($0, in: session) },
+                        { store.setLiveTitle($0.isEmpty ? nil : $0, for: session.id) },
+                        { _ in closeSession(session) }
+                    )
+                    .opacity(isVisible(session) ? 1 : 0)
+                    .allowsHitTesting(isVisible(session))
                 }
             }
         }
@@ -282,7 +279,6 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private let terminal: (
-        Repository,
         TerminalSession,
         Bool,
         TerminalInsertRequest?,
@@ -294,7 +290,6 @@ public struct WorkspaceView<Terminal: View>: View {
 
     public init(
         @ViewBuilder terminal: @escaping (
-            Repository,
             TerminalSession,
             Bool,
             TerminalInsertRequest?,
@@ -324,7 +319,7 @@ public struct WorkspaceView<Terminal: View>: View {
             changeTreeModel: changeTreeModel,
             branchTreeModel: branchTreeModel,
             branchActions: branchActions,
-            snapshot: git.snapshot(for: selectedRepository),
+            snapshot: git.snapshot(for: selectedSession),
             selected: selectedFileBinding,
             onOpen: fileSelection.open
         )
@@ -345,9 +340,9 @@ public struct WorkspaceView<Terminal: View>: View {
 
     private func openFileTree() {
         fileTreeModel.open(
-            selectedRepository?.url,
-            gitDirectory: git.snapshot(for: selectedRepository)?.gitDirectory,
-            onGitChange: { Task { await git.refresh(selectedRepository) } }
+            selectedSession?.url,
+            gitDirectory: git.snapshot(for: selectedSession)?.gitDirectory,
+            onGitChange: { Task { await git.refresh(selectedSession) } }
         )
     }
 
@@ -361,7 +356,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func insertAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID?) {
-        guard let sessionID, store.repository(hosting: sessionID) != nil else {
+        guard let sessionID, store.session(for: sessionID) != nil else {
             dispatcher.dispatch(action, into: nil)
             return
         }
@@ -376,8 +371,8 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func afterBranchSwitch() async {
-        await git.refresh(selectedRepository)
-        await branchStore.refresh(selectedRepository)
+        await git.refresh(selectedSession)
+        await branchStore.refresh(selectedSession)
         fileTreeModel.reloadAll()
 
         if case let .file(preview) = navigator.current {
@@ -386,9 +381,9 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func dispatchGitCommand(_ arguments: [String]) {
-        guard let repository = selectedRepository else { return }
+        guard let session = selectedSession else { return }
 
-        let path = repository.url.path(percentEncoded: false)
+        let path = session.url.path(percentEncoded: false)
         let action = AgentResumeAction(executable: "git", arguments: ["-C", path] + arguments)
         dispatcher.dispatch(action, into: selection)
     }
@@ -424,12 +419,8 @@ public struct WorkspaceView<Terminal: View>: View {
 
     private func selectFirstIfNeeded() {
         guard selection == nil else { return }
-        guard let repository = store.repositories.first else { return }
 
-        let remembered = repository.workspace.lastSessionID
-            .flatMap { id in repository.sessions.first { $0.id == id } }
-
-        selection = (remembered ?? repository.sessions.first)?.id
+        selection = store.session(for: store.selectedSessionID)?.id ?? store.sessions.first?.id
     }
 
     private func reconcileLiveSessions(_ known: Set<TerminalSession.ID>) {
@@ -457,10 +448,7 @@ public struct WorkspaceView<Terminal: View>: View {
             live.removeFirst(overflow)
         }
 
-        guard let repositoryID = store.repository(hosting: id)?.id else { return }
-
-        store.touch(repositoryID)
-        store.updateWorkspace(repositoryID) { $0.lastSessionID = id }
+        store.select(id)
     }
 
 }

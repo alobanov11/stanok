@@ -32,10 +32,10 @@ struct RootView: View {
     @ViewBuilder
     private var content: some View {
         if let runtime {
-            WorkspaceView { repository, session, active, insert, finished, openURL, title, close in
+            WorkspaceView { session, active, insert, finished, openURL, title, close in
                 TerminalView(
                     runtime: runtime,
-                    workingDirectory: repository.url,
+                    workingDirectory: session.url,
                     processLabel: session.id.uuidString,
                     isActive: active,
                     insertRequest: insert,

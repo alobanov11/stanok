@@ -30,23 +30,18 @@ public struct WorkspaceCommandActions {
     public static func make(
         toggleSidebar: @escaping () -> Void,
         selectFilesMode: @escaping (FilePanelMode) -> Void,
-        repository: Repository?,
-        store: RepositoryStore,
+        session: TerminalSession?,
+        store: SessionStore,
         selection: Binding<TerminalSession.ID?>,
         closeSession: @escaping (TerminalSession) -> Void
     ) -> WorkspaceCommandActions {
-        var newTerminalTab: (() -> Void)?
-        if let repository {
-            newTerminalTab = {
-                let added = store.addSession(to: repository.id)?.id
-                selection.wrappedValue = added ?? selection.wrappedValue
-            }
+        let newTerminalTab: () -> Void = {
+            let url = session?.url ?? FileManager.default.homeDirectoryForCurrentUser
+            selection.wrappedValue = store.addSession(url: url).id
         }
 
         var closeTerminalTab: (() -> Void)?
-        if
-            let currentSelection = selection.wrappedValue,
-            let session = repository?.sessions.first(where: { $0.id == currentSelection }) {
+        if let session, selection.wrappedValue == session.id {
             closeTerminalTab = { closeSession(session) }
         }
 

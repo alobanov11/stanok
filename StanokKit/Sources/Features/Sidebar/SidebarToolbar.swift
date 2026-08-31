@@ -2,10 +2,11 @@ import SwiftUI
 
 struct SidebarToolbar: View {
 
+    @State
+    private var monitor: AppResourceMonitor?
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            button("folder.badge.plus", action: addRepository)
-
             Spacer()
 
             Text(ResourceUsageText.text(for: monitor?.usage))
@@ -22,19 +23,4 @@ struct SidebarToolbar: View {
         }
     }
 
-    let addRepository: () -> Void
-
-    @State
-    private var monitor: AppResourceMonitor?
-
-    private func button(_ icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .frame(width: 26, height: 22)
-                .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-    }
 }

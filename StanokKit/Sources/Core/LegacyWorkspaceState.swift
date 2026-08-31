@@ -1,37 +1,43 @@
 import Foundation
 
-public struct WorkspaceState: Codable, Equatable, Sendable {
+struct LegacyWorkspaceState: Decodable {
 
     private enum CodingKeys: String, CodingKey {
 
+        case lastSessionID
         case selectedFile
         case panelMode
         case expandedFolderPaths
         case scrollAnchorPath
     }
 
-    public var selectedFile: String?
+    let lastSessionID: UUID?
 
-    public var panelMode: String?
+    let selectedFile: String?
 
-    public var expandedFolderPaths: [String]?
+    let panelMode: String?
 
-    public var scrollAnchorPath: String?
+    let expandedFolderPaths: [String]?
 
-    public init(
+    let scrollAnchorPath: String?
+
+    init(
+        lastSessionID: UUID? = nil,
         selectedFile: String? = nil,
         panelMode: String? = nil,
         expandedFolderPaths: [String]? = nil,
         scrollAnchorPath: String? = nil
     ) {
+        self.lastSessionID = lastSessionID
         self.selectedFile = selectedFile
         self.panelMode = panelMode
         self.expandedFolderPaths = expandedFolderPaths
         self.scrollAnchorPath = scrollAnchorPath
     }
 
-    public init(from decoder: any Decoder) throws {
+    init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.lastSessionID = try container.decodeIfPresent(UUID.self, forKey: .lastSessionID)
         self.selectedFile = try container.decodeIfPresent(String.self, forKey: .selectedFile)
         self.panelMode = try container.decodeIfPresent(String.self, forKey: .panelMode)
         self.expandedFolderPaths = try container.decodeIfPresent(

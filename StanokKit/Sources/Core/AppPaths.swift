@@ -20,6 +20,10 @@ public enum AppPaths {
         configDirectory.appending(path: "repositories.json", directoryHint: .notDirectory)
     }
 
+    public static var sessions: URL {
+        configDirectory.appending(path: "sessions.json", directoryHint: .notDirectory)
+    }
+
     public static var shellInit: URL {
         configDirectory
             .appending(path: "shell", directoryHint: .isDirectory)

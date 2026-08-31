@@ -4,43 +4,49 @@ import Foundation
 @Observable
 public final class GitStatusStore {
 
-    private var cache: [Repository.ID: GitSnapshot] = [:]
+    private var cache: [String: GitSnapshot] = [:]
 
-    private var inFlight: Set<Repository.ID> = []
+    private var rootByPath: [String: String] = [:]
 
-    private var pending: Set<Repository.ID> = []
+    private var inFlight: Set<String> = []
+
+    private var pending: Set<String> = []
 
     public init() {}
 
-    public func status(for repository: Repository?) -> GitStatus? {
-        guard let repository, let snapshot = cache[repository.id] else { return nil }
+    public func status(for session: TerminalSession?) -> GitStatus? {
+        guard let snapshot = snapshot(for: session) else { return nil }
 
         return GitStatus(branch: snapshot.branch, added: snapshot.added, removed: snapshot.removed)
     }
 
-    public func snapshot(for repository: Repository?) -> GitSnapshot? {
-        guard let repository else { return nil }
+    public func snapshot(for session: TerminalSession?) -> GitSnapshot? {
+        guard let session else { return nil }
 
-        return cache[repository.id]
+        let root = rootByPath[session.url.path(percentEncoded: false)]
+        return root.flatMap { cache[$0] }
     }
 
-    public func refresh(_ repository: Repository?) async {
-        guard let repository else { return }
+    public func refresh(_ session: TerminalSession?) async {
+        guard let session else { return }
 
-        guard !inFlight.contains(repository.id) else {
-            pending.insert(repository.id)
+        let path = session.url.path(percentEncoded: false)
+
+        guard !inFlight.contains(path) else {
+            pending.insert(path)
             return
         }
 
-        inFlight.insert(repository.id)
-        defer { inFlight.remove(repository.id) }
+        inFlight.insert(path)
+        defer { inFlight.remove(path) }
 
         repeat {
-            pending.remove(repository.id)
-            let snapshot = await GitClient.snapshot(for: repository.url)
-            if cache[repository.id] != snapshot {
-                cache[repository.id] = snapshot
+            pending.remove(path)
+            let snapshot = await GitClient.snapshot(for: session.url)
+            rootByPath[path] = snapshot?.root
+            if let root = snapshot?.root, cache[root] != snapshot {
+                cache[root] = snapshot
             }
-        } while pending.contains(repository.id)
+        } while pending.contains(path)
     }
 }

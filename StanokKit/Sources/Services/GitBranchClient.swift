@@ -34,6 +34,7 @@ enum GitBranchClient {
 
         return GitBranchSnapshot(
             refs: merged,
+            root: root,
             listError: refsOutcome.exitCode == 0 ? nil : refsOutcome.standardError,
             worktreeError: worktreeOutcome.exitCode == 0 ? nil : worktreeOutcome.standardError
         )

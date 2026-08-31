@@ -7,14 +7,14 @@ struct TerminalSessionTitleTests {
 
     @Test
     func displayNameFallsBackToBaseNameWithoutALiveTitle() {
-        let session = TerminalSession(name: "shell")
+        let session = TerminalSession(name: "shell", url: URL(filePath: "/tmp"))
 
         #expect(session.displayName == "shell")
     }
 
     @Test
     func displayNamePrefersTheLiveTitleWhenSet() {
-        var session = TerminalSession(name: "shell")
+        var session = TerminalSession(name: "shell", url: URL(filePath: "/tmp"))
         session.liveTitle = "npm run dev"
 
         #expect(session.displayName == "npm run dev")
@@ -22,7 +22,7 @@ struct TerminalSessionTitleTests {
 
     @Test
     func encodingNeverIncludesTheLiveTitle() throws {
-        var session = TerminalSession(name: "shell")
+        var session = TerminalSession(name: "shell", url: URL(filePath: "/tmp"))
         session.liveTitle = "npm run dev"
 
         let data = try JSONEncoder().encode(session)
@@ -39,7 +39,9 @@ struct TerminalSessionTitleTests {
           "id" : "CAD281C8-F09A-44E8-960F-8F32C02A8F3D",
           "isPinned" : false,
           "liveTitle" : "stale from a previous run",
-          "name" : "shell"
+          "name" : "shell",
+          "url" : "file:\\/\\/\\/Users\\/tom\\/Projects\\/wiki\\/",
+          "workspace" : {}
         }
         """
 

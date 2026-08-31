@@ -7,20 +7,20 @@ struct FileSelectionController {
 
     let filesMode: Binding<FilePanelMode?>
 
-    let store: RepositoryStore
+    let store: SessionStore
 
     let navigator: PreviewNavigator
 
-    let repository: () -> Repository?
+    let session: () -> TerminalSession?
 
     func restoreWorkspace() {
-        guard let repository = repository() else { return }
+        guard let session = session() else { return }
 
-        if let resolved = WorkspacePaths.resolvedSelectedFile(from: repository) {
+        if let resolved = WorkspacePaths.resolvedSelectedFile(from: session) {
             selectedFile.wrappedValue = resolved
         }
 
-        filesMode.wrappedValue = WorkspacePaths.filePanelMode(from: repository.workspace.panelMode)
+        filesMode.wrappedValue = WorkspacePaths.filePanelMode(from: session.workspace.panelMode)
     }
 
     func open(_ url: URL) {
@@ -33,8 +33,8 @@ struct FileSelectionController {
 
     func reveal(_ url: URL) {
         guard
-            let repository = repository(),
-            WorkspacePaths.contains(repository.url, url)
+            let session = session(),
+            WorkspacePaths.contains(session.url, url)
         else { return }
 
         selectedFile.wrappedValue = url
@@ -43,8 +43,8 @@ struct FileSelectionController {
             showAllFiles()
         }
 
-        if let relative = WorkspacePaths.relativePath(for: url, in: repository.url) {
-            store.updateWorkspace(repository.id) { $0.selectedFile = relative }
+        if let relative = WorkspacePaths.relativePath(for: url, in: session.url) {
+            store.updateWorkspace(session.id) { $0.selectedFile = relative }
         }
     }
 
@@ -63,9 +63,9 @@ struct FileSelectionController {
     }
 
     func persistPanelMode() {
-        guard let repository = repository() else { return }
+        guard let session = session() else { return }
 
-        store.updateWorkspace(repository.id) {
+        store.updateWorkspace(session.id) {
             $0.panelMode = WorkspacePaths.rawValue(for: filesMode.wrappedValue)
         }
     }

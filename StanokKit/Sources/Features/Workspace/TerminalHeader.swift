@@ -22,8 +22,8 @@ struct TerminalHeader: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if let repository {
-                folderBadge(repository.name)
+            if let session {
+                folderBadge(session.url.lastPathComponent)
             }
 
             if let branch = status?.branch {
@@ -38,7 +38,7 @@ struct TerminalHeader: View {
         .frame(height: WorkspaceLayout.headerHeight)
     }
 
-    let repository: Repository?
+    let session: TerminalSession?
 
     let status: GitStatus?
 
