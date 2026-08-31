@@ -41,10 +41,11 @@ struct MarkdownBlockContentView: View {
     let markerWidth: CGFloat
 
     private func prose(_ text: AttributedString) -> some View {
-        Text(text)
+        Text(LinkStyle.styled(text))
             .font(.system(size: fontSize))
             .lineSpacing(lineSpacing)
             .fixedSize(horizontal: false, vertical: true)
+            .pointerStyle(LinkStyle.containsLink(text) ? .link : nil)
     }
 
     private func item(_ marker: String, _ text: AttributedString, _ depth: Int) -> some View {
