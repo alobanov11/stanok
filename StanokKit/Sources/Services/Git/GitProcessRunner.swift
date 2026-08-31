@@ -5,9 +5,7 @@ enum GitProcessRunner {
     struct Result {
 
         let exitCode: Int32
-
         let standardOutput: Data
-
         let standardError: String
     }
 

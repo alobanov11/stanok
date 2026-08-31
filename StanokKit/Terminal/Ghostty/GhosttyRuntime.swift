@@ -182,95 +182,6 @@ public final class GhosttyRuntime {
         assert(Thread.isMainThread, "ghostty runtime callback fired off the main thread")
     }
 
-    private static func handleWakeup(_ userdata: UnsafeMutableRawPointer?) {
-        guard let userdata else { return }
-
-        let context = Unmanaged<WakeupContext>.fromOpaque(userdata).takeUnretainedValue()
-        DispatchQueue.main.async {
-            MainActor.assumeIsolated {
-                context.runtime?.tick()
-            }
-        }
-    }
-
-    private static func handleSetTitle(
-        _ setTitle: ghostty_action_set_title_s,
-        target: ghostty_target_s
-    ) -> Bool {
-        guard let pointer = setTitle.title else { return false }
-
-        let title = UntrustedText.sanitizedSingleLine(String(cString: pointer), maxLength: 60)
-        GhosttyRuntime.assertMainThread()
-        return MainActor.assumeIsolated {
-            guard
-                let surface = target.target.surface,
-                let view = GhosttySurfaceView.from(surface: surface)
-            else { return false }
-
-            view.onTitleChanged?(title)
-            return true
-        }
-    }
-
-    private static func handlePwd(
-        _ pwd: ghostty_action_pwd_s,
-        target: ghostty_target_s
-    ) -> Bool {
-        guard let pointer = pwd.pwd else { return false }
-
-        let path = String(cString: pointer)
-        GhosttyRuntime.assertMainThread()
-        return MainActor.assumeIsolated {
-            guard
-                let surface = target.target.surface,
-                let view = GhosttySurfaceView.from(surface: surface)
-            else { return false }
-
-            view.onPwdChanged?(path)
-            return true
-        }
-    }
-
-    private static func handleCloseSurface(userdata: UnsafeMutableRawPointer?, processAlive: Bool) {
-        GhosttyRuntime.assertMainThread()
-        MainActor.assumeIsolated {
-            guard let view = GhosttySurfaceView.from(userdata: userdata) else { return }
-
-            guard let onCloseRequested = view.onCloseRequested else {
-                Log.terminal.error("ghostty requested to close a surface with no handler")
-                return
-            }
-            onCloseRequested(processAlive)
-        }
-    }
-
-    private static func writeClipboard(
-        _ contents: UnsafePointer<ghostty_clipboard_content_s>?,
-        count: Int
-    ) {
-        guard let contents, count > 0 else { return }
-
-        var flavors: [NSPasteboard.PasteboardType: String] = [:]
-        for item in UnsafeBufferPointer(start: contents, count: count) {
-            guard let data = item.data else { continue }
-
-            switch item.mime.map({ String(cString: $0) }) ?? "text/plain" {
-            case "text/html": flavors[.html] = String(cString: data)
-            case "text/plain", "": flavors[.string] = String(cString: data)
-            default: continue
-            }
-        }
-        guard !flavors.isEmpty else { return }
-
-        GhosttyRuntime.assertMainThread()
-        MainActor.assumeIsolated {
-            NSPasteboard.general.clearContents()
-            for (type, value) in flavors {
-                NSPasteboard.general.setString(value, forType: type)
-            }
-        }
-    }
-
     public func reloadConfig() {
         guard let handle = Self.loadConfig() else {
             Log.terminal.error("config reload failed: could not load config")
@@ -300,5 +211,97 @@ public final class GhosttyRuntime {
 
     func tick() {
         ghostty_app_tick(app)
+    }
+}
+
+private extension GhosttyRuntime {
+
+    static func handleWakeup(_ userdata: UnsafeMutableRawPointer?) {
+        guard let userdata else { return }
+
+        let context = Unmanaged<WakeupContext>.fromOpaque(userdata).takeUnretainedValue()
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                context.runtime?.tick()
+            }
+        }
+    }
+
+    static func handleSetTitle(
+        _ setTitle: ghostty_action_set_title_s,
+        target: ghostty_target_s
+    ) -> Bool {
+        guard let pointer = setTitle.title else { return false }
+
+        let title = UntrustedText.sanitizedSingleLine(String(cString: pointer), maxLength: 60)
+        GhosttyRuntime.assertMainThread()
+        return MainActor.assumeIsolated {
+            guard
+                let surface = target.target.surface,
+                let view = GhosttySurfaceView.from(surface: surface)
+            else { return false }
+
+            view.onTitleChanged?(title)
+            return true
+        }
+    }
+
+    static func handlePwd(
+        _ pwd: ghostty_action_pwd_s,
+        target: ghostty_target_s
+    ) -> Bool {
+        guard let pointer = pwd.pwd else { return false }
+
+        let path = String(cString: pointer)
+        GhosttyRuntime.assertMainThread()
+        return MainActor.assumeIsolated {
+            guard
+                let surface = target.target.surface,
+                let view = GhosttySurfaceView.from(surface: surface)
+            else { return false }
+
+            view.onPwdChanged?(path)
+            return true
+        }
+    }
+
+    static func handleCloseSurface(userdata: UnsafeMutableRawPointer?, processAlive: Bool) {
+        GhosttyRuntime.assertMainThread()
+        MainActor.assumeIsolated {
+            guard let view = GhosttySurfaceView.from(userdata: userdata) else { return }
+
+            guard let onCloseRequested = view.onCloseRequested else {
+                Log.terminal.error("ghostty requested to close a surface with no handler")
+                return
+            }
+            onCloseRequested(processAlive)
+        }
+    }
+
+    static func writeClipboard(
+        _ contents: UnsafePointer<ghostty_clipboard_content_s>?,
+        count: Int
+    ) {
+        guard let contents, count > 0 else { return }
+
+        var flavors: [NSPasteboard.PasteboardType: String] = [:]
+        for item in UnsafeBufferPointer(start: contents, count: count) {
+            guard let data = item.data else { continue }
+
+            switch item.mime.map({ String(cString: $0) }) ?? "text/plain" {
+            case "text/html": flavors[.html] = String(cString: data)
+            case "text/plain", "": flavors[.string] = String(cString: data)
+            default: continue
+            }
+        }
+        guard !flavors.isEmpty else { return }
+
+        GhosttyRuntime.assertMainThread()
+        MainActor.assumeIsolated {
+            NSPasteboard.general.clearContents()
+            for (type, value) in flavors {
+                NSPasteboard.general.setString(value, forType: type)
+            }
+        }
     }
 }

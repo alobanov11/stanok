@@ -7,14 +7,12 @@ public final class AgentSessionRegistry {
     public struct ProviderInfo: Identifiable, Sendable {
 
         public let id: String
-
         public let displayName: String
     }
 
     private struct TrackingKey: Hashable {
 
         let providerID: String
-
         let projectURL: URL
     }
 
@@ -30,6 +28,7 @@ public final class AgentSessionRegistry {
     }
 
     private(set) var snapshots: [URL: AgentSessionsLoadState] = [:]
+
     private var providers: [String: AgentSessionProvider] = [:]
     private var perProviderState: [TrackingKey: AgentSessionsLoadState] = [:]
     private var inFlight: Set<TrackingKey> = []

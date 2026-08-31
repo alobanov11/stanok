@@ -6,6 +6,7 @@ final class FileTreeModel {
 
     private(set) var root: FileNode?
     private(set) var isUnavailable = false
+
     private var watcher: FileWatcher?
     private var onGitChange: (() -> Void)?
     private var currentGitDirectory: String?
@@ -58,8 +59,11 @@ final class FileTreeModel {
 
         reload(root)
     }
+}
 
-    private func reload(_ node: FileNode) {
+private extension FileTreeModel {
+
+    func reload(_ node: FileNode) {
         guard node.isDirectory, node.children != nil else { return }
 
         node.reload()
@@ -69,7 +73,7 @@ final class FileTreeModel {
         }
     }
 
-    private func startWatcher(at url: URL, gitDirectory: String?) {
+    func startWatcher(at url: URL, gitDirectory: String?) {
         currentGitDirectory = gitDirectory
 
         let watcher = FileWatcher(
@@ -80,7 +84,7 @@ final class FileTreeModel {
         self.watcher = watcher
     }
 
-    private func apply(_ directories: Set<URL>) {
+    func apply(_ directories: Set<URL>) {
         guard let root else { return }
 
         for directory in directories {

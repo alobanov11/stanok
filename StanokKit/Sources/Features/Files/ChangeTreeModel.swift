@@ -13,6 +13,7 @@ final class ChangeTreeModel {
     }
 
     private(set) var nodes: [GitTreeNode] = []
+
     private var collapsed: Set<String> = []
 
     func apply(_ snapshot: GitSnapshot?) {

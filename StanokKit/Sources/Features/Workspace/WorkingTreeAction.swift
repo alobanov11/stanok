@@ -3,7 +3,6 @@ import Foundation
 enum WorkingTreeAction: Identifiable {
 
     case stash
-
     case discard
 
     var id: Self { self }

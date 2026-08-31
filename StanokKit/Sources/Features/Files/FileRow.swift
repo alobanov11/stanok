@@ -7,9 +7,7 @@ struct FileRow: View {
         struct Item {
 
             let icon: String
-
             let hint: String
-
             let action: () -> Void
         }
 
@@ -114,14 +112,19 @@ struct FileRow: View {
     }
 
     let name: String
+
     var url: URL?
+
     let isDirectory: Bool
     let isExpanded: Bool
     let depth: Int
     let status: GitFileStatus?
     let isSelected: Bool
+
     var isDropTarget = false
+
     let actions: Actions?
+
     var trailing: String?
     var icon: Image?
 

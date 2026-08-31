@@ -94,8 +94,11 @@ struct BranchTree: View {
 
     @State
     private var errorMessage: String?
+}
 
-    private func list(_ root: BranchNode) -> some View {
+private extension BranchTree {
+
+    func list(_ root: BranchNode) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 1) {
                 if let listError = model.listError { errorBanner(listError) }
@@ -112,7 +115,7 @@ struct BranchTree: View {
         .allowsHitTesting(!actions.isOperating)
     }
 
-    private func placeholder(_ text: String) -> some View {
+    func placeholder(_ text: String) -> some View {
         VStack {
             Spacer()
 
@@ -125,7 +128,7 @@ struct BranchTree: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func errorBanner(_ message: String) -> some View {
+    func errorBanner(_ message: String) -> some View {
         Text(message)
             .font(.system(size: 10))
             .foregroundStyle(.red)
@@ -135,7 +138,7 @@ struct BranchTree: View {
     }
 
     @ViewBuilder
-    private func row(_ node: BranchNode) -> some View {
+    func row(_ node: BranchNode) -> some View {
         if let ref = node.ref {
             leafRow(node, ref: ref)
         } else {
@@ -143,7 +146,7 @@ struct BranchTree: View {
         }
     }
 
-    private func folderRow(_ node: BranchNode) -> some View {
+    func folderRow(_ node: BranchNode) -> some View {
         FileRow(
             name: node.name,
             isDirectory: true,
@@ -157,7 +160,7 @@ struct BranchTree: View {
         .onTapGesture { withAnimation(.smooth(duration: 0.2)) { node.toggle() } }
     }
 
-    private func leafRow(_ node: BranchNode, ref: GitBranchRef) -> some View {
+    func leafRow(_ node: BranchNode, ref: GitBranchRef) -> some View {
         FileRow(
             name: node.name,
             isDirectory: false,
@@ -174,7 +177,7 @@ struct BranchTree: View {
         .onTapGesture(count: 2) { Task { await handleTap(ref) } }
     }
 
-    private func divergence(for ref: GitBranchRef) -> String? {
+    func divergence(for ref: GitBranchRef) -> String? {
         guard ref.isCurrent, tracking.hasDivergence else { return nil }
 
         var text = ""
@@ -185,7 +188,7 @@ struct BranchTree: View {
         return text
     }
 
-    private func folderActions(_ node: BranchNode) -> FileRow.Actions? {
+    func folderActions(_ node: BranchNode) -> FileRow.Actions? {
         if node.id == BranchTreeBuilder.remotesID {
             return FileRow.Actions(items: [
                 .init(
@@ -206,7 +209,7 @@ struct BranchTree: View {
         ])
     }
 
-    private func leafActions(_ ref: GitBranchRef) -> FileRow.Actions? {
+    func leafActions(_ ref: GitBranchRef) -> FileRow.Actions? {
         guard ref.occupyingWorktreePath == nil else { return nil }
 
         if ref.isCurrent {
@@ -226,14 +229,14 @@ struct BranchTree: View {
         ])
     }
 
-    private func leafIcon(for ref: GitBranchRef) -> Image {
+    func leafIcon(for ref: GitBranchRef) -> Image {
         if ref.occupyingWorktreePath != nil { return Image(systemName: "lock.fill") }
         if ref.isCurrent { return Image(systemName: "checkmark.circle.fill") }
 
         return Image(systemName: "arrow.trianglehead.branch")
     }
 
-    private func branchPrefix(for node: BranchNode) -> String {
+    func branchPrefix(for node: BranchNode) -> String {
         let parts = node.id.split(separator: "/").map(String.init)
 
         guard let head = parts.first else { return "" }
@@ -243,16 +246,16 @@ struct BranchTree: View {
             : parts.dropFirst().joined(separator: "/")
     }
 
-    private func createHint(prefix: String) -> String {
+    func createHint(prefix: String) -> String {
         prefix.isEmpty ? "Создать ветку от HEAD" : "Создать ветку «\(prefix)/…»"
     }
 
-    private func beginCreate(prefix: String) {
+    func beginCreate(prefix: String) {
         newBranchName = prefix.isEmpty ? "" : "\(prefix)/"
         isPromptingNewBranch = true
     }
 
-    private func helpText(for ref: GitBranchRef) -> String {
+    func helpText(for ref: GitBranchRef) -> String {
         if let path = ref.occupyingWorktreePath {
             return "Занято в другом worktree: \(path)"
         }
@@ -266,7 +269,7 @@ struct BranchTree: View {
         return "Двойной клик — переключиться на «\(ref.displayName)»"
     }
 
-    private func createMessage(for ref: GitBranchRef) -> String {
+    func createMessage(for ref: GitBranchRef) -> String {
         let source = ref.remoteName.map { "\($0)/\(ref.displayName)" } ?? ref.displayName
 
         return "Локальная ветка «\(ref.displayName)» будет создана из «\(source)», и рабочая"
@@ -274,7 +277,7 @@ struct BranchTree: View {
             + " или откажет при конфликте."
     }
 
-    private func handleTap(_ ref: GitBranchRef) async {
+    func handleTap(_ ref: GitBranchRef) async {
         guard !actions.isOperating, !ref.isCurrent, ref.occupyingWorktreePath == nil else {
             return
         }
@@ -292,17 +295,17 @@ struct BranchTree: View {
         await performSwitch(ref)
     }
 
-    private func performSwitch(_ ref: GitBranchRef) async {
+    func performSwitch(_ ref: GitBranchRef) async {
         let outcome = await actions.switchTo(ref)
         if !outcome.succeeded { errorMessage = outcome.message }
     }
 
-    private func performDelete(_ ref: GitBranchRef) async {
+    func performDelete(_ ref: GitBranchRef) async {
         let outcome = await actions.delete(ref.displayName)
         if !outcome.succeeded { errorMessage = outcome.message }
     }
 
-    private func submitNewBranch() {
+    func submitNewBranch() {
         let trimmed = newBranchName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 

@@ -43,8 +43,11 @@ struct MarkdownBlockContentView: View {
     private func font(_ size: Double, weight: Font.Weight = .regular) -> Font {
         PreviewTypography.markdownFont(size: size, weight: weight, family: fontFamily)
     }
+}
 
-    private func prose(_ text: AttributedString) -> some View {
+private extension MarkdownBlockContentView {
+
+    func prose(_ text: AttributedString) -> some View {
         let resolved = MarkdownInlineStyle.resolved(text, size: fontSize, family: fontFamily)
 
         return Text(LinkStyle.styled(resolved))
@@ -53,7 +56,7 @@ struct MarkdownBlockContentView: View {
             .pointerStyle(LinkStyle.containsLink(text) ? .link : nil)
     }
 
-    private func item(_ marker: String, _ text: AttributedString, _ depth: Int) -> some View {
+    func item(_ marker: String, _ text: AttributedString, _ depth: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: ListMetrics.Metric.markerSpacing) {
             Text(marker)
                 .font(font(fontSize))
@@ -69,7 +72,7 @@ struct MarkdownBlockContentView: View {
     }
 
     @ViewBuilder
-    private func heading(_ level: Int, _ text: AttributedString) -> some View {
+    func heading(_ level: Int, _ text: AttributedString) -> some View {
         switch level {
         case 1, 2, 3:
             Text(text)
@@ -96,7 +99,7 @@ struct MarkdownBlockContentView: View {
         }
     }
 
-    private static func headingSize(_ level: Int, base: Double) -> CGFloat {
+    static func headingSize(_ level: Int, base: Double) -> CGFloat {
         switch level {
         case 1: base * 1.6
         case 2: base * 1.3

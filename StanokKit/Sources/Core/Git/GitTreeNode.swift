@@ -3,6 +3,7 @@ import Foundation
 struct GitTreeNode: Identifiable, Equatable {
 
     var id: String { relativePath }
+
     let name: String
     let url: URL
     let isDirectory: Bool

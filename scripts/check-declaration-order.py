@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Хранимые свойства: сперва доступ пошире, внутри группы var перед let."""
+"""Порядок объявлений: var перед let, а три private-функции подряд — в private extension."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ from pathlib import Path
 ROOTS = ["Stanok", "StanokKit/Sources", "StanokKit/Terminal", "StanokKit/Agents"]
 
 ACCESS = ["open", "public", "package", "internal", "fileprivate", "private"]
+
+PRIVATE_RUN = 3
 
 TYPE = re.compile(r"^(\s*)(?:[\w@\(\)]+\s+)*(?:struct|class|enum|actor|extension)\s+\w")
 
@@ -73,6 +75,57 @@ def properties(path: Path) -> list[Property]:
     return found
 
 
+PRIVATE_FUNC = re.compile(r"^\s{4}private\s+(?:static\s+|final\s+)*func\s+(\w+)")
+
+ANY_FUNC = re.compile(r"^\s{4}(?:[\w@\(\)]+\s+)*func\s+\w")
+
+OPENS_TYPE = re.compile(r"^(?:[\w@\(\)]+\s+)*(?:struct|class|enum|actor)\s+\w[^{]*\{\s*$")
+
+
+
+def has_private_type(text: str) -> bool:
+    """Вынести нельзя: private-тип внутри виден только телу типа."""
+    return bool(re.search(r"^\s+private\s+(?:struct|enum|class|actor)\s+\w", text, re.MULTILINE))
+
+
+def private_runs(path: Path) -> list[str]:
+    """Три private-функции подряд в теле типа просятся в private extension."""
+    text = path.read_text(encoding="utf-8")
+    if has_private_type(text):
+        return []
+
+    found: list[str] = []
+    inside = False
+    run: list[tuple[int, str]] = []
+
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.split("//")[0]
+
+        if OPENS_TYPE.match(line):
+            inside = True
+            run = []
+            continue
+
+        if not inside or not ANY_FUNC.match(line):
+            continue
+
+        match = PRIVATE_FUNC.match(line)
+        if not match:
+            run = []
+            continue
+
+        run.append((number, match.group(1)))
+        if len(run) == PRIVATE_RUN:
+            names = ", ".join(name for _, name in run)
+            found.append(
+                f"{path}:{run[0][0]}:1: error: {PRIVATE_RUN} private-функции подряд "
+                f"({names}) — вынесите их в private extension"
+            )
+            run = []
+
+    return found
+
+
 def violations(path: Path) -> list[str]:
     found: list[str] = []
     seen_let: dict[tuple[int, str, str], int] = {}
@@ -101,18 +154,32 @@ def violations(path: Path) -> list[str]:
     return found
 
 
+
+def skips(path: Path) -> bool:
+    """Структура без явного init: порядок свойств — это порядок аргументов."""
+    text = path.read_text(encoding="utf-8")
+    if not re.search(r"^\s*(?:[\w@\(\)]+\s+)*struct\s+\w", text, re.MULTILINE):
+        return False
+
+    return not re.search(r"^\s*(?:[\w@\(\)]+\s+)*init\s*\(", text, re.MULTILINE)
+
+
 def main() -> int:
     found: list[str] = []
     for root in ROOTS:
         for path in sorted(Path(root).rglob("*.swift")):
+            if skips(path):
+                continue
+
             found += violations(path)
+            found += private_runs(path)
 
     if not found:
         print("declaration order ok")
         return 0
 
     for line in found:
-        print(f"error: {line}", file=sys.stderr)
+        print(line if ": error: " in line else f"error: {line}", file=sys.stderr)
 
     return 1
 

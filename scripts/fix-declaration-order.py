@@ -100,11 +100,24 @@ def fixed(text: str) -> str:
     return "".join(result)
 
 
+
+def skips(path: Path) -> bool:
+    """Структура без явного init: порядок свойств — это порядок аргументов."""
+    text = path.read_text(encoding="utf-8")
+    if not re.search(r"^\s*(?:[\w@\(\)]+\s+)*struct\s+\w", text, re.MULTILINE):
+        return False
+
+    return not re.search(r"^\s*(?:[\w@\(\)]+\s+)*init\s*\(", text, re.MULTILINE)
+
+
 def main() -> int:
     changed = 0
 
     for name in sys.argv[1:]:
         path = Path(name)
+        if skips(path):
+            continue
+
         text = path.read_text(encoding="utf-8")
         updated = fixed(text)
 

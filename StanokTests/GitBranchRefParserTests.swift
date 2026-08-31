@@ -19,7 +19,6 @@ struct GitBranchRefParserTests {
         ]
 
         static let truncatedLine = "refs/heads/broken\u{0} "
-
         static let unknownPrefixLine = "refs/tags/v1.0.0\u{0}\u{0} "
 
         static func data(from lines: [String]) -> Data {

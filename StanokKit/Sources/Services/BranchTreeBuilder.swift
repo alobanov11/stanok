@@ -6,7 +6,6 @@ public enum BranchTreeBuilder {
     private struct Entry {
 
         let components: [String]
-
         let ref: GitBranchRef
     }
 

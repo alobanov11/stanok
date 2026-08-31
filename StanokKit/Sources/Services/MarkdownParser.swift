@@ -5,18 +5,14 @@ enum MarkdownParser {
     private struct Leaf {
 
         let components: [PresentationIntent.IntentType]
-
         let text: AttributedString
     }
 
     private struct Row {
 
         let identity: Int
-
         let isHeader: Bool
-
         let isQuoted: Bool
-
         let containerID: Int?
     }
 

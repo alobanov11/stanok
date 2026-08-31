@@ -3,19 +3,12 @@ import SwiftUI
 public enum GitFileStatus: Equatable, Sendable {
 
     case modified
-
     case added
-
     case deleted
-
     case renamed
-
     case copied
-
     case typeChanged
-
     case untracked
-
     case conflicted
 
     public var letter: String {

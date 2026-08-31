@@ -15,8 +15,11 @@ enum ClaudeProjectDirectoryResolver {
 
         return nil
     }
+}
 
-    private static func candidatePaths(for projectURL: URL) -> [String] {
+private extension ClaudeProjectDirectoryResolver {
+
+    static func candidatePaths(for projectURL: URL) -> [String] {
         let raw = projectURL.path(percentEncoded: false)
         let standardized = projectURL.standardizedFileURL.path(percentEncoded: false)
         let resolved = projectURL.resolvingSymlinksInPath().path(percentEncoded: false)
@@ -34,13 +37,13 @@ enum ClaudeProjectDirectoryResolver {
         return results
     }
 
-    private static func trimTrailingSlash(_ path: String) -> String {
+    static func trimTrailingSlash(_ path: String) -> String {
         guard path.count > 1, path.hasSuffix("/") else { return path }
 
         return String(path.dropLast())
     }
 
-    private static func encode(_ path: String) -> String {
+    static func encode(_ path: String) -> String {
         path.replacingOccurrences(of: "/", with: "-")
     }
 }

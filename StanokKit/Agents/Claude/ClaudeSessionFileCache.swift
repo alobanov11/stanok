@@ -9,44 +9,32 @@ actor ClaudeSessionFileCache {
     struct Resolution: Equatable, Sendable {
 
         let sessionID: String?
-
         let title: String?
-
         let cwd: String?
-
         let firstUserMessageText: String?
-
         let modifiedAt: Date
     }
 
     private struct Identity: Equatable {
 
         let device: Int32
-
         let inode: UInt64
-
         let size: Int
-
         let modifiedAt: Date
     }
 
     private struct Entry {
 
         var identity: Identity
-
         var result: ClaudeSessionRecordScanner.Result
     }
 
     private struct StatInfo {
 
         let isRegular: Bool
-
         let device: Int32
-
         let inode: UInt64
-
         let size: Int
-
         let modifiedAt: Date
     }
 

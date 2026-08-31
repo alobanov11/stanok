@@ -311,8 +311,11 @@ public struct WorkspaceView<Terminal: View>: View {
     public init(@ViewBuilder terminal: @escaping TerminalBuilder<Terminal>) {
         self.terminal = terminal
     }
+}
 
-    private func pane(_ session: TerminalSession, frame: CGRect?) -> some View {
+private extension WorkspaceView {
+
+    func pane(_ session: TerminalSession, frame: CGRect?) -> some View {
         let rect = frame ?? CGRect(origin: .zero, size: WorkspaceLayout.hiddenPaneSize)
         let isShown = frame != nil && !isPreviewFullScreen
         let isFocused = isShown && session.id == selection
@@ -329,7 +332,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .allowsHitTesting(isShown)
     }
 
-    private func paneCard(
+    func paneCard(
         _ session: TerminalSession,
         isShown: Bool,
         isFocused: Bool,
@@ -346,7 +349,7 @@ public struct WorkspaceView<Terminal: View>: View {
         }
     }
 
-    private func floatingMenu(_ session: TerminalSession) -> some View {
+    func floatingMenu(_ session: TerminalSession) -> some View {
         TerminalActionsMenu(
             split: { direction in split(session, direction) },
             newTerminal: { addSession(at: session.url) },
@@ -358,7 +361,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .padding(.trailing, 8)
     }
 
-    private func header(_ session: TerminalSession) -> some View {
+    func header(_ session: TerminalSession) -> some View {
         TerminalHeader(
             session: session,
             status: git.status(for: session),
@@ -376,7 +379,7 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
-    private func terminalContent(
+    func terminalContent(
         _ session: TerminalSession,
         isShown: Bool,
         isFocused: Bool
@@ -401,7 +404,7 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
-    private func filesPanel(
+    func filesPanel(
         _ mode: FilePanelMode,
         folder: URL,
         gitRoot: String
@@ -419,7 +422,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
     }
 
-    private func previewLayer(_ entry: PreviewEntry, leadingInset: CGFloat) -> some View {
+    func previewLayer(_ entry: PreviewEntry, leadingInset: CGFloat) -> some View {
         PreviewLayer(
             entry: entry,
             leadingInset: leadingInset,
@@ -429,19 +432,19 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
-    private func paneFrames(in size: CGSize) -> [TerminalSession.ID: CGRect] {
+    func paneFrames(in size: CGSize) -> [TerminalSession.ID: CGRect] {
         guard let paneLayout else { return [:] }
 
         return SplitFrames.rects(for: paneLayout, in: size, gap: WorkspaceLayout.inset)
     }
 
-    private func selectFiles(_ mode: FilePanelMode, in session: TerminalSession) {
+    func selectFiles(_ mode: FilePanelMode, in session: TerminalSession) {
         if selection != session.id { selection = session.id }
 
         inspectorControls.select(mode)
     }
 
-    private func openFileTree() {
+    func openFileTree() {
         let session = selectedSession
 
         inspectorControls.openTree(gitDirectory: gitSnapshot?.gitDirectory) {
@@ -449,13 +452,13 @@ public struct WorkspaceView<Terminal: View>: View {
         }
     }
 
-    private func refreshPanes() async {
+    func refreshPanes() async {
         for pane in visiblePanes {
             await git.refresh(pane)
         }
     }
 
-    private func settleDirectoryChange() async {
+    func settleDirectoryChange() async {
         try? await Task.sleep(for: WorkspaceLayout.directorySettleDelay)
         guard !Task.isCancelled else { return }
 
@@ -464,7 +467,7 @@ public struct WorkspaceView<Terminal: View>: View {
         await branchStore.refresh(selectedSession)
     }
 
-    private func split(_ session: TerminalSession, _ direction: SplitDirection) {
+    func split(_ session: TerminalSession, _ direction: SplitDirection) {
         withAnimation(.smooth(duration: 0.22)) {
             guard let pane = store.splitSession(session.id, direction: direction) else { return }
 
@@ -472,15 +475,15 @@ public struct WorkspaceView<Terminal: View>: View {
         }
     }
 
-    private func addSession(at url: URL) {
+    func addSession(at url: URL) {
         withAnimation(.smooth(duration: 0.22)) { selection = store.addSession(url: url).id }
     }
 
-    private func copyAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID?) {
+    func copyAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID?) {
         agentCommands.copy(action, for: sessionID)
     }
 
-    private func insertAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID?) {
+    func insertAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID?) {
         guard let sessionID, store.session(for: sessionID) != nil else {
             agentCommands.insert(action, into: nil)
             return
@@ -491,12 +494,12 @@ public struct WorkspaceView<Terminal: View>: View {
         agentCommands.insert(action, into: sessionID)
     }
 
-    private func requestWorkingTree(_ action: WorkingTreeAction, for session: TerminalSession) {
+    func requestWorkingTree(_ action: WorkingTreeAction, for session: TerminalSession) {
         workingTreeTarget = session
         workingTreeAction = action
     }
 
-    private func perform(_ action: WorkingTreeAction) async {
+    func perform(_ action: WorkingTreeAction) async {
         guard
             let target = workingTreeTarget ?? selectedSession,
             let root = git.snapshot(for: target)?.root
@@ -514,11 +517,11 @@ public struct WorkspaceView<Terminal: View>: View {
         await settleWorkingTree(target)
     }
 
-    private func afterBranchSwitch() async {
+    func afterBranchSwitch() async {
         await settleWorkingTree(selectedSession)
     }
 
-    private func settleWorkingTree(_ session: TerminalSession?) async {
+    func settleWorkingTree(_ session: TerminalSession?) async {
         guard let session else { return }
 
         await git.refresh(session)
@@ -530,7 +533,7 @@ public struct WorkspaceView<Terminal: View>: View {
         }
     }
 
-    private func dispatchGitCommand(_ arguments: [String]) {
+    func dispatchGitCommand(_ arguments: [String]) {
         guard let session = selectedSession else { return }
 
         let path = session.url.path(percentEncoded: false)
@@ -538,21 +541,21 @@ public struct WorkspaceView<Terminal: View>: View {
         dispatcher.dispatch(action, into: selection)
     }
 
-    private func closePreview() {
+    func closePreview() {
         navigator.clear()
     }
 
-    private func stepBack() {
+    func stepBack() {
         navigator.pop()
     }
 
-    private func toggleSidebar() {
+    func toggleSidebar() {
         withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) {
             isSidebarExpanded.toggle()
         }
     }
 
-    private func selectFirstIfNeeded() {
+    func selectFirstIfNeeded() {
         guard selection == nil else { return }
 
         selection = store.session(for: store.selectedSessionID)?.id ?? store.sessions.first?.id

@@ -6,7 +6,6 @@ struct WebContentView: NSViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate {
 
         var canGoBack = Binding<Bool>.constant(false)
-
         var lastRequestedBack = 0
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {

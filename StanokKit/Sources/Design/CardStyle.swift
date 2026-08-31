@@ -3,9 +3,7 @@ import SwiftUI
 enum CardStyle: String, CaseIterable, Identifiable {
 
     case flat
-
     case raised
-
     case inset
 
     var id: String { rawValue }

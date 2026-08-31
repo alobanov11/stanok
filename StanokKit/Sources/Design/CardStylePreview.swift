@@ -5,11 +5,8 @@ struct CardStylePreview: View {
     private enum Layout {
 
         static let inset: CGFloat = 8
-
         static let cardRadius: CGFloat = 12
-
         static let sidebarWidth: CGFloat = 180
-
         static let rowHeight: CGFloat = 260
     }
 

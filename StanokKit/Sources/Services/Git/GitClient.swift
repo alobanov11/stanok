@@ -55,8 +55,11 @@ public enum GitClient {
             tracking: tracking
         )
     }
+}
 
-    private static func parseNumstat(_ raw: String) -> (added: Int, removed: Int) {
+private extension GitClient {
+
+    static func parseNumstat(_ raw: String) -> (added: Int, removed: Int) {
         let chunks = raw.split(separator: "\0", omittingEmptySubsequences: false)
         var added = 0
         var removed = 0
@@ -81,7 +84,7 @@ public enum GitClient {
         return (added, removed)
     }
 
-    private static func untrackedAddedLines(at path: String, root: URL) async -> Int {
+    static func untrackedAddedLines(at path: String, root: URL) async -> Int {
         let output = await run(["status", "--porcelain=v2", "-z", "-uall"], at: path) ?? ""
         let paths = output
             .split(separator: "\0", omittingEmptySubsequences: true)
@@ -92,7 +95,7 @@ public enum GitClient {
         return paths.reduce(0) { $0 + lineCount(at: root.appending(path: $1)) }
     }
 
-    private static func lineCount(at url: URL) -> Int {
+    static func lineCount(at url: URL) -> Int {
         let values = try? url.resourceValues(forKeys: [.fileSizeKey])
         guard let size = values?.fileSize, size > 0, size <= Limit.untrackedFileSize else {
             return 0
@@ -113,22 +116,22 @@ public enum GitClient {
         return lastByte == 0x0A ? headLines + tailLines : headLines + tailLines + 1
     }
 
-    private static func run(_ arguments: [String], at path: String) async -> String? {
+    static func run(_ arguments: [String], at path: String) async -> String? {
         await run(["--no-optional-locks", "-C", path] + arguments)
     }
 
-    private static func run(_ arguments: [String]) async -> String? {
+    static func run(_ arguments: [String]) async -> String? {
         guard let data = await runRaw(arguments), let text = String(data: data, encoding: .utf8)
         else { return nil }
 
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func runRaw(_ arguments: [String], at path: String) async -> Data? {
+    static func runRaw(_ arguments: [String], at path: String) async -> Data? {
         await runRaw(["--no-optional-locks", "-C", path] + arguments)
     }
 
-    private static func runRaw(_ arguments: [String]) async -> Data? {
+    static func runRaw(_ arguments: [String]) async -> Data? {
         await withCheckedContinuation { continuation in
             GitProcessQueue.serial.async {
                 let process = Process()

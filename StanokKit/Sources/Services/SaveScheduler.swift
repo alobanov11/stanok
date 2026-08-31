@@ -6,6 +6,7 @@ final class SaveScheduler<State: Equatable> {
     private var lastKnown: State?
     private var pendingWrite: State?
     private var task: Task<Void, Never>?
+
     private let delay: Duration
     private let write: (State) -> Void
 

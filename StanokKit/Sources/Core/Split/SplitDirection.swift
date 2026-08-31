@@ -3,11 +3,8 @@ import Foundation
 public enum SplitDirection: String, Codable, CaseIterable, Sendable {
 
     case top
-
     case bottom
-
     case leading
-
     case trailing
 
     public var axis: SplitAxis {

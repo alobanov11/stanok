@@ -143,8 +143,11 @@ public final class SessionStore {
 
         return sessions.first { $0.id == sessionID }
     }
+}
 
-    private func regroup(_ order: [TerminalSession.ID]) {
+private extension SessionStore {
+
+    func regroup(_ order: [TerminalSession.ID]) {
         var grouped: [TerminalSession] = []
 
         for rootID in order {
@@ -159,7 +162,7 @@ public final class SessionStore {
         sessions = grouped
     }
 
-    private func removePane(_ pane: TerminalSession) {
+    func removePane(_ pane: TerminalSession) {
         sessions.removeAll { $0.id == pane.id }
 
         guard
@@ -173,7 +176,7 @@ public final class SessionStore {
         )
     }
 
-    private func removeRoot(_ root: TerminalSession) {
+    func removeRoot(_ root: TerminalSession) {
         let remaining = root.layout?.removing(root.id)
         sessions.removeAll { $0.id == root.id }
 
@@ -194,13 +197,13 @@ public final class SessionStore {
         }
     }
 
-    private func pruned(_ layout: SplitLayout?, soleLeaf: UUID) -> SplitLayout? {
+    func pruned(_ layout: SplitLayout?, soleLeaf: UUID) -> SplitLayout? {
         guard let layout, layout != .leaf(soleLeaf) else { return nil }
 
         return layout
     }
 
-    private func normalizeGroups() {
+    func normalizeGroups() {
         var changed = false
 
         for index in sessions.indices {
@@ -248,7 +251,7 @@ public final class SessionStore {
         persistVerified(currentSnapshot())
     }
 
-    private func load() {
+    func load() {
         if FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) {
             loadSessionsFile()
         } else {
@@ -258,7 +261,7 @@ public final class SessionStore {
         normalizeGroups()
     }
 
-    private func loadSessionsFile() {
+    func loadSessionsFile() {
         guard let data = try? Data(contentsOf: file) else {
             fatalError("stanok: sessions.json exists but could not be read at \(file.path())")
         }
@@ -272,7 +275,7 @@ public final class SessionStore {
         }
     }
 
-    private func migrateFromLegacyFile() {
+    func migrateFromLegacyFile() {
         let legacyRepositories = loadLegacyRepositories()
         let migratedSessions = flattenLegacyRepositoriesOrCrash(legacyRepositories)
 
@@ -291,7 +294,7 @@ public final class SessionStore {
         persistVerified(currentSnapshot())
     }
 
-    private func loadLegacyRepositories() -> [LegacyRepository] {
+    func loadLegacyRepositories() -> [LegacyRepository] {
         guard let data = try? Data(contentsOf: legacyFile) else { return [] }
 
         do {
@@ -301,7 +304,7 @@ public final class SessionStore {
         }
     }
 
-    private func flattenLegacyRepositoriesOrCrash(
+    func flattenLegacyRepositoriesOrCrash(
         _ legacyRepositories: [LegacyRepository]
     ) -> [TerminalSession] {
         do {
@@ -311,7 +314,7 @@ public final class SessionStore {
         }
     }
 
-    private func seedInitialSession() {
+    func seedInitialSession() {
         let session = TerminalSession(
             name: "shell",
             url: FileManager.default.homeDirectoryForCurrentUser
@@ -321,16 +324,16 @@ public final class SessionStore {
         persistVerified(currentSnapshot())
     }
 
-    private func save() {
+    func save() {
         saveScheduler.schedule(currentSnapshot())
         saveScheduler.flush()
     }
 
-    private func currentSnapshot() -> SessionFile {
+    func currentSnapshot() -> SessionFile {
         SessionFile(sessions: sessions, selectedSessionID: selectedSessionID)
     }
 
-    private func persistVerified(_ snapshot: SessionFile) {
+    func persistVerified(_ snapshot: SessionFile) {
         do {
             try FileManager.default.createDirectory(
                 at: file.deletingLastPathComponent(),

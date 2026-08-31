@@ -5,11 +5,8 @@ struct CodeBlockView: View {
     private enum Metric {
 
         static let ribbonWidth: CGFloat = 3
-
         static let foldWidth: CGFloat = 11
-
         static let rowPadding: CGFloat = 2
-
         static let gutterGap: CGFloat = 8
     }
 
@@ -72,9 +69,13 @@ struct CodeBlockView: View {
 
     let lines: [[CodeToken]]
     let showsNumbers: Bool
-    var changes: [Int: LineChange] = [:]
 
-    private func row(_ index: Int, _ tokens: [CodeToken]) -> some View {
+    var changes: [Int: LineChange] = [:]
+}
+
+private extension CodeBlockView {
+
+    func row(_ index: Int, _ tokens: [CodeToken]) -> some View {
         HStack(alignment: .top, spacing: 0) {
             if showsNumbers {
                 number(index)
@@ -93,7 +94,7 @@ struct CodeBlockView: View {
         .font(CodeTheme.font(size: fontSize, family: resolvedFamily))
     }
 
-    private func number(_ index: Int) -> some View {
+    func number(_ index: Int) -> some View {
         Text("\(index + 1)")
             .foregroundStyle(.tertiary)
             .frame(width: gutterWidth, alignment: .trailing)
@@ -102,7 +103,7 @@ struct CodeBlockView: View {
     }
 
     @ViewBuilder
-    private func foldRibbon(_ index: Int) -> some View {
+    func foldRibbon(_ index: Int) -> some View {
         let fold = folds.fold(startingAt: index)
         let owner = folds.owner(of: index)
         let scope = fold ?? owner
@@ -136,7 +137,7 @@ struct CodeBlockView: View {
         .onTapGesture { toggle(scope?.header) }
     }
 
-    private func changeRibbon(_ index: Int) -> some View {
+    func changeRibbon(_ index: Int) -> some View {
         let change = changes[index + 1]
 
         return Rectangle()
@@ -148,7 +149,7 @@ struct CodeBlockView: View {
             .help(hint(for: change))
     }
 
-    private func line(_ tokens: [CodeToken]) -> Text {
+    func line(_ tokens: [CodeToken]) -> Text {
         guard !tokens.isEmpty else { return Text(" ") }
 
         return tokens.reduce(Text("")) { result, token in
@@ -156,7 +157,7 @@ struct CodeBlockView: View {
         }
     }
 
-    private func hint(for change: LineChange?) -> String {
+    func hint(for change: LineChange?) -> String {
         switch change {
         case .added: "Строка добавлена"
         case .modified: "Строка изменена"
@@ -165,7 +166,7 @@ struct CodeBlockView: View {
         }
     }
 
-    private func toggle(_ header: Int?) {
+    func toggle(_ header: Int?) {
         guard let header, folds.fold(startingAt: header) != nil else { return }
 
         withAnimation(.smooth(duration: 0.16)) {
@@ -177,7 +178,7 @@ struct CodeBlockView: View {
         }
     }
 
-    private func buildFolds() {
+    func buildFolds() {
         guard showsNumbers, folds.isEmpty else { return }
 
         folds = CodeFoldMap(folds: CodeFolding.folds(for: lines))

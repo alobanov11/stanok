@@ -16,15 +16,18 @@ public enum TerminalPaste {
 
         return ShellQuoting.posixQuote([image.path(percentEncoded: false)])
     }
+}
 
-    private static func fileURLs(on pasteboard: NSPasteboard) -> [URL] {
+private extension TerminalPaste {
+
+    static func fileURLs(on pasteboard: NSPasteboard) -> [URL] {
         let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
         let items = pasteboard.readObjects(forClasses: [NSURL.self], options: options)
 
         return (items as? [URL]) ?? []
     }
 
-    private static func savedImage(from pasteboard: NSPasteboard) -> URL? {
+    static func savedImage(from pasteboard: NSPasteboard) -> URL? {
         guard let data = pngData(from: pasteboard) else { return nil }
 
         let directory = FileManager.default.temporaryDirectory
@@ -44,7 +47,7 @@ public enum TerminalPaste {
         return url
     }
 
-    private static func pngData(from pasteboard: NSPasteboard) -> Data? {
+    static func pngData(from pasteboard: NSPasteboard) -> Data? {
         if let png = pasteboard.data(forType: .png) { return png }
 
         guard

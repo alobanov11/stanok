@@ -7,6 +7,7 @@ import StanokKit
 final class GhosttySurfaceView: NSView {
 
     private static let resizeInterval: CFTimeInterval = 0.05
+
     override var acceptsFirstResponder: Bool { true }
     var handle: ghostty_surface_t? { surface }
 
@@ -23,6 +24,7 @@ final class GhosttySurfaceView: NSView {
     var onPwdChanged: ((String) -> Void)?
     var onFocused: (() -> Void)?
     var onScrollbarChanged: ((TerminalScrollbar) -> Void)?
+
     private var tracking: NSTrackingArea?
     private var desiredCursor = NSCursor.iBeam
     private var surface: ghostty_surface_t?
@@ -234,53 +236,6 @@ final class GhosttySurfaceView: NSView {
         return Unmanaged<GhosttySurfaceView>.fromOpaque(userdata).takeUnretainedValue()
     }
 
-    private static func insertableText(
-        from event: NSEvent,
-        using keyPath: KeyPath<NSEvent, String?>
-    ) -> String? {
-        guard let characters = event[keyPath: keyPath], !characters.isEmpty else { return nil }
-
-        for scalar in characters.unicodeScalars {
-            let isFunctionKey = (0xF700...0xF8FF).contains(scalar.value)
-            let isControl = scalar.value < 0x20 || scalar.value == 0x7F
-            if isFunctionKey || isControl { return nil }
-        }
-        return characters
-    }
-
-    private static func modifier(
-        for keyCode: UInt16,
-        flags: NSEvent.ModifierFlags
-    ) -> ghostty_input_mods_e? {
-        switch keyCode {
-        case 56, 60: GHOSTTY_MODS_SHIFT
-        case 59, 62: GHOSTTY_MODS_CTRL
-        case 58, 61: GHOSTTY_MODS_ALT
-        case 54, 55: GHOSTTY_MODS_SUPER
-        case 57: capsLockModifier(from: flags)
-        default: nil
-        }
-    }
-
-    private static func capsLockModifier(
-        from flags: NSEvent.ModifierFlags
-    ) -> ghostty_input_mods_e {
-        if flags.contains(.control) { return GHOSTTY_MODS_CTRL }
-        if flags.contains(.option) { return GHOSTTY_MODS_ALT }
-        if flags.contains(.command) { return GHOSTTY_MODS_SUPER }
-        return GHOSTTY_MODS_CAPS
-    }
-
-    private static func mods(from flags: NSEvent.ModifierFlags) -> ghostty_input_mods_e {
-        var raw = GHOSTTY_MODS_NONE.rawValue
-        if flags.contains(.shift) { raw |= GHOSTTY_MODS_SHIFT.rawValue }
-        if flags.contains(.control) { raw |= GHOSTTY_MODS_CTRL.rawValue }
-        if flags.contains(.option) { raw |= GHOSTTY_MODS_ALT.rawValue }
-        if flags.contains(.command) { raw |= GHOSTTY_MODS_SUPER.rawValue }
-        if flags.contains(.capsLock) { raw |= GHOSTTY_MODS_CAPS.rawValue }
-        return ghostty_input_mods_e(raw)
-    }
-
     func updateConfig(_ config: ghostty_config_t) {
         guard let surface else { return }
 
@@ -361,14 +316,64 @@ final class GhosttySurfaceView: NSView {
         lastHandledInsertRequestID = insertRequest.id
         insert(insertRequest.text)
     }
+}
+
+private extension GhosttySurfaceView {
+
+    static func insertableText(
+        from event: NSEvent,
+        using keyPath: KeyPath<NSEvent, String?>
+    ) -> String? {
+        guard let characters = event[keyPath: keyPath], !characters.isEmpty else { return nil }
+
+        for scalar in characters.unicodeScalars {
+            let isFunctionKey = (0xF700...0xF8FF).contains(scalar.value)
+            let isControl = scalar.value < 0x20 || scalar.value == 0x7F
+            if isFunctionKey || isControl { return nil }
+        }
+        return characters
+    }
+
+    static func modifier(
+        for keyCode: UInt16,
+        flags: NSEvent.ModifierFlags
+    ) -> ghostty_input_mods_e? {
+        switch keyCode {
+        case 56, 60: GHOSTTY_MODS_SHIFT
+        case 59, 62: GHOSTTY_MODS_CTRL
+        case 58, 61: GHOSTTY_MODS_ALT
+        case 54, 55: GHOSTTY_MODS_SUPER
+        case 57: capsLockModifier(from: flags)
+        default: nil
+        }
+    }
+
+    static func capsLockModifier(
+        from flags: NSEvent.ModifierFlags
+    ) -> ghostty_input_mods_e {
+        if flags.contains(.control) { return GHOSTTY_MODS_CTRL }
+        if flags.contains(.option) { return GHOSTTY_MODS_ALT }
+        if flags.contains(.command) { return GHOSTTY_MODS_SUPER }
+        return GHOSTTY_MODS_CAPS
+    }
+
+    static func mods(from flags: NSEvent.ModifierFlags) -> ghostty_input_mods_e {
+        var raw = GHOSTTY_MODS_NONE.rawValue
+        if flags.contains(.shift) { raw |= GHOSTTY_MODS_SHIFT.rawValue }
+        if flags.contains(.control) { raw |= GHOSTTY_MODS_CTRL.rawValue }
+        if flags.contains(.option) { raw |= GHOSTTY_MODS_ALT.rawValue }
+        if flags.contains(.command) { raw |= GHOSTTY_MODS_SUPER.rawValue }
+        if flags.contains(.capsLock) { raw |= GHOSTTY_MODS_CAPS.rawValue }
+        return ghostty_input_mods_e(raw)
+    }
 
     @objc
-    private func render() {
+    func render() {
         guard let surface else { return }
         ghostty_surface_draw(surface)
     }
 
-    private func send(_ event: NSEvent, action: ghostty_input_action_e) {
+    func send(_ event: NSEvent, action: ghostty_input_action_e) {
         guard let surface else { return }
 
         var key = ghostty_input_key_s()
@@ -396,7 +401,7 @@ final class GhosttySurfaceView: NSView {
         }
     }
 
-    private func sendMouse(
+    func sendMouse(
         _ event: NSEvent,
         state: ghostty_input_mouse_state_e,
         button: ghostty_input_mouse_button_e
@@ -412,7 +417,7 @@ final class GhosttySurfaceView: NSView {
         )
     }
 
-    private func sendPosition(_ event: NSEvent) {
+    func sendPosition(_ event: NSEvent) {
         guard let surface else { return }
 
         let point = convert(event.locationInWindow, from: nil)
@@ -424,7 +429,7 @@ final class GhosttySurfaceView: NSView {
         )
     }
 
-    private func showContextMenu(with event: NSEvent) {
+    func showContextMenu(with event: NSEvent) {
         let menu = NSMenu()
 
         let copyItem = menu.addItem(
@@ -453,16 +458,16 @@ final class GhosttySurfaceView: NSView {
     }
 
     @objc
-    private func copySelection() {
+    func copySelection() {
         performBindingAction("copy_to_clipboard")
     }
 
     @objc
-    private func pasteFromClipboard() {
+    func pasteFromClipboard() {
         performBindingAction("paste_from_clipboard")
     }
 
-    private func insert(_ text: String) {
+    func insert(_ text: String) {
         guard surface != nil, !text.isEmpty else { return }
 
         let previous = NSPasteboard.general.string(forType: .string)
@@ -477,23 +482,23 @@ final class GhosttySurfaceView: NSView {
     }
 
     @objc
-    private func selectAllText() {
+    func selectAllText() {
         performBindingAction("select_all")
     }
 
-    private func performBindingAction(_ name: String) {
+    func performBindingAction(_ name: String) {
         guard let surface else { return }
         _ = name.withCString { ghostty_surface_binding_action(surface, $0, UInt(name.utf8.count)) }
     }
 
-    private func applyScale() {
+    func applyScale() {
         guard let surface else { return }
 
         let scale = backingScale
         ghostty_surface_set_content_scale(surface, scale, scale)
     }
 
-    private func scheduleSize(_ size: NSSize) {
+    func scheduleSize(_ size: NSSize) {
         pendingSize = size
         guard isVisible else { return }
 
@@ -513,12 +518,12 @@ final class GhosttySurfaceView: NSView {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.resizeInterval, execute: work)
     }
 
-    private func applyPendingSize() {
+    func applyPendingSize() {
         lastResizeAt = CACurrentMediaTime()
         applySize(pendingSize)
     }
 
-    private func applySize(_ size: NSSize) {
+    func applySize(_ size: NSSize) {
         guard let surface, size.width > 1, size.height > 1 else { return }
 
         let backing = convertToBacking(NSRect(origin: .zero, size: size)).size
@@ -530,7 +535,7 @@ final class GhosttySurfaceView: NSView {
         ghostty_surface_set_size(surface, width, height)
     }
 
-    private func showCreationFailureLabel() {
+    func showCreationFailureLabel() {
         let label = NSTextField(labelWithString: "Не удалось создать поверхность терминала")
         label.textColor = .secondaryLabelColor
         label.alignment = .center

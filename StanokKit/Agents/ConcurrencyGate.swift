@@ -4,6 +4,7 @@ actor ConcurrencyGate {
 
     private var available: Int
     private var waiters: [CheckedContinuation<Void, Never>] = []
+
     private let limit: Int
 
     init(limit: Int) {

@@ -3,7 +3,6 @@ import Foundation
 public indirect enum SplitLayout: Equatable, Sendable {
 
     case leaf(UUID)
-
     case split(SplitAxis, [SplitLayout])
 
     public var leafIDs: [UUID] {

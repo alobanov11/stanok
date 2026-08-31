@@ -12,6 +12,7 @@ public final class ProcessTreeMonitor {
     private var previousSnapshot: ProcessTableSnapshot?
     private var previousCapturedAt: Date?
     private var pollTask: Task<Void, Never>?
+
     private let reader: any ProcessTableReading
     private let interval: Duration
 
@@ -38,8 +39,11 @@ public final class ProcessTreeMonitor {
 
         stop()
     }
+}
 
-    private func startIfNeeded() {
+private extension ProcessTreeMonitor {
+
+    func startIfNeeded() {
         guard pollTask == nil else { return }
 
         pollTask = Task { [weak self] in
@@ -47,21 +51,21 @@ public final class ProcessTreeMonitor {
         }
     }
 
-    private func stop() {
+    func stop() {
         pollTask?.cancel()
         pollTask = nil
         previousSnapshot = nil
         previousCapturedAt = nil
     }
 
-    private func runLoop() async {
+    func runLoop() async {
         while !Task.isCancelled {
             await tick()
             try? await Task.sleep(for: interval)
         }
     }
 
-    private func tick() async {
+    func tick() async {
         let roots = observedRoots
         guard !roots.isEmpty else { return }
 

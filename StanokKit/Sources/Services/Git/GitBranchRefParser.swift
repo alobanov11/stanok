@@ -13,8 +13,11 @@ public enum GitBranchRefParser {
             .split(separator: "\n", omittingEmptySubsequences: true)
             .compactMap(parseLine)
     }
+}
 
-    private static func parseLine(_ line: Substring) -> GitBranchRef? {
+private extension GitBranchRefParser {
+
+    static func parseLine(_ line: Substring) -> GitBranchRef? {
         let fields = line.split(separator: "\u{0}", omittingEmptySubsequences: false)
         guard fields.count == 3, fields[1].isEmpty else { return nil }
 
@@ -32,7 +35,7 @@ public enum GitBranchRefParser {
         return nil
     }
 
-    private static func localRef(_ fullName: String, isCurrent: Bool) -> GitBranchRef? {
+    static func localRef(_ fullName: String, isCurrent: Bool) -> GitBranchRef? {
         let displayName = String(fullName.dropFirst(Prefix.heads.count))
         guard !displayName.isEmpty else { return nil }
 
@@ -44,7 +47,7 @@ public enum GitBranchRefParser {
         )
     }
 
-    private static func remoteRef(_ fullName: String, isCurrent: Bool) -> GitBranchRef? {
+    static func remoteRef(_ fullName: String, isCurrent: Bool) -> GitBranchRef? {
         let rest = fullName.dropFirst(Prefix.remotes.count)
         guard let separator = rest.firstIndex(of: "/") else { return nil }
 
@@ -61,7 +64,7 @@ public enum GitBranchRefParser {
         )
     }
 
-    private static func decode(_ data: Data) -> String {
+    static func decode(_ data: Data) -> String {
         // swiftlint:disable:next optional_data_string_conversion
         String(decoding: data, as: UTF8.self)
     }

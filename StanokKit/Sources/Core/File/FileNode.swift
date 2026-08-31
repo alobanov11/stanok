@@ -14,10 +14,12 @@ final class FileNode: Identifiable {
     }
 
     var isExpanded = false
+
     let url: URL
     let isDirectory: Bool
     let depth: Int
     let relativePath: String
+
     private(set) var children: [FileNode]?
 
     init(url: URL, isDirectory: Bool, depth: Int, relativePath: String) {
@@ -25,16 +27,6 @@ final class FileNode: Identifiable {
         self.isDirectory = isDirectory
         self.depth = depth
         self.relativePath = relativePath
-    }
-
-    private static func precedes(_ lhs: FileNode, _ rhs: FileNode) -> Bool {
-        if lhs.isDirectory != rhs.isDirectory { return lhs.isDirectory }
-
-        return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
-    }
-
-    private static func isDirectory(_ url: URL) -> Bool {
-        (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
     }
 
     func toggle() {
@@ -93,8 +85,21 @@ final class FileNode: Identifiable {
 
         self.children = rebuilt
     }
+}
 
-    private func appendVisibleDescendants(to result: inout [FileNode]) {
+private extension FileNode {
+
+    static func precedes(_ lhs: FileNode, _ rhs: FileNode) -> Bool {
+        if lhs.isDirectory != rhs.isDirectory { return lhs.isDirectory }
+
+        return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+    }
+
+    static func isDirectory(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+    }
+
+    func appendVisibleDescendants(to result: inout [FileNode]) {
         guard isExpanded, let children else { return }
 
         for child in children {
@@ -103,7 +108,7 @@ final class FileNode: Identifiable {
         }
     }
 
-    private func loadIfNeeded() {
+    func loadIfNeeded() {
         guard isExpanded, children == nil else { return }
 
         if let rebuilt = rebuild(reusing: [:]) {
@@ -111,18 +116,18 @@ final class FileNode: Identifiable {
         }
     }
 
-    private func childRelativePath(_ name: String) -> String {
+    func childRelativePath(_ name: String) -> String {
         relativePath.isEmpty ? name : "\(relativePath)/\(name)"
     }
 
-    private func contains(_ target: URL) -> Bool {
+    func contains(_ target: URL) -> Bool {
         let base = url.standardizedFileURL.path(percentEncoded: false)
         let path = target.path(percentEncoded: false)
 
         return path.hasPrefix(base.hasSuffix("/") ? base : base + "/")
     }
 
-    private func rebuild(reusing existing: [URL: FileNode]) -> [FileNode]? {
+    func rebuild(reusing existing: [URL: FileNode]) -> [FileNode]? {
         let contents: [URL]
         do {
             contents = try FileManager.default.contentsOfDirectory(

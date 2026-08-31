@@ -8,6 +8,7 @@ struct SessionMigrationTests {
     private enum Fixture {
 
         static let ownerRepositories = #"""
+
         [
           {
             "id" : "EDDA019C-FF50-40FC-9219-8E6286FE6D0A",
@@ -79,9 +80,11 @@ struct SessionMigrationTests {
             }
           }
         ]
+
         """#
 
         static let ownerRepositoriesWithoutWorkspaceKey = #"""
+
         [
           {
             "id" : "D8ABF81A-C37B-442F-AF82-6529C9EEEF7F",
@@ -98,9 +101,11 @@ struct SessionMigrationTests {
             "url" : "file:\/\/\/Users\/tom\/Projects\/wiki\/"
           }
         ]
+
         """#
 
         static let realOwnerRepositoriesSnapshot = #"""
+
         [
           {
             "id" : "EDDA019C-FF50-40FC-9219-8E6286FE6D0A",
@@ -172,6 +177,7 @@ struct SessionMigrationTests {
             }
           }
         ]
+
         """#
     }
 

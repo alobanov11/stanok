@@ -6,13 +6,9 @@ struct TerminalScrollbarOverlay: View {
     private enum Metric {
 
         static let width: CGFloat = 4
-
         static let hitWidth: CGFloat = 16
-
         static let inset: CGFloat = 3
-
         static let minimumThumb: CGFloat = 28
-
         static let idleDelay = Duration.seconds(1.2)
     }
 
@@ -71,8 +67,11 @@ struct TerminalScrollbarOverlay: View {
                 .gesture(drag(scrollbar, thumb: thumb, travel: travel))
         }
     }
+}
 
-    private func drag(
+private extension TerminalScrollbarOverlay {
+
+    func drag(
         _ scrollbar: TerminalScrollbar,
         thumb: CGFloat,
         travel: CGFloat
@@ -92,13 +91,13 @@ struct TerminalScrollbarOverlay: View {
             .onEnded { _ in grab = nil }
     }
 
-    private func grabOffset(at point: CGFloat, thumbTop: CGFloat, thumb: CGFloat) -> CGFloat {
+    func grabOffset(at point: CGFloat, thumbTop: CGFloat, thumb: CGFloat) -> CGFloat {
         let inside = point >= thumbTop && point <= thumbTop + thumb
 
         return inside ? point - thumbTop : thumb / 2
     }
 
-    private func scrollTo(position: Double, _ scrollbar: TerminalScrollbar) {
+    func scrollTo(position: Double, _ scrollbar: TerminalScrollbar) {
         let span = Double(scrollbar.total - scrollbar.length)
         let target = (min(max(position, 0), 1) * span).rounded()
         let rows = Int(target) - Int(scrollbar.offset)
@@ -106,7 +105,7 @@ struct TerminalScrollbarOverlay: View {
         controller.scroll(rows: rows)
     }
 
-    private func settle() async {
+    func settle() async {
         guard scrollbar?.isScrollable == true else {
             isShown = false
             return

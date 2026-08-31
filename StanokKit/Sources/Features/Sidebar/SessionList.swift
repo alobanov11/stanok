@@ -4,6 +4,7 @@ import SwiftUI
 struct SessionList: View {
 
     private static let paneIndent: CGFloat = 20
+
     let store: SessionStore
     let live: Set<TerminalSession.ID>
     let insertAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
@@ -98,12 +99,15 @@ struct SessionList: View {
             )
         }
     }
+}
 
-    private func copyAgentChat(_ session: AgentSession) {
+private extension SessionList {
+
+    func copyAgentChat(_ session: AgentSession) {
         copyAgentCommand(session.resumeAction, selection)
     }
 
-    private func resumeAgentChat(_ session: AgentSession) {
+    func resumeAgentChat(_ session: AgentSession) {
         guard let folder = session.folder else { return }
 
         let target = store.addSession(url: folder).id
@@ -111,7 +115,7 @@ struct SessionList: View {
         insertAgentCommand(session.resumeAction, target)
     }
 
-    private func rootRow(_ root: TerminalSession, at index: Int) -> some View {
+    func rootRow(_ root: TerminalSession, at index: Int) -> some View {
         sessionRow(root, indent: 0, isDropTarget: dropTarget == root.id)
             .draggable(root.id.uuidString) {
                 Text(root.displayName)
@@ -126,7 +130,7 @@ struct SessionList: View {
             }
     }
 
-    private func move(_ items: [String], to index: Int) -> Bool {
+    func move(_ items: [String], to index: Int) -> Bool {
         guard
             let raw = items.first,
             let id = UUID(uuidString: raw),
@@ -137,7 +141,7 @@ struct SessionList: View {
         return true
     }
 
-    private func sessionRow(
+    func sessionRow(
         _ session: TerminalSession,
         indent: CGFloat,
         isDropTarget: Bool = false
@@ -164,7 +168,7 @@ struct SessionList: View {
         }
     }
 
-    private func addSession(at url: URL) {
+    func addSession(at url: URL) {
         selection = store.addSession(url: url).id
     }
 }

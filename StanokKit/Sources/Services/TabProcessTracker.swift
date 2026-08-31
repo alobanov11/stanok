@@ -7,7 +7,6 @@ public final class TabProcessTracker {
     private enum PollBudget {
 
         static let attempts = 20
-
         static let interval = Duration.milliseconds(100)
     }
 
@@ -19,6 +18,7 @@ public final class TabProcessTracker {
 
     private let monitor: ProcessTreeMonitor
     private let labels: ShellProcessLabelStore
+
     private var trackedPIDs: [TerminalSession.ID: Int32] = [:]
 
     @ObservationIgnored

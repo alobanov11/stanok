@@ -31,7 +31,7 @@
 --indentstrings false
 --lineaftermarks true
 --linebreaks lf
---maxwidth 100
+--maxwidth 120
 --modifierorder public,override
 --nospaceoperators ...,..<
 --octalgrouping 4,8
@@ -66,7 +66,7 @@
 --enable isEmpty,wrapEnumCases,redundantOptionalBinding,propertyTypes,organizeDeclarations
 --organizationmode type
 --markcategories false
---groupblanklines true
+--groupblanklines false
 --typeorder nestedType,staticProperty,staticPropertyWithBody,classPropertyWithBody,overriddenProperty,computedProperty,swiftUIPropertyWrapper,swiftUIProperty,instanceProperty,instanceLifecycle,swiftUIMethod,overriddenMethod,staticMethod,classMethod,instanceMethod,beforeMarks
 --visibilityorder open,public,package,internal,fileprivate,private
 --exclude .build,build,DerivedData,ThirdParty,StanokKit/.build

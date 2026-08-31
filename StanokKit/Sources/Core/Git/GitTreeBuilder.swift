@@ -5,7 +5,6 @@ enum GitTreeBuilder {
     private struct Entry {
 
         let isDirectory: Bool
-
         let status: GitFileStatus?
     }
 

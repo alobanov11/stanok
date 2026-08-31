@@ -5,9 +5,7 @@ enum ListMetrics {
     enum Metric {
 
         static let markerSpacing: CGFloat = 8
-
         static let indentStep: CGFloat = 20
-
         static let markerCharWidthRatio: CGFloat = 0.62
     }
 

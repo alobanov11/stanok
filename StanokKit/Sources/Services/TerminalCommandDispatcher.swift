@@ -15,6 +15,7 @@ public final class TerminalCommandDispatcher {
     public private(set) var copyNotice: CopyNotice?
 
     private(set) var insertRequests: [TerminalSession.ID: TerminalInsertRequest] = [:]
+
     private var confirmedIdle: Set<TerminalSession.ID> = []
 
     public nonisolated init() {}
@@ -57,8 +58,11 @@ public final class TerminalCommandDispatcher {
         confirmedIdle.remove(sessionID)
         insertRequests[sessionID] = TerminalInsertRequest(text: command + "\n")
     }
+}
 
-    private func resolvedCommand(
+private extension TerminalCommandDispatcher {
+
+    func resolvedCommand(
         for action: AgentResumeAction,
         runningProcessNames: Set<String>
     ) -> String {
@@ -77,12 +81,12 @@ public final class TerminalCommandDispatcher {
         return "cd \(path) && \(launch)"
     }
 
-    private func write(_ text: String) {
+    func write(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
 
-    private func announceCopy(for sessionID: TerminalSession.ID?) {
+    func announceCopy(for sessionID: TerminalSession.ID?) {
         let token = UUID()
         copyNotice = CopyNotice(sessionID: sessionID, token: token)
         Task { [weak self] in

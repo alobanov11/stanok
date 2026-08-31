@@ -6,18 +6,14 @@ enum ClaudeSessionRecordScanner {
     struct Result: Equatable, Sendable {
 
         let sessionID: String?
-
         let title: String?
-
         let cwd: String?
-
         let firstUserMessageText: String?
     }
 
     private enum Limits {
 
         static let maxLineBytes = 64 * 1024
-
         static let maxTitleLength = 200
     }
 

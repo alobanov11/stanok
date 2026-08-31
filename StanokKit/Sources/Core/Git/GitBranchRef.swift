@@ -9,6 +9,7 @@ public struct GitBranchRef: Identifiable, Equatable, Sendable {
     }
 
     public var id: String { fullName }
+
     public let fullName: String
     public let displayName: String
     public let kind: Kind

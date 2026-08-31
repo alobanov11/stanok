@@ -9,17 +9,12 @@ public final class FileWatcher {
         let generation: Int
 
         private var pendingDirectories: Set<URL> = []
-
         private var pendingNeedsFullRescan = false
-
         private var pendingGitChange = false
-
         private var deliveryScheduled = false
 
         private let lock = NSLock()
-
         private let scheduleDelivery: @Sendable () -> Void
-
         private let gitDirectory: String?
 
         init(
@@ -104,7 +99,6 @@ public final class FileWatcher {
     private enum FlushDelay {
 
         static let directories = Duration.milliseconds(150)
-
         static let git = Duration.milliseconds(300)
     }
 
@@ -132,6 +126,7 @@ public final class FileWatcher {
     private var gitFlush: Task<Void, Never>?
     private var nextGeneration = 0
     private var watchedRoot: URL?
+
     private let onDirectoriesChanged: (Set<URL>) -> Void
     private let onGitChange: () -> Void
 
@@ -243,8 +238,11 @@ public final class FileWatcher {
         FSEventStreamRelease(stream)
         self.stream = nil
     }
+}
 
-    private func deliver(generation delivered: Int) {
+private extension FileWatcher {
+
+    func deliver(generation delivered: Int) {
         guard let context, context.generation == delivered else { return }
 
         let drained = context.drain()
@@ -265,7 +263,7 @@ public final class FileWatcher {
         }
     }
 
-    private func scheduleDirectoriesFlush() {
+    func scheduleDirectoriesFlush() {
         directoriesFlush?.cancel()
         directoriesFlush = Task { [weak self] in
             try? await Task.sleep(for: FlushDelay.directories)
@@ -275,7 +273,7 @@ public final class FileWatcher {
         }
     }
 
-    private func scheduleGitFlush() {
+    func scheduleGitFlush() {
         gitFlush?.cancel()
         gitFlush = Task { [weak self] in
             try? await Task.sleep(for: FlushDelay.git)
@@ -285,13 +283,13 @@ public final class FileWatcher {
         }
     }
 
-    private func emitDirectories() {
+    func emitDirectories() {
         let directories = pendingDirectories
         pendingDirectories.removeAll()
         onDirectoriesChanged(directories)
     }
 
-    private func emitGitChange() {
+    func emitGitChange() {
         onGitChange()
     }
 }

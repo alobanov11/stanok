@@ -3,9 +3,7 @@ import Foundation
 public enum SettingsSection: String, CaseIterable, Identifiable, Hashable {
 
     case terminal
-
     case preview
-
     case agents
 
     public var id: String { rawValue }

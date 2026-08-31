@@ -13,11 +13,13 @@ struct FilePreview: Identifiable, Sendable {
 
     var id: URL { url }
     var name: String { url.lastPathComponent }
+
     let url: URL
     let content: Content
     let size: Int64
     let kind: String
     let modified: Date?
     let isTruncated: Bool
+
     var changes: [Int: LineChange] = [:]
 }

@@ -83,8 +83,9 @@ reference-type мир, который в value-type редьюсер не пом
   (простые хранимые свойства идут подряд, пустая строка — только вокруг тех, у кого
   есть обёртка вроде `@State` или комментарий) и `fix-declaration-order.py`
   (`var` перед `let` внутри одной группы).
-- **`make lint`** — **swiftlint**, `check-declaration-order.py` (`var` перед `let`)
-  и `check-layout.py`. Любое нарушение ломает билд.
+- **`make lint`** — то же самое в режиме проверки: `swiftformat --lint`,
+  `fix-property-spacing.py --check`, **swiftlint**, `check-declaration-order.py`
+  (`var` перед `let`) и `check-layout.py`. Любое нарушение ломает билд.
 
 `check-layout.py` отвечает за раскладку и специально бережётся от лишней
 вложенности, чтобы правило не превращалось в дробление ради дробления. Всё, что

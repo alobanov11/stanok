@@ -18,7 +18,6 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
     }
 
-    public let id: UUID
     public var name: String
     public var url: URL
     public var workspace: WorkspaceState
@@ -26,6 +25,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
     public var layout: SplitLayout?
     public var liveTitle: String?
     public var liveDirectory: URL?
+
+    public let id: UUID
 
     public init(
         id: UUID = UUID(),

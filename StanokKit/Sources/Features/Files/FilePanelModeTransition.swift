@@ -1,9 +1,7 @@
 public enum FilePanelModeTransition: Equatable {
 
     case closes
-
     case opens(FilePanelMode)
-
     case switches(FilePanelMode)
 
     public var nextMode: FilePanelMode? {

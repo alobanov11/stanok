@@ -49,13 +49,16 @@ public enum GitStatusParser {
 
         return changes
     }
+}
 
-    private static func decode(_ chunk: Data.SubSequence) -> String {
+private extension GitStatusParser {
+
+    static func decode(_ chunk: Data.SubSequence) -> String {
         // swiftlint:disable:next optional_data_string_conversion
         String(decoding: chunk, as: UTF8.self)
     }
 
-    private static func splitFields(
+    static func splitFields(
         _ text: String,
         count: Int
     ) -> (fields: [Substring], path: String)? {
@@ -65,12 +68,12 @@ public enum GitStatusParser {
         return (Array(parts[0..<count]), String(parts[count]))
     }
 
-    private static func pair(_ xy: Substring) -> (x: Character?, y: Character?) {
+    static func pair(_ xy: Substring) -> (x: Character?, y: Character?) {
         var iterator = xy.makeIterator()
         return (iterator.next(), iterator.next())
     }
 
-    private static func status(xy: Substring, isRenameOrCopy: Bool) -> GitFileStatus {
+    static func status(xy: Substring, isRenameOrCopy: Bool) -> GitFileStatus {
         let (x, y) = pair(xy)
 
         if x == "D" || y == "D" { return .deleted }
@@ -80,11 +83,11 @@ public enum GitStatusParser {
         return .modified
     }
 
-    private static func isSubmodule(_ field: Substring) -> Bool {
+    static func isSubmodule(_ field: Substring) -> Bool {
         field.first == "S"
     }
 
-    private static func parseOrdinary(_ text: String) -> GitChange? {
+    static func parseOrdinary(_ text: String) -> GitChange? {
         guard
             let (fields, path) = splitFields(text, count: FieldCount.ordinary),
             fields[0] == "1"
@@ -100,7 +103,7 @@ public enum GitStatusParser {
         )
     }
 
-    private static func parseRenameOrCopy(_ text: String, originalPath: String?) -> GitChange? {
+    static func parseRenameOrCopy(_ text: String, originalPath: String?) -> GitChange? {
         guard
             let (fields, path) = splitFields(text, count: FieldCount.renameOrCopy),
             fields[0] == "2"
@@ -117,7 +120,7 @@ public enum GitStatusParser {
         )
     }
 
-    private static func parseUnmerged(_ text: String) -> GitChange? {
+    static func parseUnmerged(_ text: String) -> GitChange? {
         guard
             let (fields, path) = splitFields(text, count: FieldCount.unmerged),
             fields[0] == "u"
@@ -133,7 +136,7 @@ public enum GitStatusParser {
         )
     }
 
-    private static func parseUntracked(_ text: String) -> GitChange? {
+    static func parseUntracked(_ text: String) -> GitChange? {
         guard
             let (fields, path) = splitFields(text, count: FieldCount.untracked),
             fields[0] == "?"

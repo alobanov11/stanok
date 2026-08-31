@@ -5,7 +5,18 @@ public struct DarwinProcessTableReader: ProcessTableReading {
 
     public init() {}
 
-    private static func captureSnapshot() -> ProcessTableSnapshot {
+    public func snapshot() async -> ProcessTableSnapshot {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: Self.captureSnapshot())
+            }
+        }
+    }
+}
+
+private extension DarwinProcessTableReader {
+
+    static func captureSnapshot() -> ProcessTableSnapshot {
         var entries: [Int32: ProcessTableEntry] = [:]
 
         for pid in listAllPIDs() {
@@ -17,7 +28,7 @@ public struct DarwinProcessTableReader: ProcessTableReading {
         return ProcessTableSnapshot(entries: entries)
     }
 
-    private static func listAllPIDs() -> [Int32] {
+    static func listAllPIDs() -> [Int32] {
         let requiredSize = proc_listallpids(nil, 0)
         guard requiredSize > 0 else { return [] }
 
@@ -31,7 +42,7 @@ public struct DarwinProcessTableReader: ProcessTableReading {
         return Array(pids.prefix(count))
     }
 
-    private static func readEntry(pid: Int32) -> ProcessTableEntry? {
+    static func readEntry(pid: Int32) -> ProcessTableEntry? {
         var bsdInfo = proc_bsdinfo()
         let bsdSize = Int32(MemoryLayout<proc_bsdinfo>.size)
         guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &bsdInfo, bsdSize) == bsdSize else {
@@ -59,13 +70,5 @@ public struct DarwinProcessTableReader: ProcessTableReading {
             cpuTimeNanoseconds: taskInfo.pti_total_user + taskInfo.pti_total_system,
             residentMemoryBytes: taskInfo.pti_resident_size
         )
-    }
-
-    public func snapshot() async -> ProcessTableSnapshot {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .utility).async {
-                continuation.resume(returning: Self.captureSnapshot())
-            }
-        }
     }
 }

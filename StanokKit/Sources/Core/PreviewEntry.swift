@@ -3,7 +3,6 @@ import Foundation
 enum PreviewEntry: Identifiable, Sendable {
 
     case file(FilePreview)
-
     case web(WebPreview)
 
     var id: String {

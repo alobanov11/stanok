@@ -11,7 +11,9 @@ public final class BranchNode: Identifiable {
     }
 
     public nonisolated let id: String
+
     public var isExpanded: Bool
+
     public let name: String
     public let isFolder: Bool
     public let depth: Int

@@ -50,8 +50,11 @@ struct TerminalHeader: View {
     let split: (SplitDirection) -> Void
     let newTerminal: () -> Void
     let close: () -> Void
+}
 
-    private func folderBadge(_ name: String) -> some View {
+private extension TerminalHeader {
+
+    func folderBadge(_ name: String) -> some View {
         Button(action: selectAll) {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 Image(systemName: "folder")
@@ -74,7 +77,7 @@ struct TerminalHeader: View {
         .help(filesMode == .all ? "Скрыть файлы" : "Показать файлы")
     }
 
-    private func branchBadge(_ branch: String) -> some View {
+    func branchBadge(_ branch: String) -> some View {
         Button(action: selectBranches) {
             busyLabel(branch)
                 .padding(.horizontal, 8)
@@ -86,7 +89,7 @@ struct TerminalHeader: View {
         .help(filesMode == .branches ? "Скрыть ветки" : "Показать ветки")
     }
 
-    private func changesBadge(_ status: GitStatus) -> some View {
+    func changesBadge(_ status: GitStatus) -> some View {
         Button(action: selectChanges) {
             counters(status)
                 .padding(.horizontal, 8)
@@ -109,7 +112,7 @@ struct TerminalHeader: View {
         }
     }
 
-    private func counters(_ status: GitStatus) -> some View {
+    func counters(_ status: GitStatus) -> some View {
         let added = attributed("\(status.added)", .green)
         let separator = attributed(" / ", .secondary)
         let removed = attributed("\(status.removed)", .red)
@@ -120,7 +123,7 @@ struct TerminalHeader: View {
     }
 
     @ViewBuilder
-    private func busyLabel(_ branch: String) -> some View {
+    func busyLabel(_ branch: String) -> some View {
         if isBusy {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
                 ProgressView()
@@ -143,7 +146,7 @@ struct TerminalHeader: View {
         }
     }
 
-    private func divergence(_ tracking: GitTracking) -> some View {
+    func divergence(_ tracking: GitTracking) -> some View {
         var text = AttributedString()
         if tracking.ahead > 0 { text += AttributedString("\(tracking.ahead)↑") }
         if tracking.ahead > 0, tracking.behind > 0 { text += AttributedString(" ") }
@@ -155,7 +158,7 @@ struct TerminalHeader: View {
             .foregroundStyle(.tertiary)
     }
 
-    private func label(_ icon: String, _ text: String) -> some View {
+    func label(_ icon: String, _ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 5) {
             Image(systemName: icon)
 
@@ -167,11 +170,11 @@ struct TerminalHeader: View {
         .foregroundStyle(.secondary)
     }
 
-    private func background(for mode: FilePanelMode) -> AnyShapeStyle {
+    func background(for mode: FilePanelMode) -> AnyShapeStyle {
         filesMode == mode ? AnyShapeStyle(.white.opacity(0.14)) : badgeBackground
     }
 
-    private func attributed(_ text: String, _ color: Color) -> AttributedString {
+    func attributed(_ text: String, _ color: Color) -> AttributedString {
         var value = AttributedString(text)
         value.foregroundColor = color
         return value

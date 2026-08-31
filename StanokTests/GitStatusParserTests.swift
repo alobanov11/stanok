@@ -70,7 +70,6 @@ struct GitStatusParserTests {
             }()
 
             static let invalidUtf8OriginalPath = Data("? victim.txt".utf8)
-
             static let invalidUtf8SentinelChunk = Data("? sentinel.txt".utf8)
         }
 

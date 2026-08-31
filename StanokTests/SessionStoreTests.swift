@@ -9,6 +9,7 @@ struct SessionStoreTests {
     private enum Fixture {
 
         static let ownerRepositoriesWithoutWorkspaceKey = #"""
+
         [
           {
             "id" : "D8ABF81A-C37B-442F-AF82-6529C9EEEF7F",
@@ -67,6 +68,7 @@ struct SessionStoreTests {
             "url" : "file:\/\/\/Users\/tom\/"
           }
         ]
+
         """#
     }
 

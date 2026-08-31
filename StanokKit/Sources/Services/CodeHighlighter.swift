@@ -12,21 +12,14 @@ enum CodeHighlighter {
     private struct Scanner {
 
         let code: [Character]
-
         let profile: LanguageProfile
 
         private var lines: [[CodeToken]] = []
-
         private var line: [CodeToken] = []
-
         private var text = ""
-
         private var kind = CodeToken.Kind.plain
-
         private var state = State.normal
-
         private var depth = 0
-
         private var index = 0
 
         init(code: [Character], profile: LanguageProfile) {

@@ -3,7 +3,9 @@ import Foundation
 struct CodeFoldMap: Sendable {
 
     static let empty = CodeFoldMap(folds: [])
+
     var isEmpty: Bool { byHeader.isEmpty }
+
     private let byHeader: [Int: CodeFold]
     private let byLine: [Int: CodeFold]
 

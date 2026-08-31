@@ -95,8 +95,11 @@ struct FileTree: View {
 
     @State
     private var expandTask: Task<Void, Never>?
+}
 
-    private func status(for node: FileNode) -> GitFileStatus? {
+private extension FileTree {
+
+    func status(for node: FileNode) -> GitFileStatus? {
         guard let snapshot else { return nil }
 
         if node.isDirectory {
@@ -106,7 +109,7 @@ struct FileTree: View {
         return snapshot.byPath[node.relativePath]
     }
 
-    private func row(_ node: FileNode) -> some View {
+    func row(_ node: FileNode) -> some View {
         FileRow(
             name: node.name,
             url: node.url,
@@ -153,12 +156,12 @@ struct FileTree: View {
         .onDropSessionUpdated { session in sessionUpdated(session, for: node) }
     }
 
-    private func dropConfiguration(for node: FileNode, session: DropSession) -> DropConfiguration {
+    func dropConfiguration(for node: FileNode, session: DropSession) -> DropConfiguration {
         let operation = Self.resolvedOperation(for: session, target: container(of: node))
         return DropConfiguration(operation: operation)
     }
 
-    private static func resolvedOperation(for session: DropSession, target: URL) -> DropOperation {
+    static func resolvedOperation(for session: DropSession, target: URL) -> DropOperation {
         guard let localSession = session.localSession else { return .copy }
 
         let sources = localSession.draggedItemIDs(for: URL.self)
@@ -179,7 +182,7 @@ struct FileTree: View {
         return redundant ? .forbidden : operation
     }
 
-    private func sessionUpdated(_ session: DropSession, for node: FileNode) {
+    func sessionUpdated(_ session: DropSession, for node: FileNode) {
         switch session.phase {
         case .entering, .active:
             if dropTarget != node.url { dropTarget = node.url }
@@ -194,7 +197,7 @@ struct FileTree: View {
         }
     }
 
-    private func scheduleExpansion(for node: FileNode) {
+    func scheduleExpansion(for node: FileNode) {
         guard node.isDirectory, !node.isExpanded else { return }
         guard expandTarget != node.url else { return }
 
@@ -209,7 +212,7 @@ struct FileTree: View {
         }
     }
 
-    private func cancelExpansion(for node: FileNode) {
+    func cancelExpansion(for node: FileNode) {
         guard expandTarget == node.url else { return }
 
         expandTask?.cancel()
@@ -217,7 +220,7 @@ struct FileTree: View {
         expandTarget = nil
     }
 
-    private func handleDrop(_ items: [URL], onto node: FileNode, session: DropSession) {
+    func handleDrop(_ items: [URL], onto node: FileNode, session: DropSession) {
         let sources = items.filter(\.isFileURL)
         guard !sources.isEmpty else { return }
 
@@ -237,7 +240,7 @@ struct FileTree: View {
         if succeeded, let last = results.last { selected = last }
     }
 
-    private func reveal(_ target: URL?, in root: FileNode, proxy: ScrollViewProxy) {
+    func reveal(_ target: URL?, in root: FileNode, proxy: ScrollViewProxy) {
         guard let target, let node = root.reveal(target) else { return }
 
         withAnimation(.smooth(duration: 0.2)) {
@@ -246,7 +249,7 @@ struct FileTree: View {
     }
 
     @ViewBuilder
-    private func rootMenu(_ root: FileNode) -> some View {
+    func rootMenu(_ root: FileNode) -> some View {
         Button("Новый файл…") { ask(.newFile, at: root.url) }
         Button("Новая папка…") { ask(.newFolder, at: root.url) }
 
@@ -257,7 +260,7 @@ struct FileTree: View {
     }
 
     @ViewBuilder
-    private func menu(_ node: FileNode) -> some View {
+    func menu(_ node: FileNode) -> some View {
         Button("Новый файл…") { ask(.newFile, at: container(of: node)) }
         Button("Новая папка…") { ask(.newFolder, at: container(of: node)) }
 
@@ -279,23 +282,23 @@ struct FileTree: View {
         Button("Удалить", role: .destructive) { perform { try FileOperations.trash(node.url) } }
     }
 
-    private func container(of node: FileNode) -> URL {
+    func container(of node: FileNode) -> URL {
         node.isDirectory ? node.url : node.url.deletingLastPathComponent()
     }
 
-    private func paste(into directory: URL) {
+    func paste(into directory: URL) {
         let urls = FilePasteboard.urls
         guard !urls.isEmpty else { return }
 
         perform { try FileOperations.copy(urls, into: directory) }
     }
 
-    private func copyPath(_ url: URL) {
+    func copyPath(_ url: URL) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(url.path(percentEncoded: false), forType: .string)
     }
 
-    private func ask(_ kind: FilePrompt.Kind, at target: URL) {
+    func ask(_ kind: FilePrompt.Kind, at target: URL) {
         if case .rename = kind {
             name = target.lastPathComponent
         } else {
@@ -305,7 +308,7 @@ struct FileTree: View {
         prompt = FilePrompt(kind: kind, target: target)
     }
 
-    private func commit() {
+    func commit() {
         guard let prompt else { return }
 
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -322,7 +325,7 @@ struct FileTree: View {
     }
 
     @discardableResult
-    private func perform(_ action: () throws -> Void) -> Bool {
+    func perform(_ action: () throws -> Void) -> Bool {
         do {
             try action()
             return true
