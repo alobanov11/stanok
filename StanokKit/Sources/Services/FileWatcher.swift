@@ -12,14 +12,23 @@ final class FileWatcher {
 
         private let scheduleDelivery: @Sendable () -> Void
 
+        private let gitDirectory: String?
+
         private var pendingDirectories: Set<URL> = []
 
         private var pendingNeedsFullRescan = false
 
+        private var pendingGitChange = false
+
         private var deliveryScheduled = false
 
-        init(generation: Int, scheduleDelivery: @escaping @Sendable () -> Void) {
+        init(
+            generation: Int,
+            gitDirectory: String?,
+            scheduleDelivery: @escaping @Sendable () -> Void
+        ) {
             self.generation = generation
+            self.gitDirectory = gitDirectory
             self.scheduleDelivery = scheduleDelivery
         }
 
@@ -34,6 +43,14 @@ final class FileWatcher {
             for (index, path) in paths.enumerated() {
                 if flags[index] & rescanMask != 0 {
                     pendingNeedsFullRescan = true
+                    pendingGitChange = true
+                    continue
+                }
+
+                if let gitDirectory, path.hasPrefix(gitDirectory) {
+                    if FileWatcher.isRelevantGitEvent(path, gitDirectory: gitDirectory) {
+                        pendingGitChange = true
+                    }
                     continue
                 }
 
@@ -41,6 +58,7 @@ final class FileWatcher {
                 guard !FileWatcher.isIgnored(url) else { continue }
 
                 pendingDirectories.insert(url.deletingLastPathComponent())
+                pendingGitChange = true
             }
 
             let alreadyScheduled = deliveryScheduled
@@ -52,16 +70,18 @@ final class FileWatcher {
             scheduleDelivery()
         }
 
-        func drain() -> (directories: Set<URL>, needsFullRescan: Bool) {
+        func drain() -> (directories: Set<URL>, needsFullRescan: Bool, gitChanged: Bool) {
             lock.lock()
             defer { lock.unlock() }
 
             let directories = pendingDirectories
             let needsFullRescan = pendingNeedsFullRescan
+            let gitChanged = pendingGitChange
             pendingDirectories.removeAll()
             pendingNeedsFullRescan = false
+            pendingGitChange = false
             deliveryScheduled = false
-            return (directories, needsFullRescan)
+            return (directories, needsFullRescan, gitChanged)
         }
     }
 
@@ -81,9 +101,23 @@ final class FileWatcher {
         }
     }
 
-    private nonisolated static let ignored: Set<String> = [
-        ".git", "node_modules", ".build", "DerivedData", ".next", ".venv", "Pods", ".zig-cache"
-    ]
+    private enum FlushDelay {
+
+        static let directories = Duration.milliseconds(150)
+
+        static let git = Duration.milliseconds(300)
+    }
+
+    private enum PathFilters {
+
+        static let ignored: Set<String> = [
+            ".git", "node_modules", ".build", "DerivedData", ".next", ".venv", "Pods", ".zig-cache"
+        ]
+
+        static let relevantGit: Set<String> = [
+            "HEAD", "index", "MERGE_HEAD", "ORIG_HEAD", "logs/HEAD"
+        ]
+    }
 
     private static let callback: FSEventStreamCallback = { _, info, count, paths, flags, _ in
         guard
@@ -95,38 +129,61 @@ final class FileWatcher {
         Unmanaged<Context>.fromOpaque(info).takeUnretainedValue().record(list, flags: eventFlags)
     }
 
-    private let onChange: (Set<URL>) -> Void
+    private let onDirectoriesChanged: (Set<URL>) -> Void
+
+    private let onGitChange: () -> Void
 
     private var stream: FSEventStreamRef?
 
     private var context: Context?
 
-    private var pending: Set<URL> = []
+    private var pendingDirectories: Set<URL> = []
 
-    private var flush: Task<Void, Never>?
+    private var directoriesFlush: Task<Void, Never>?
+
+    private var gitFlush: Task<Void, Never>?
 
     private var nextGeneration = 0
 
     private var watchedRoot: URL?
 
-    init(onChange: @escaping (Set<URL>) -> Void) {
-        self.onChange = onChange
+    init(onDirectoriesChanged: @escaping (Set<URL>) -> Void, onGitChange: @escaping () -> Void) {
+        self.onDirectoriesChanged = onDirectoriesChanged
+        self.onGitChange = onGitChange
     }
 
     private nonisolated static func isIgnored(_ url: URL) -> Bool {
-        url.pathComponents.contains { ignored.contains($0) }
+        url.pathComponents.contains { PathFilters.ignored.contains($0) }
     }
 
-    func watch(_ url: URL) {
+    private nonisolated static func isRelevantGitEvent(
+        _ path: String,
+        gitDirectory: String
+    ) -> Bool {
+        var relative = String(path.dropFirst(gitDirectory.count))
+        if relative.hasPrefix("/") { relative.removeFirst() }
+
+        guard !relative.isEmpty, !relative.hasSuffix(".lock") else { return false }
+        if PathFilters.relevantGit.contains(relative) { return true }
+
+        return relative.hasPrefix("refs/")
+    }
+
+    func watch(_ url: URL, gitDirectory: String?) {
         stop()
 
         nextGeneration += 1
         let currentGeneration = nextGeneration
         watchedRoot = url
 
-        let context = Context(generation: currentGeneration) { [weak self] in
+        let scheduleDelivery: @Sendable () -> Void = { [weak self] in
             Task { @MainActor in self?.deliver(generation: currentGeneration) }
         }
+        let context = Context(
+            generation: currentGeneration,
+            gitDirectory: gitDirectory,
+            scheduleDelivery: scheduleDelivery
+        )
         self.context = context
 
         var streamContext = FSEventStreamContext(
@@ -143,11 +200,14 @@ final class FileWatcher {
                 | kFSEventStreamCreateFlagUseCFTypes
         )
 
+        let paths = gitDirectory.map { [url.path(percentEncoded: false), $0] }
+            ?? [url.path(percentEncoded: false)]
+
         stream = FSEventStreamCreate(
             kCFAllocatorDefault,
             Self.callback,
             &streamContext,
-            [url.path(percentEncoded: false)] as CFArray,
+            paths as CFArray,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             0.2,
             flags
@@ -173,9 +233,11 @@ final class FileWatcher {
     }
 
     func stop() {
-        flush?.cancel()
-        flush = nil
-        pending.removeAll()
+        directoriesFlush?.cancel()
+        directoriesFlush = nil
+        gitFlush?.cancel()
+        gitFlush = nil
+        pendingDirectories.removeAll()
         context = nil
 
         guard let stream else { return }
@@ -189,26 +251,51 @@ final class FileWatcher {
     private func deliver(generation delivered: Int) {
         guard let context, context.generation == delivered else { return }
 
-        let (directories, needsFullRescan) = context.drain()
-        guard !directories.isEmpty || needsFullRescan else { return }
-
-        pending.formUnion(directories)
-        if needsFullRescan, let watchedRoot {
-            pending.insert(watchedRoot)
+        let drained = context.drain()
+        guard !drained.directories.isEmpty || drained.needsFullRescan || drained.gitChanged else {
+            return
         }
 
-        flush?.cancel()
-        flush = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(150))
-            guard !Task.isCancelled else { return }
+        if !drained.directories.isEmpty || drained.needsFullRescan {
+            pendingDirectories.formUnion(drained.directories)
+            if drained.needsFullRescan, let watchedRoot {
+                pendingDirectories.insert(watchedRoot)
+            }
+            scheduleDirectoriesFlush()
+        }
 
-            self?.emit()
+        if drained.gitChanged {
+            scheduleGitFlush()
         }
     }
 
-    private func emit() {
-        let directories = pending
-        pending.removeAll()
-        onChange(directories)
+    private func scheduleDirectoriesFlush() {
+        directoriesFlush?.cancel()
+        directoriesFlush = Task { [weak self] in
+            try? await Task.sleep(for: FlushDelay.directories)
+            guard !Task.isCancelled else { return }
+
+            self?.emitDirectories()
+        }
+    }
+
+    private func scheduleGitFlush() {
+        gitFlush?.cancel()
+        gitFlush = Task { [weak self] in
+            try? await Task.sleep(for: FlushDelay.git)
+            guard !Task.isCancelled else { return }
+
+            self?.emitGitChange()
+        }
+    }
+
+    private func emitDirectories() {
+        let directories = pendingDirectories
+        pendingDirectories.removeAll()
+        onDirectoriesChanged(directories)
+    }
+
+    private func emitGitChange() {
+        onGitChange()
     }
 }
