@@ -27,6 +27,37 @@ struct TerminalCommandDispatcherTests {
     }
 
     @Test
+    func aWorkingDirectoryIsPrependedAsACdToTheLaunchForm() {
+        let dispatcher = TerminalCommandDispatcher()
+        let action = AgentResumeAction(
+            executable: "claude",
+            arguments: ["--resume", "abc"],
+            workingDirectory: URL(filePath: "/Users/tom/Projects/my app")
+        )
+        dispatcher.dispatch(action, into: UUID())
+
+        #expect(
+            NSPasteboard.general.string(forType: .string)
+                == "cd '/Users/tom/Projects/my app' && claude --resume abc"
+        )
+    }
+
+    @Test
+    func theInSessionFormNeverGetsACd() {
+        let dispatcher = TerminalCommandDispatcher()
+        let action = AgentResumeAction(
+            executable: "claude",
+            arguments: ["--resume", "abc"],
+            runningProcessName: "claude",
+            inSessionText: "/resume abc",
+            workingDirectory: URL(filePath: "/Users/tom")
+        )
+        dispatcher.dispatch(action, into: UUID(), runningProcessNames: ["claude"])
+
+        #expect(NSPasteboard.general.string(forType: .string) == "/resume abc")
+    }
+
+    @Test
     func asecondDispatchOverwritesTheFirst() {
         let dispatcher = TerminalCommandDispatcher()
         let session = UUID()
