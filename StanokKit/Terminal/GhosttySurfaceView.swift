@@ -19,11 +19,17 @@ final class GhosttySurfaceView: NSView {
 
     var onOpenURL: ((String) -> Void)?
 
+    var onCloseRequested: ((Bool) -> Void)?
+
     private var tracking: NSTrackingArea?
 
     private var surface: ghostty_surface_t?
 
     private var link: CADisplayLink?
+
+    private var isActive = false
+
+    private var heldModifierKeys: [UInt16: ghostty_input_mods_e] = [:]
 
     init(app: ghostty_app_t, fontSize: Float, workingDirectory: URL?) {
         super.init(frame: .zero)
@@ -43,14 +49,18 @@ final class GhosttySurfaceView: NSView {
         config.font_size = fontSize
         config.userdata = Unmanaged.passUnretained(self).toOpaque()
 
-        guard let directory = Self.readablePath(workingDirectory) else {
+        if let directory = Self.readablePath(workingDirectory) {
+            directory.withCString { path in
+                config.working_directory = path
+                self.surface = ghostty_surface_new(app, &config)
+            }
+        } else {
             self.surface = ghostty_surface_new(app, &config)
-            return
         }
 
-        directory.withCString { path in
-            config.working_directory = path
-            self.surface = ghostty_surface_new(app, &config)
+        if surface == nil {
+            Log.terminal.error("failed to create ghostty surface")
+            showCreationFailureLabel()
         }
     }
 
@@ -62,21 +72,23 @@ final class GhosttySurfaceView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
 
-        guard let window else {
-            link?.invalidate()
-            link = nil
-            return
-        }
+        link?.invalidate()
+        link = nil
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self, self.window === window else { return }
-            window.makeFirstResponder(self)
+        guard let window else { return }
+
+        if isActive {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.window === window else { return }
+                window.makeFirstResponder(self)
+            }
         }
 
         applyScale()
         applySize(bounds.size)
 
         let link = displayLink(target: self, selector: #selector(render))
+        link.isPaused = !isActive
         link.add(to: .main, forMode: .common)
         self.link = link
     }
@@ -109,19 +121,26 @@ final class GhosttySurfaceView: NSView {
     }
 
     override func becomeFirstResponder() -> Bool {
-        guard let surface else { return false }
-        ghostty_surface_set_focus(surface, true)
-        return super.becomeFirstResponder()
+        guard super.becomeFirstResponder() else { return false }
+
+        if let surface {
+            ghostty_surface_set_focus(surface, true)
+        }
+        return true
     }
 
     override func resignFirstResponder() -> Bool {
-        guard let surface else { return false }
-        ghostty_surface_set_focus(surface, false)
-        return super.resignFirstResponder()
+        guard super.resignFirstResponder() else { return false }
+
+        heldModifierKeys.removeAll()
+        if let surface {
+            ghostty_surface_set_focus(surface, false)
+        }
+        return true
     }
 
     override func keyDown(with event: NSEvent) {
-        send(event, action: GHOSTTY_ACTION_PRESS)
+        send(event, action: event.isARepeat ? GHOSTTY_ACTION_REPEAT : GHOSTTY_ACTION_PRESS)
     }
 
     override func keyUp(with event: NSEvent) {
@@ -131,14 +150,23 @@ final class GhosttySurfaceView: NSView {
     override func flagsChanged(with event: NSEvent) {
         guard let surface else { return }
 
-        let mods = Self.mods(from: event.modifierFlags)
-        let held = Self.modifier(for: event.keyCode)
-            .map { mods.rawValue & $0.rawValue != 0 } ?? false
+        let keyCode = event.keyCode
+        let action: ghostty_input_action_e
+        if heldModifierKeys[keyCode] != nil {
+            heldModifierKeys[keyCode] = nil
+            action = GHOSTTY_ACTION_RELEASE
+        } else {
+            guard let category = Self.modifier(for: keyCode, flags: event.modifierFlags) else {
+                return
+            }
+            heldModifierKeys[keyCode] = category
+            action = GHOSTTY_ACTION_PRESS
+        }
 
         var key = ghostty_input_key_s()
-        key.action = held ? GHOSTTY_ACTION_PRESS : GHOSTTY_ACTION_RELEASE
-        key.keycode = UInt32(event.keyCode)
-        key.mods = mods
+        key.action = action
+        key.keycode = UInt32(keyCode)
+        key.mods = Self.mods(from: event.modifierFlags)
         key.consumed_mods = GHOSTTY_MODS_NONE
         key.composing = false
         key.unshifted_codepoint = 0
@@ -208,15 +236,27 @@ final class GhosttySurfaceView: NSView {
         return characters
     }
 
-    private static func modifier(for keyCode: UInt16) -> ghostty_input_mods_e? {
+    private static func modifier(
+        for keyCode: UInt16,
+        flags: NSEvent.ModifierFlags
+    ) -> ghostty_input_mods_e? {
         switch keyCode {
         case 56, 60: GHOSTTY_MODS_SHIFT
         case 59, 62: GHOSTTY_MODS_CTRL
         case 58, 61: GHOSTTY_MODS_ALT
         case 54, 55: GHOSTTY_MODS_SUPER
-        case 57: GHOSTTY_MODS_CAPS
+        case 57: capsLockModifier(from: flags)
         default: nil
         }
+    }
+
+    private static func capsLockModifier(
+        from flags: NSEvent.ModifierFlags
+    ) -> ghostty_input_mods_e {
+        if flags.contains(.control) { return GHOSTTY_MODS_CTRL }
+        if flags.contains(.option) { return GHOSTTY_MODS_ALT }
+        if flags.contains(.command) { return GHOSTTY_MODS_SUPER }
+        return GHOSTTY_MODS_CAPS
     }
 
     private static func mods(from flags: NSEvent.ModifierFlags) -> ghostty_input_mods_e {
@@ -249,6 +289,7 @@ final class GhosttySurfaceView: NSView {
     }
 
     func setActive(_ active: Bool) {
+        isActive = active
         isHidden = !active
         link?.isPaused = !active
 
@@ -257,7 +298,14 @@ final class GhosttySurfaceView: NSView {
             if active { ghostty_surface_refresh(surface) }
         }
 
-        guard !active else { return }
+        if active {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let window, window.firstResponder !== self else { return }
+
+                window.makeFirstResponder(self)
+            }
+            return
+        }
 
         DispatchQueue.main.async { [weak self] in
             guard let self, let window, window.firstResponder === self else {
@@ -404,6 +452,18 @@ final class GhosttySurfaceView: NSView {
             UInt32(max(backing.width, 1)),
             UInt32(max(backing.height, 1))
         )
+    }
+
+    private func showCreationFailureLabel() {
+        let label = NSTextField(labelWithString: "Не удалось создать поверхность терминала")
+        label.textColor = .secondaryLabelColor
+        label.alignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
     }
 
 }

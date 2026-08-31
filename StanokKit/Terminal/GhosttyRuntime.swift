@@ -15,8 +15,10 @@ public final class GhosttyRuntime {
         case application
     }
 
-    @ObservationIgnored
-    private(set) weak static var current: GhosttyRuntime?
+    final class WakeupContext {
+
+        weak var runtime: GhosttyRuntime?
+    }
 
     private(set) var config: GhosttyConfig
 
@@ -25,6 +27,9 @@ public final class GhosttyRuntime {
 
     @ObservationIgnored
     private let surfaces = NSHashTable<GhosttySurfaceView>.weakObjects()
+
+    @ObservationIgnored
+    private let wakeupContext = WakeupContext()
 
     public init() throws {
         let status = ghostty_init(0, nil)
@@ -45,13 +50,10 @@ public final class GhosttyRuntime {
         self.config = GhosttyConfig(handle: handle)
 
         var runtime = ghostty_runtime_config_s()
+        runtime.userdata = Unmanaged.passUnretained(wakeupContext).toOpaque()
         runtime.supports_selection_clipboard = false
-        runtime.wakeup_cb = { _ in
-            DispatchQueue.main.async {
-                MainActor.assumeIsolated {
-                    GhosttyRuntime.current?.tick()
-                }
-            }
+        runtime.wakeup_cb = { userdata in
+            GhosttyRuntime.handleWakeup(userdata)
         }
         runtime.action_cb = { _, target, action in
             guard target.tag == GHOSTTY_TARGET_SURFACE else { return false }
@@ -59,6 +61,7 @@ public final class GhosttyRuntime {
             switch action.tag {
             case GHOSTTY_ACTION_COMMAND_FINISHED:
                 let finished = action.action.command_finished
+                GhosttyRuntime.assertMainThread()
                 return MainActor.assumeIsolated {
                     guard
                         let surface = target.target.surface,
@@ -79,6 +82,7 @@ public final class GhosttyRuntime {
                 guard let pointer = openURL.url else { return false }
 
                 let link = String(cString: pointer)
+                GhosttyRuntime.assertMainThread()
                 return MainActor.assumeIsolated {
                     guard
                         let surface = target.target.surface,
@@ -94,7 +98,8 @@ public final class GhosttyRuntime {
             }
         }
         runtime.read_clipboard_cb = { userdata, _, state in
-            MainActor.assumeIsolated {
+            GhosttyRuntime.assertMainThread()
+            return MainActor.assumeIsolated {
                 guard
                     let text = NSPasteboard.general.string(forType: .string),
                     let surface = GhosttySurfaceView.from(userdata: userdata)?.handle
@@ -110,12 +115,14 @@ public final class GhosttyRuntime {
         runtime.write_clipboard_cb = { _, _, contents, count, _ in
             GhosttyRuntime.writeClipboard(contents, count: count)
         }
-        runtime.close_surface_cb = { _, _ in }
+        runtime.close_surface_cb = { userdata, processAlive in
+            GhosttyRuntime.handleCloseSurface(userdata: userdata, processAlive: processAlive)
+        }
 
         guard let app = ghostty_app_new(&runtime, handle) else { throw Failure.application }
         self.app = app
 
-        Self.current = self
+        wakeupContext.runtime = self
     }
 
     static func loadConfig() -> ghostty_config_t? {
@@ -131,6 +138,34 @@ public final class GhosttyRuntime {
 
         ghostty_config_finalize(handle)
         return handle
+    }
+
+    private nonisolated static func assertMainThread() {
+        assert(Thread.isMainThread, "ghostty runtime callback fired off the main thread")
+    }
+
+    private static func handleWakeup(_ userdata: UnsafeMutableRawPointer?) {
+        guard let userdata else { return }
+
+        let context = Unmanaged<WakeupContext>.fromOpaque(userdata).takeUnretainedValue()
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                context.runtime?.tick()
+            }
+        }
+    }
+
+    private static func handleCloseSurface(userdata: UnsafeMutableRawPointer?, processAlive: Bool) {
+        GhosttyRuntime.assertMainThread()
+        MainActor.assumeIsolated {
+            guard let view = GhosttySurfaceView.from(userdata: userdata) else { return }
+
+            guard let onCloseRequested = view.onCloseRequested else {
+                Log.terminal.error("ghostty requested to close a surface with no handler")
+                return
+            }
+            onCloseRequested(processAlive)
+        }
     }
 
     private static func writeClipboard(
@@ -151,6 +186,7 @@ public final class GhosttyRuntime {
         }
         guard !flavors.isEmpty else { return }
 
+        GhosttyRuntime.assertMainThread()
         MainActor.assumeIsolated {
             NSPasteboard.general.clearContents()
             for (type, value) in flavors {
@@ -160,13 +196,25 @@ public final class GhosttyRuntime {
     }
 
     public func reloadConfig() {
-        guard let handle = Self.loadConfig() else { return }
+        guard let handle = Self.loadConfig() else {
+            Log.terminal.error("config reload failed: could not load config")
+            return
+        }
+
+        let candidate = GhosttyConfig(handle: handle)
+        guard candidate.diagnostics.isEmpty else {
+            Log.terminal.error(
+                "config reload rejected: \(candidate.diagnostics.joined(separator: "; "))"
+            )
+            ghostty_config_free(handle)
+            return
+        }
 
         ghostty_app_update_config(app, handle)
         for view in surfaces.allObjects {
             view.updateConfig(handle)
         }
-        config = GhosttyConfig(handle: handle)
+        config = candidate
         Log.terminal.info("config reloaded")
     }
 

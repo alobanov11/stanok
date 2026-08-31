@@ -9,7 +9,8 @@ public struct TerminalView: View {
             workingDirectory: workingDirectory,
             isActive: isActive,
             onCommandFinished: onCommandFinished,
-            onOpenURL: onOpenURL
+            onOpenURL: onOpenURL,
+            onCloseRequested: onCloseRequested
         )
     }
 
@@ -23,17 +24,21 @@ public struct TerminalView: View {
 
     private let onOpenURL: (String) -> Void
 
+    private let onCloseRequested: (Bool) -> Void
+
     public init(
         runtime: GhosttyRuntime,
         workingDirectory: URL?,
         isActive: Bool,
         onCommandFinished: @escaping (CommandRun) -> Void,
-        onOpenURL: @escaping (String) -> Void
+        onOpenURL: @escaping (String) -> Void,
+        onCloseRequested: @escaping (Bool) -> Void = { _ in }
     ) {
         self.runtime = runtime
         self.workingDirectory = workingDirectory
         self.isActive = isActive
         self.onCommandFinished = onCommandFinished
         self.onOpenURL = onOpenURL
+        self.onCloseRequested = onCloseRequested
     }
 }
