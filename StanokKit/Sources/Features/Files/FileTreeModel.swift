@@ -39,6 +39,22 @@ final class FileTreeModel {
         startWatcher(at: root.url, gitDirectory: gitDirectory)
     }
 
+    func reloadAll() {
+        guard let root else { return }
+
+        reload(root)
+    }
+
+    private func reload(_ node: FileNode) {
+        guard node.isDirectory, node.children != nil else { return }
+
+        node.reload()
+
+        for child in node.children ?? [] {
+            reload(child)
+        }
+    }
+
     private func startWatcher(at url: URL, gitDirectory: String?) {
         currentGitDirectory = gitDirectory
 
