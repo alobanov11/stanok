@@ -40,7 +40,7 @@ struct FilePanel: View {
             ChangeTree(model: changeTreeModel, selected: $selected, onOpen: onOpen)
 
         case .branches:
-            BranchTree(model: branchListModel, actions: branchActions)
+            BranchTree(model: branchTreeModel, actions: branchActions)
         }
     }
 
@@ -50,7 +50,7 @@ struct FilePanel: View {
 
     let changeTreeModel: ChangeTreeModel
 
-    let branchListModel: BranchListModel
+    let branchTreeModel: BranchTreeModel
 
     let branchActions: BranchActions
 

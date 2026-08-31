@@ -61,8 +61,12 @@ struct FileRow: View {
             icon
                 .resizable()
                 .frame(width: 15, height: 15)
-        } else {
+        } else if let url {
             Image(nsImage: FileIcons.icon(for: url, isDirectory: isDirectory))
+                .resizable()
+                .frame(width: 15, height: 15)
+        } else {
+            Image(systemName: isDirectory ? "folder" : "doc")
                 .resizable()
                 .frame(width: 15, height: 15)
         }
@@ -101,7 +105,7 @@ struct FileRow: View {
 
     let name: String
 
-    let url: URL
+    var url: URL?
 
     let isDirectory: Bool
 

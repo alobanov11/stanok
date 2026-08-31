@@ -83,7 +83,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var branchStore = GitBranchStore()
 
     @State
-    private var branchListModel = BranchListModel()
+    private var branchTreeModel = BranchTreeModel()
 
     @State
     private var navigator = PreviewNavigator()
@@ -166,7 +166,7 @@ public struct WorkspaceView<Terminal: View>: View {
             changeTreeModel.apply(snapshot)
         }
         .onChange(of: branchStore.snapshot(for: selectedRepository), initial: true) { _, snapshot in
-            branchListModel.apply(snapshot)
+            branchTreeModel.apply(snapshot)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase != .active else { return }
@@ -322,7 +322,7 @@ public struct WorkspaceView<Terminal: View>: View {
             mode: mode,
             fileTreeModel: fileTreeModel,
             changeTreeModel: changeTreeModel,
-            branchListModel: branchListModel,
+            branchTreeModel: branchTreeModel,
             branchActions: branchActions,
             snapshot: git.snapshot(for: selectedRepository),
             selected: selectedFileBinding,
