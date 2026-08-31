@@ -55,7 +55,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         self.url = try container.decode(URL.self, forKey: .url)
         self.workspace = try container.decode(WorkspaceState.self, forKey: .workspace)
         self.parentID = try container.decodeIfPresent(UUID.self, forKey: .parentID)
-        self.layout = try container.decodeIfPresent(SplitLayout.self, forKey: .layout)
+        self.layout = try? container.decodeIfPresent(SplitLayout.self, forKey: .layout)
         self.liveTitle = nil
         self.liveDirectory = nil
     }

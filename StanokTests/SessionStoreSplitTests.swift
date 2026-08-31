@@ -186,4 +186,28 @@ struct SessionStoreSplitTests {
         #expect(store.roots.map(\.id) == [orphan.id])
         #expect(store.session(for: orphan.id)?.parentID == nil)
     }
+
+    @Test
+    func aLayoutInAnUnknownFormatLoadsAsATerminalWithoutSplits() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "session-store-split-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let identifier = UUID()
+        let file = directory.appending(path: "sessions.json")
+        let json = """
+        {"selectedSessionID":"\(identifier)","sessions":[{"id":"\(identifier)",\
+        "name":"shell","url":"file:///tmp/","workspace":{},"layout":{"tree":"кто это писал"}}]}
+        """
+        try Data(json.utf8).write(to: file)
+
+        let store = SessionStore(
+            file: file,
+            legacyFile: directory.appending(path: "repositories.json")
+        )
+
+        #expect(store.sessions.map(\.id) == [identifier])
+        #expect(store.sessions.first?.layout == nil)
+    }
 }
