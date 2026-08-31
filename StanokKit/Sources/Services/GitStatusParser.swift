@@ -16,8 +16,8 @@ public enum GitStatusParser {
         var index = 0
 
         while index < chunks.count {
-            guard let text = String(data: chunks[index], encoding: .utf8), let prefix = text.first
-            else {
+            let text = decode(chunks[index])
+            guard let prefix = text.first else {
                 index += 1
                 continue
             }
@@ -28,9 +28,7 @@ public enum GitStatusParser {
                 index += 1
 
             case "2":
-                let originalPath = index + 1 < chunks.count
-                    ? String(data: chunks[index + 1], encoding: .utf8)
-                    : nil
+                let originalPath = index + 1 < chunks.count ? decode(chunks[index + 1]) : nil
                 if let change = parseRenameOrCopy(text, originalPath: originalPath) {
                     changes.append(change)
                 }
@@ -52,6 +50,11 @@ public enum GitStatusParser {
         return changes
     }
 
+    private static func decode(_ chunk: Data.SubSequence) -> String {
+        // swiftlint:disable:next optional_data_string_conversion
+        String(decoding: chunk, as: UTF8.self)
+    }
+
     private static func splitFields(
         _ text: String,
         count: Int
@@ -62,10 +65,13 @@ public enum GitStatusParser {
         return (Array(parts[0..<count]), String(parts[count]))
     }
 
+    private static func pair(_ xy: Substring) -> (x: Character?, y: Character?) {
+        var iterator = xy.makeIterator()
+        return (iterator.next(), iterator.next())
+    }
+
     private static func status(xy: Substring, isRenameOrCopy: Bool) -> GitFileStatus {
-        let characters = Array(xy)
-        let x = characters.first
-        let y = characters.count > 1 ? characters[1] : nil
+        let (x, y) = pair(xy)
 
         if x == "D" || y == "D" { return .deleted }
         if isRenameOrCopy { return x == "C" || y == "C" ? .copied : .renamed }
@@ -79,36 +85,59 @@ public enum GitStatusParser {
     }
 
     private static func parseOrdinary(_ text: String) -> GitChange? {
-        guard let (fields, path) = splitFields(text, count: FieldCount.ordinary) else { return nil }
+        guard
+            let (fields, path) = splitFields(text, count: FieldCount.ordinary),
+            fields[0] == "1"
+        else { return nil }
 
+        let (x, y) = pair(fields[1])
         return GitChange(
             path: path,
             status: status(xy: fields[1], isRenameOrCopy: false),
+            indexStatus: x,
+            worktreeStatus: y,
             isSubmodule: isSubmodule(fields[2])
         )
     }
 
     private static func parseRenameOrCopy(_ text: String, originalPath: String?) -> GitChange? {
-        guard let (fields, path) = splitFields(text, count: FieldCount.renameOrCopy) else {
-            return nil
-        }
+        guard
+            let (fields, path) = splitFields(text, count: FieldCount.renameOrCopy),
+            fields[0] == "2"
+        else { return nil }
 
+        let (x, y) = pair(fields[1])
         return GitChange(
             path: path,
             originalPath: originalPath,
             status: status(xy: fields[1], isRenameOrCopy: true),
+            indexStatus: x,
+            worktreeStatus: y,
             isSubmodule: isSubmodule(fields[2])
         )
     }
 
     private static func parseUnmerged(_ text: String) -> GitChange? {
-        guard let (fields, path) = splitFields(text, count: FieldCount.unmerged) else { return nil }
+        guard
+            let (fields, path) = splitFields(text, count: FieldCount.unmerged),
+            fields[0] == "u"
+        else { return nil }
 
-        return GitChange(path: path, status: .conflicted, isSubmodule: isSubmodule(fields[2]))
+        let (x, y) = pair(fields[1])
+        return GitChange(
+            path: path,
+            status: .conflicted,
+            indexStatus: x,
+            worktreeStatus: y,
+            isSubmodule: isSubmodule(fields[2])
+        )
     }
 
     private static func parseUntracked(_ text: String) -> GitChange? {
-        guard let (_, path) = splitFields(text, count: FieldCount.untracked) else { return nil }
+        guard
+            let (fields, path) = splitFields(text, count: FieldCount.untracked),
+            fields[0] == "?"
+        else { return nil }
 
         return GitChange(path: path, status: .untracked)
     }
