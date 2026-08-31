@@ -161,7 +161,8 @@ public struct WorkspaceView<Terminal: View>: View {
                             isVisible(session),
                             { model.record($0)
                                 Task { await git.refresh(repository) } },
-                            { openTerminalLink($0) }
+                            { openTerminalLink($0) },
+                            { _ in closeSession(session) }
                         )
                         .opacity(isVisible(session) ? 1 : 0)
                         .allowsHitTesting(isVisible(session))
@@ -192,7 +193,8 @@ public struct WorkspaceView<Terminal: View>: View {
         TerminalSession,
         Bool,
         @escaping (CommandRun) -> Void,
-        @escaping (String) -> Void
+        @escaping (String) -> Void,
+        @escaping (Bool) -> Void
     ) -> Terminal
 
     public init(
@@ -201,7 +203,8 @@ public struct WorkspaceView<Terminal: View>: View {
             TerminalSession,
             Bool,
             @escaping (CommandRun) -> Void,
-            @escaping (String) -> Void
+            @escaping (String) -> Void,
+            @escaping (Bool) -> Void
         ) -> Terminal
     ) {
         self.terminal = terminal
@@ -379,6 +382,13 @@ public struct WorkspaceView<Terminal: View>: View {
     private func handleLink(_ url: URL) -> OpenURLAction.Result {
         route(url)
         return .handled
+    }
+
+    private func closeSession(_ session: TerminalSession) {
+        if selection == session.id { selection = nil }
+
+        live.removeAll { $0 == session.id }
+        withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
     }
 
     private func openTerminalLink(_ raw: String) {

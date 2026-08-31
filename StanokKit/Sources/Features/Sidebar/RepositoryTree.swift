@@ -89,10 +89,7 @@ struct RepositoryTree: View {
             indent: 20,
             close: { closeSession(session) }
         )
-        .onTapGesture {
-            selection = session.id
-            store.touch(repository.id)
-        }
+        .onTapGesture { selection = session.id }
         .contextMenu {
             Button(session.isPinned ? "Открепить" : "Закрепить") { store.togglePin(session.id) }
             Button("Закрыть терминал", role: .destructive) {
