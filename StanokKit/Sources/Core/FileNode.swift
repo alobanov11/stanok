@@ -20,14 +20,17 @@ final class FileNode: Identifiable {
 
     let depth: Int
 
+    let relativePath: String
+
     var isExpanded = false
 
     private(set) var children: [FileNode]?
 
-    init(url: URL, isDirectory: Bool, depth: Int) {
+    init(url: URL, isDirectory: Bool, depth: Int, relativePath: String) {
         self.url = url
         self.isDirectory = isDirectory
         self.depth = depth
+        self.relativePath = relativePath
     }
 
     private static func precedes(_ lhs: FileNode, _ rhs: FileNode) -> Bool {
@@ -113,6 +116,10 @@ final class FileNode: Identifiable {
         }
     }
 
+    private func childRelativePath(_ name: String) -> String {
+        relativePath.isEmpty ? name : "\(relativePath)/\(name)"
+    }
+
     private func contains(_ target: URL) -> Bool {
         let base = url.standardizedFileURL.path(percentEncoded: false)
         let path = target.path(percentEncoded: false)
@@ -140,7 +147,8 @@ final class FileNode: Identifiable {
                 existing[child] ?? FileNode(
                     url: child,
                     isDirectory: Self.isDirectory(child),
-                    depth: depth + 1
+                    depth: depth + 1,
+                    relativePath: childRelativePath(child.lastPathComponent)
                 )
             }
             .sorted(by: Self.precedes)

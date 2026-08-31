@@ -4,7 +4,7 @@ import Foundation
 @Observable
 public final class GitStatusStore {
 
-    private var cache: [Repository.ID: GitStatus] = [:]
+    private var cache: [Repository.ID: GitSnapshot] = [:]
 
     private var inFlight: Set<Repository.ID> = []
 
@@ -13,6 +13,12 @@ public final class GitStatusStore {
     public init() {}
 
     public func status(for repository: Repository?) -> GitStatus? {
+        guard let repository, let snapshot = cache[repository.id] else { return nil }
+
+        return GitStatus(branch: snapshot.branch, added: snapshot.added, removed: snapshot.removed)
+    }
+
+    public func snapshot(for repository: Repository?) -> GitSnapshot? {
         guard let repository else { return nil }
 
         return cache[repository.id]
@@ -31,9 +37,9 @@ public final class GitStatusStore {
 
         repeat {
             pending.remove(repository.id)
-            let status = await GitClient.status(for: repository.url)
-            if cache[repository.id] != status {
-                cache[repository.id] = status
+            let snapshot = await GitClient.snapshot(for: repository.url)
+            if cache[repository.id] != snapshot {
+                cache[repository.id] = snapshot
             }
         } while pending.contains(repository.id)
     }

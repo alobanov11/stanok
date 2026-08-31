@@ -5,7 +5,6 @@ struct FileTree: View {
 
     var body: some View {
         content
-            .task(id: url) { model.open(url) }
             .alert(prompt?.title ?? "", isPresented: isPrompting) {
                 TextField("Имя", text: $name)
                 Button("Отмена", role: .cancel) { prompt = nil }
@@ -16,33 +15,6 @@ struct FileTree: View {
             } message: {
                 Text(failure ?? "")
             }
-    }
-
-    let url: URL?
-
-    @Binding
-    var selected: URL?
-
-    let onOpen: (URL) -> Void
-
-    @State
-    private var model = FileTreeModel()
-
-    @State
-    private var prompt: FilePrompt?
-
-    @State
-    private var name = ""
-
-    @State
-    private var failure: String?
-
-    private var isPrompting: Binding<Bool> {
-        Binding(get: { prompt != nil }, set: { if !$0 { prompt = nil } })
-    }
-
-    private var isFailing: Binding<Bool> {
-        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
     }
 
     @ViewBuilder
@@ -77,13 +49,56 @@ struct FileTree: View {
         }
     }
 
+    private var isPrompting: Binding<Bool> {
+        Binding(get: { prompt != nil }, set: { if !$0 { prompt = nil } })
+    }
+
+    private var isFailing: Binding<Bool> {
+        Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })
+    }
+
+    let model: FileTreeModel
+
+    let snapshot: GitSnapshot?
+
+    @Binding
+    var selected: URL?
+
+    let onOpen: (URL) -> Void
+
+    @State
+    private var prompt: FilePrompt?
+
+    @State
+    private var name = ""
+
+    @State
+    private var failure: String?
+
+    private func status(for node: FileNode) -> GitFileStatus? {
+        guard let snapshot else { return nil }
+
+        if node.isDirectory {
+            return snapshot.dirtyDirectories.contains(node.relativePath) ? .modified : nil
+        }
+
+        return snapshot.byPath[node.relativePath]
+    }
+
     private func row(_ node: FileNode) -> some View {
         FileRow(
-            node: node,
+            name: node.name,
+            url: node.url,
+            isDirectory: node.isDirectory,
+            isExpanded: node.isExpanded,
+            depth: node.depth,
+            status: status(for: node),
             isSelected: node.url == selected,
-            newFile: { ask(.newFile, at: container(of: node)) },
-            rename: { ask(.rename, at: node.url) },
-            delete: { perform { try FileOperations.trash(node.url) } }
+            actions: FileRow.Actions(
+                newFile: { ask(.newFile, at: container(of: node)) },
+                rename: { ask(.rename, at: node.url) },
+                delete: { perform { try FileOperations.trash(node.url) } }
+            )
         )
         .onTapGesture {
             selected = node.url

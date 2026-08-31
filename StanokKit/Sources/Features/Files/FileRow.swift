@@ -2,31 +2,63 @@ import SwiftUI
 
 struct FileRow: View {
 
+    struct Actions {
+
+        let newFile: () -> Void
+
+        let rename: () -> Void
+
+        let delete: () -> Void
+    }
+
     @ViewBuilder
     private var chevron: some View {
-        if node.isDirectory {
+        if isDirectory {
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.tertiary)
-                .rotationEffect(.degrees(node.isExpanded ? 90 : 0))
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 .frame(width: 10)
         } else {
             Color.clear.frame(width: 10)
         }
     }
 
-    private var actions: some View {
-        HStack(spacing: 0) {
-            RowAction(
-                icon: "doc.badge.plus",
-                hint: "Новый файл",
-                isVisible: isHovering,
-                action: newFile
-            )
+    @ViewBuilder
+    private var statusBadge: some View {
+        if let status {
+            Text(status.letter)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(status.color)
+                .frame(width: 12)
+        }
+    }
 
-            RowAction(icon: "pencil", hint: "Переименовать", isVisible: isHovering, action: rename)
+    @ViewBuilder
+    private var actionButtons: some View {
+        if let actions {
+            HStack(spacing: 0) {
+                RowAction(
+                    icon: "doc.badge.plus",
+                    hint: "Новый файл",
+                    isVisible: isHovering,
+                    action: actions.newFile
+                )
 
-            RowAction(icon: "trash", hint: "Удалить", isVisible: isHovering, action: delete)
+                RowAction(
+                    icon: "pencil",
+                    hint: "Переименовать",
+                    isVisible: isHovering,
+                    action: actions.rename
+                )
+
+                RowAction(
+                    icon: "trash",
+                    hint: "Удалить",
+                    isVisible: isHovering,
+                    action: actions.delete
+                )
+            }
         }
     }
 
@@ -34,20 +66,21 @@ struct FileRow: View {
         HStack(spacing: 6) {
             chevron
 
-            Image(nsImage: FileIcons.icon(for: node.url, isDirectory: node.isDirectory))
+            Image(nsImage: FileIcons.icon(for: url, isDirectory: isDirectory))
                 .resizable()
                 .frame(width: 15, height: 15)
 
-            Text(node.name)
+            Text(name)
                 .font(Typography.row)
                 .lineLimit(1)
                 .truncationMode(.middle)
 
             Spacer(minLength: 4)
 
-            actions
+            actionButtons
+            statusBadge
         }
-        .padding(.leading, 8 + CGFloat(node.depth - 1) * 13)
+        .padding(.leading, 8 + CGFloat(depth - 1) * 13)
         .padding(.trailing, 10)
         .padding(.vertical, 4)
         .background(
@@ -60,15 +93,21 @@ struct FileRow: View {
         }
     }
 
-    let node: FileNode
+    let name: String
+
+    let url: URL
+
+    let isDirectory: Bool
+
+    let isExpanded: Bool
+
+    let depth: Int
+
+    let status: GitFileStatus?
 
     let isSelected: Bool
 
-    let newFile: () -> Void
-
-    let rename: () -> Void
-
-    let delete: () -> Void
+    let actions: Actions?
 
     @State
     private var isHovering = false
