@@ -6,6 +6,8 @@ final class FileTreeModel {
 
     private(set) var root: FileNode?
 
+    private(set) var isUnavailable = false
+
     private var watcher: FileWatcher?
 
     private var onGitChange: (() -> Void)?
@@ -23,9 +25,17 @@ final class FileTreeModel {
 
         guard let url else {
             root = nil
+            isUnavailable = false
             return
         }
 
+        guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false)) else {
+            root = nil
+            isUnavailable = true
+            return
+        }
+
+        isUnavailable = false
         let node = FileNode(url: url, isDirectory: true, depth: 0, relativePath: "")
         node.expand()
         root = node

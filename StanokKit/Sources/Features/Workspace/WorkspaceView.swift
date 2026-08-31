@@ -111,6 +111,9 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var processTracker = TabProcessTracker()
 
+    @State
+    private var cwdTracker = WorkingDirectoryTracker()
+
     @Environment(\.scenePhase)
     private var scenePhase
 
@@ -147,7 +150,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .task { selectFirstIfNeeded() }
         .task(id: selection) { await git.refresh(selectedSession) }
         .task(id: selection) { await branchStore.refresh(selectedSession) }
-        .task(id: selectedSession?.url) { openFileTree() }
+        .task(id: selectedSession?.url) { await settleDirectoryChange() }
         .task(id: selectedSession?.id) { fileSelection.restoreWorkspace() }
         .onChange(of: selectedSession?.id) { _, _ in resetPreview() }
         .onChange(of: filesMode) { _, mode in
@@ -241,7 +244,8 @@ public struct WorkspaceView<Terminal: View>: View {
                             Task { await git.refresh(session) } },
                         { linkRouter.openTerminalLink($0, in: session) },
                         { store.setLiveTitle($0.isEmpty ? nil : $0, for: session.id) },
-                        { _ in closeSession(session) }
+                        { _ in closeSession(session) },
+                        { cwdTracker.report($0, for: session.id, into: store) }
                     )
                     .opacity(isVisible(session) ? 1 : 0)
                     .allowsHitTesting(isVisible(session))
@@ -295,27 +299,9 @@ public struct WorkspaceView<Terminal: View>: View {
         }
     }
 
-    private let terminal: (
-        TerminalSession,
-        Bool,
-        TerminalInsertRequest?,
-        @escaping (CommandRun) -> Void,
-        @escaping (String) -> Void,
-        @escaping (String) -> Void,
-        @escaping (Bool) -> Void
-    ) -> Terminal
+    private let terminal: TerminalBuilder<Terminal>
 
-    public init(
-        @ViewBuilder terminal: @escaping (
-            TerminalSession,
-            Bool,
-            TerminalInsertRequest?,
-            @escaping (CommandRun) -> Void,
-            @escaping (String) -> Void,
-            @escaping (String) -> Void,
-            @escaping (Bool) -> Void
-        ) -> Terminal
-    ) {
+    public init(@ViewBuilder terminal: @escaping TerminalBuilder<Terminal>) {
         self.terminal = terminal
     }
 
@@ -353,6 +339,15 @@ public struct WorkspaceView<Terminal: View>: View {
             gitDirectory: git.snapshot(for: selectedSession)?.gitDirectory,
             onGitChange: { Task { await git.refresh(selectedSession) } }
         )
+    }
+
+    private func settleDirectoryChange() async {
+        try? await Task.sleep(for: WorkspaceLayout.directorySettleDelay)
+        guard !Task.isCancelled else { return }
+
+        openFileTree()
+        await git.refresh(selectedSession)
+        await branchStore.refresh(selectedSession)
     }
 
     private func closeSession(_ session: TerminalSession) {

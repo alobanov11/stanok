@@ -21,6 +21,8 @@ struct TerminalSurface: NSViewRepresentable {
 
     let onCloseRequested: (Bool) -> Void
 
+    let onPwdChanged: (String) -> Void
+
     static func dismantleNSView(_ view: GhosttySurfaceView, coordinator: ()) {
         view.shutdown()
     }
@@ -37,6 +39,7 @@ struct TerminalSurface: NSViewRepresentable {
         view.onOpenURL = onOpenURL
         view.onTitleChanged = onTitleChanged
         view.onCloseRequested = onCloseRequested
+        view.onPwdChanged = onPwdChanged
         runtime.register(view)
         view.apply(insertRequest: insertRequest)
         return view
@@ -47,6 +50,7 @@ struct TerminalSurface: NSViewRepresentable {
         view.onOpenURL = onOpenURL
         view.onTitleChanged = onTitleChanged
         view.onCloseRequested = onCloseRequested
+        view.onPwdChanged = onPwdChanged
         view.setActive(isActive)
         view.apply(insertRequest: insertRequest)
     }

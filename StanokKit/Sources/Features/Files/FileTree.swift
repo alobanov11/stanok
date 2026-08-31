@@ -44,7 +44,7 @@ struct FileTree: View {
         VStack {
             Spacer()
 
-            Text("Выбери проект")
+            Text(model.isUnavailable ? "Директория недоступна" : "Выбери проект")
                 .font(Typography.caption)
                 .foregroundStyle(.tertiary)
 

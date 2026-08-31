@@ -232,4 +232,61 @@ struct SessionStoreTests {
         #expect(!json.contains("liveTitle"))
         #expect(!json.contains("npm run dev"))
     }
+
+    @Test
+    func updateDirectoryDebouncesTheDiskWriteUntilFlush() throws {
+        let directory = Self.temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let sessionsFile = directory.appending(path: "sessions.json")
+        let store = SessionStore(
+            file: sessionsFile,
+            legacyFile: directory.appending(path: "repositories.json")
+        )
+        let sessionID = try #require(store.sessions.first?.id)
+        let newURL = URL(filePath: "/tmp/moved")
+
+        store.updateDirectory(sessionID, identity: newURL, reported: newURL)
+
+        let beforeFlush = try JSONDecoder().decode(
+            SessionFile.self,
+            from: Data(contentsOf: sessionsFile)
+        )
+        #expect(beforeFlush.sessions.first?.url != newURL)
+        #expect(store.sessions.first?.url == newURL)
+
+        store.flushPendingSave()
+
+        let afterFlush = try JSONDecoder().decode(
+            SessionFile.self,
+            from: Data(contentsOf: sessionsFile)
+        )
+        #expect(afterFlush.sessions.first?.url == newURL)
+    }
+
+    @Test
+    func updateDirectoryNeverPersistsTheLiveDirectory() throws {
+        let directory = Self.temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let sessionsFile = directory.appending(path: "sessions.json")
+        let store = SessionStore(
+            file: sessionsFile,
+            legacyFile: directory.appending(path: "repositories.json")
+        )
+        let sessionID = try #require(store.sessions.first?.id)
+        let identity = URL(filePath: "/private/tmp/identity-only")
+        let reported = URL(filePath: "/tmp/reported-only")
+
+        store.updateDirectory(sessionID, identity: identity, reported: reported)
+        store.flushPendingSave()
+
+        #expect(store.sessions.first?.url == identity)
+        #expect(store.sessions.first?.liveDirectory == reported)
+
+        let onDisk = try Data(contentsOf: sessionsFile)
+        let json = try #require(String(data: onDisk, encoding: .utf8))
+        #expect(!json.contains("liveDirectory"))
+        #expect(!json.contains("reported-only"))
+    }
 }

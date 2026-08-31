@@ -13,7 +13,8 @@ public struct TerminalView: View {
             onCommandFinished: onCommandFinished,
             onOpenURL: onOpenURL,
             onTitleChanged: onTitleChanged,
-            onCloseRequested: onCloseRequested
+            onCloseRequested: onCloseRequested,
+            onPwdChanged: onPwdChanged
         )
     }
 
@@ -35,6 +36,8 @@ public struct TerminalView: View {
 
     private let onCloseRequested: (Bool) -> Void
 
+    private let onPwdChanged: (String) -> Void
+
     public init(
         runtime: GhosttyRuntime,
         workingDirectory: URL?,
@@ -44,7 +47,8 @@ public struct TerminalView: View {
         onCommandFinished: @escaping (CommandRun) -> Void,
         onOpenURL: @escaping (String) -> Void,
         onTitleChanged: @escaping (String) -> Void = { _ in },
-        onCloseRequested: @escaping (Bool) -> Void = { _ in }
+        onCloseRequested: @escaping (Bool) -> Void = { _ in },
+        onPwdChanged: @escaping (String) -> Void = { _ in }
     ) {
         self.runtime = runtime
         self.workingDirectory = workingDirectory
@@ -55,5 +59,6 @@ public struct TerminalView: View {
         self.onOpenURL = onOpenURL
         self.onTitleChanged = onTitleChanged
         self.onCloseRequested = onCloseRequested
+        self.onPwdChanged = onPwdChanged
     }
 }

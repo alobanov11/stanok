@@ -96,6 +96,9 @@ public final class GhosttyRuntime {
             case GHOSTTY_ACTION_SET_TITLE:
                 return GhosttyRuntime.handleSetTitle(action.action.set_title, target: target)
 
+            case GHOSTTY_ACTION_PWD:
+                return GhosttyRuntime.handlePwd(action.action.pwd, target: target)
+
             case GHOSTTY_ACTION_MOUSE_SHAPE:
                 let shape = action.action.mouse_shape
                 GhosttyRuntime.assertMainThread()
@@ -186,6 +189,25 @@ public final class GhosttyRuntime {
             else { return false }
 
             view.onTitleChanged?(title)
+            return true
+        }
+    }
+
+    private static func handlePwd(
+        _ pwd: ghostty_action_pwd_s,
+        target: ghostty_target_s
+    ) -> Bool {
+        guard let pointer = pwd.pwd else { return false }
+
+        let path = String(cString: pointer)
+        GhosttyRuntime.assertMainThread()
+        return MainActor.assumeIsolated {
+            guard
+                let surface = target.target.surface,
+                let view = GhosttySurfaceView.from(surface: surface)
+            else { return false }
+
+            view.onPwdChanged?(path)
             return true
         }
     }

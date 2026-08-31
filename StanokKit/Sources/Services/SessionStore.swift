@@ -61,6 +61,17 @@ public final class SessionStore {
         saveScheduler.schedule(currentSnapshot())
     }
 
+    public func updateDirectory(_ sessionID: TerminalSession.ID, identity: URL, reported: URL) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        guard sessions[index].url != identity || sessions[index].liveDirectory != reported else {
+            return
+        }
+
+        sessions[index].url = identity
+        sessions[index].liveDirectory = reported
+        saveScheduler.schedule(currentSnapshot())
+    }
+
     public func flushPendingSave() {
         saveScheduler.flush()
     }

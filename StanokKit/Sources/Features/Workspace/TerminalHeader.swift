@@ -27,7 +27,7 @@ struct TerminalHeader: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             if let session {
-                folderBadge(session.url.lastPathComponent)
+                folderBadge((session.liveDirectory ?? session.url).lastPathComponent)
             }
 
             if let branch = status?.branch {

@@ -29,4 +29,6 @@ enum WorkspaceLayout {
     static let headerHeight: CGFloat = 48
 
     static let toggleClearance: CGFloat = 40
+
+    static let directorySettleDelay = Duration.milliseconds(150)
 }

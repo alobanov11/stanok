@@ -20,24 +20,28 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
 
     public var name: String
 
-    public let url: URL
+    public var url: URL
 
     public var workspace: WorkspaceState
 
     public var liveTitle: String?
+
+    public var liveDirectory: URL?
 
     public init(
         id: UUID = UUID(),
         name: String,
         url: URL,
         workspace: WorkspaceState = WorkspaceState(),
-        liveTitle: String? = nil
+        liveTitle: String? = nil,
+        liveDirectory: URL? = nil
     ) {
         self.id = id
         self.name = name
         self.url = url
         self.workspace = workspace
         self.liveTitle = liveTitle
+        self.liveDirectory = liveDirectory
     }
 
     public init(from decoder: any Decoder) throws {
@@ -47,6 +51,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         self.url = try container.decode(URL.self, forKey: .url)
         self.workspace = try container.decode(WorkspaceState.self, forKey: .workspace)
         self.liveTitle = nil
+        self.liveDirectory = nil
     }
 
     public static func == (lhs: TerminalSession, rhs: TerminalSession) -> Bool {

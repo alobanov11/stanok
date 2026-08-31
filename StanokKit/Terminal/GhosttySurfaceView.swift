@@ -23,6 +23,8 @@ final class GhosttySurfaceView: NSView {
 
     var onCloseRequested: ((Bool) -> Void)?
 
+    var onPwdChanged: ((String) -> Void)?
+
     private var tracking: NSTrackingArea?
 
     private var desiredCursor = NSCursor.iBeam
