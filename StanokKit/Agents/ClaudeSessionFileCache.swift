@@ -14,8 +14,6 @@ actor ClaudeSessionFileCache {
 
         let cwd: String?
 
-        let firstTimestamp: Date?
-
         let firstUserMessageText: String?
 
         let modifiedAt: Date
@@ -125,7 +123,6 @@ actor ClaudeSessionFileCache {
             sessionID: result.sessionID,
             title: result.title,
             cwd: result.cwd,
-            firstTimestamp: result.firstTimestamp,
             firstUserMessageText: result.firstUserMessageText,
             modifiedAt: modifiedAt
         )

@@ -91,26 +91,6 @@ struct ClaudeSessionRecordScannerTests {
     }
 
     @Test
-    func firstTimestampIsCaptured() {
-        let data = Self.lines([
-            #"{"type":"queue-operation","timestamp":"2026-08-01T10:00:00Z"}"#,
-            #"{"type":"attachment","timestamp":"2026-08-02T10:00:00Z"}"#
-        ])
-
-        let result = ClaudeSessionRecordScanner.scan(data)
-
-        var expected = DateComponents()
-        expected.year = 2026
-        expected.month = 8
-        expected.day = 1
-        expected.hour = 10
-        expected.timeZone = TimeZone(identifier: "UTC")
-        let expectedDate = Calendar(identifier: .gregorian).date(from: expected)
-
-        #expect(result.firstTimestamp == expectedDate)
-    }
-
-    @Test
     func firstUserMessageTextIsCapturedAsFallback() {
         let data = Self.lines([
             #"{"type":"user","isSidechain":false,"message":{"role":"user","content":"Fix bug"}}"#

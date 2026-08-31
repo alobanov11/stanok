@@ -11,8 +11,6 @@ enum ClaudeSessionRecordScanner {
 
         let cwd: String?
 
-        let firstTimestamp: Date?
-
         let firstUserMessageText: String?
     }
 
@@ -27,7 +25,6 @@ enum ClaudeSessionRecordScanner {
         var sessionID: String?
         var title: String?
         var cwd: String?
-        var firstTimestamp: Date?
         var firstUserMessageText: String?
         var start = data.startIndex
 
@@ -43,9 +40,6 @@ enum ClaudeSessionRecordScanner {
                     }
                     if cwd == nil, let value = object["cwd"] as? String {
                         cwd = value
-                    }
-                    if firstTimestamp == nil, let raw = object["timestamp"] as? String {
-                        firstTimestamp = parseTimestamp(raw)
                     }
                     if
                         object["type"] as? String == "ai-title",
@@ -73,19 +67,8 @@ enum ClaudeSessionRecordScanner {
             sessionID: sessionID,
             title: title,
             cwd: cwd,
-            firstTimestamp: firstTimestamp,
             firstUserMessageText: firstUserMessageText
         )
-    }
-
-    private static func parseTimestamp(_ raw: String) -> Date? {
-        let withFractionalSeconds = ISO8601DateFormatter()
-        withFractionalSeconds.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = withFractionalSeconds.date(from: raw) { return date }
-
-        let withoutFractionalSeconds = ISO8601DateFormatter()
-        withoutFractionalSeconds.formatOptions = [.withInternetDateTime]
-        return withoutFractionalSeconds.date(from: raw)
     }
 
     private static func userMessageText(_ object: [String: Any]) -> String? {

@@ -56,10 +56,6 @@ struct SessionList: View {
         } else {
             ForEach(store.sessions) { session in
                 sessionRow(session)
-
-                ForEach(agentSessionRegistry.registeredProviders) { provider in
-                    agentSessions(provider, for: session)
-                }
             }
         }
     }
@@ -101,18 +97,6 @@ struct SessionList: View {
             }
             Button("Закрыть терминал", role: .destructive) { closeSession(session) }
         }
-    }
-
-    private func agentSessions(
-        _ provider: AgentSessionRegistry.ProviderInfo,
-        for session: TerminalSession
-    ) -> some View {
-        AgentSessionsSection(
-            projectURL: session.url,
-            providerID: provider.id,
-            indent: 20,
-            onSelect: { agentSession in insertAgentCommand(agentSession.resumeAction, session.id) }
-        )
     }
 
     private func closeSession(_ session: TerminalSession) {

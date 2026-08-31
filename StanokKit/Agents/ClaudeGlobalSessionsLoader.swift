@@ -11,7 +11,7 @@ final class ClaudeGlobalSessionsLoader: Sendable {
         for url: URL,
         id: UUID,
         cache: ClaudeSessionFileCache
-    ) async -> (session: AgentSession, sortKey: Date)? {
+    ) async -> AgentSession? {
         let path = url.path(percentEncoded: false)
         guard let resolution = await cache.resolve(path: path) else { return nil }
 
@@ -22,7 +22,6 @@ final class ClaudeGlobalSessionsLoader: Sendable {
 
         let title = resolution.title ?? resolution.firstUserMessageText ?? id.uuidString
         let folder = resolution.cwd.map { URL(fileURLWithPath: $0) }
-        let displayDate = resolution.firstTimestamp ?? resolution.modifiedAt
 
         let session = AgentSession(
             id: AgentSessionKey(
@@ -30,7 +29,7 @@ final class ClaudeGlobalSessionsLoader: Sendable {
                 sessionID: id.uuidString
             ),
             title: title,
-            lastActivityAt: displayDate,
+            lastActivityAt: resolution.modifiedAt,
             resumeAction: AgentResumeAction(
                 executable: "claude",
                 arguments: ["--resume", id.uuidString],
@@ -39,7 +38,7 @@ final class ClaudeGlobalSessionsLoader: Sendable {
             ),
             folder: folder
         )
-        return (session, resolution.modifiedAt)
+        return session
     }
 
     private static func isDirectory(_ url: URL) -> Bool {
@@ -98,7 +97,7 @@ final class ClaudeGlobalSessionsLoader: Sendable {
         let cache = cache
         let gate = gate
         let results = await withTaskGroup(
-            of: (session: AgentSession, sortKey: Date)?.self
+            of: AgentSession?.self
         ) { group in
             for file in sessionFiles {
                 group.addTask {
@@ -108,14 +107,14 @@ final class ClaudeGlobalSessionsLoader: Sendable {
                 }
             }
 
-            var collected: [(session: AgentSession, sortKey: Date)] = []
+            var collected: [AgentSession] = []
             for await result in group {
                 if let result { collected.append(result) }
             }
             return collected
         }
 
-        return .loaded(results.sorted { $0.sortKey > $1.sortKey }.map(\.session))
+        return .loaded(results.sorted { $0.lastActivityAt > $1.lastActivityAt })
     }
 
 }
