@@ -56,7 +56,7 @@ public final class TerminalCommandDispatcher {
         }
 
         confirmedIdle.remove(sessionID)
-        insertRequests[sessionID] = TerminalInsertRequest(text: command)
+        insertRequests[sessionID] = TerminalInsertRequest(text: command + "\n")
     }
 
     private func resolvedCommand(
