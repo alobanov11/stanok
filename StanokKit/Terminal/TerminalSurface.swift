@@ -9,6 +9,8 @@ struct TerminalSurface: NSViewRepresentable {
 
     let isActive: Bool
 
+    let insertRequest: TerminalInsertRequest?
+
     let onCommandFinished: (CommandRun) -> Void
 
     let onOpenURL: (String) -> Void
@@ -30,6 +32,7 @@ struct TerminalSurface: NSViewRepresentable {
         view.onOpenURL = onOpenURL
         view.onCloseRequested = onCloseRequested
         runtime.register(view)
+        view.apply(insertRequest: insertRequest)
         return view
     }
 
@@ -38,5 +41,6 @@ struct TerminalSurface: NSViewRepresentable {
         view.onOpenURL = onOpenURL
         view.onCloseRequested = onCloseRequested
         view.setActive(isActive)
+        view.apply(insertRequest: insertRequest)
     }
 }

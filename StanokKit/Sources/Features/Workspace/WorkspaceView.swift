@@ -76,6 +76,9 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var changeTreeModel = ChangeTreeModel()
 
+    @State
+    private var dispatcher = TerminalCommandDispatcher()
+
     @Environment(\.scenePhase)
     private var scenePhase
 
@@ -154,7 +157,12 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var sidebar: some View {
-        RepositoryTree(store: store, selection: $selection, live: Set(live))
+        RepositoryTree(
+            store: store,
+            selection: $selection,
+            live: Set(live),
+            insertAgentCommand: insertAgentCommand
+        )
     }
 
     private var header: some View {
@@ -177,7 +185,9 @@ public struct WorkspaceView<Terminal: View>: View {
                             repository,
                             session,
                             isVisible(session),
+                            dispatcher.insertRequest(for: session.id),
                             { model.record($0)
+                                dispatcher.markAtPrompt(session.id)
                                 Task { await git.refresh(repository) } },
                             { openTerminalLink($0, in: repository) },
                             { _ in closeSession(session) }
@@ -187,6 +197,16 @@ public struct WorkspaceView<Terminal: View>: View {
                     }
                 }
             }
+        }
+        .overlay(alignment: .top) { copyNoticeOverlay }
+    }
+
+    @ViewBuilder
+    private var copyNoticeOverlay: some View {
+        if let copyNotice = dispatcher.copyNotice, copyNotice.sessionID == selection {
+            CopyNoticeBanner()
+                .padding(.top, WorkspaceLayout.headerHeight + 8)
+                .transition(.opacity)
         }
     }
 
@@ -210,6 +230,7 @@ public struct WorkspaceView<Terminal: View>: View {
         Repository,
         TerminalSession,
         Bool,
+        TerminalInsertRequest?,
         @escaping (CommandRun) -> Void,
         @escaping (String) -> Void,
         @escaping (Bool) -> Void
@@ -220,6 +241,7 @@ public struct WorkspaceView<Terminal: View>: View {
             Repository,
             TerminalSession,
             Bool,
+            TerminalInsertRequest?,
             @escaping (CommandRun) -> Void,
             @escaping (String) -> Void,
             @escaping (Bool) -> Void
@@ -273,61 +295,6 @@ public struct WorkspaceView<Terminal: View>: View {
         .padding(.vertical, WorkspaceLayout.inset)
     }
 
-    private static func contains(_ root: URL, _ candidate: URL) -> Bool {
-        let base = root.standardizedFileURL.path(percentEncoded: false)
-        let target = candidate.standardizedFileURL.path(percentEncoded: false)
-        guard target != base else { return true }
-
-        return target.hasPrefix(base.hasSuffix("/") ? base : base + "/")
-    }
-
-    private static func resolvedURL(from raw: String, relativeTo base: URL) -> URL? {
-        if let url = URL(string: raw), url.scheme != nil { return url }
-        if raw.hasPrefix("/") { return URL(fileURLWithPath: raw) }
-
-        return base.appending(path: raw)
-    }
-
-    private static func relativePath(for url: URL, in root: URL) -> String? {
-        guard contains(root, url) else { return nil }
-
-        let base = root.standardizedFileURL.path(percentEncoded: false)
-        let target = url.standardizedFileURL.path(percentEncoded: false)
-        let prefix = base.hasSuffix("/") ? base : base + "/"
-        guard target != base, target.hasPrefix(prefix) else { return nil }
-
-        return String(target.dropFirst(prefix.count))
-    }
-
-    private static func resolvedURL(relative: String, in root: URL) -> URL? {
-        guard !relative.isEmpty, !relative.hasPrefix("/") else { return nil }
-        guard !relative.split(separator: "/").contains("..") else { return nil }
-
-        return root.appending(path: relative)
-    }
-
-    private static func resolvedSelectedFile(from repository: Repository) -> URL? {
-        guard let relative = repository.workspace.selectedFile else { return nil }
-
-        return resolvedURL(relative: relative, in: repository.url)
-    }
-
-    private static func filePanelMode(from raw: String?) -> FilePanelMode? {
-        switch raw {
-        case "all": return .all
-        case "changes": return .changes
-        default: return nil
-        }
-    }
-
-    private static func rawValue(for mode: FilePanelMode?) -> String? {
-        switch mode {
-        case .all: return "all"
-        case .changes: return "changes"
-        case nil: return nil
-        }
-    }
-
     private func isVisible(_ session: TerminalSession) -> Bool {
         session.id == selection && navigator.current == nil
     }
@@ -343,11 +310,11 @@ public struct WorkspaceView<Terminal: View>: View {
     private func restoreWorkspace() {
         guard let repository = selectedRepository else { return }
 
-        if let resolved = Self.resolvedSelectedFile(from: repository) {
+        if let resolved = WorkspacePaths.resolvedSelectedFile(from: repository) {
             selectedFile = resolved
         }
 
-        filesMode = Self.filePanelMode(from: repository.workspace.panelMode)
+        filesMode = WorkspacePaths.filePanelMode(from: repository.workspace.panelMode)
     }
 
     private func open(_ url: URL) {
@@ -361,7 +328,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private func reveal(_ url: URL) {
         guard
             let repository = selectedRepository,
-            Self.contains(repository.url, url)
+            WorkspacePaths.contains(repository.url, url)
         else { return }
 
         selectedFile = url
@@ -370,7 +337,7 @@ public struct WorkspaceView<Terminal: View>: View {
             showAllFiles()
         }
 
-        if let relative = Self.relativePath(for: url, in: repository.url) {
+        if let relative = WorkspacePaths.relativePath(for: url, in: repository.url) {
             store.updateWorkspace(repository.id) { $0.selectedFile = relative }
         }
     }
@@ -410,11 +377,21 @@ public struct WorkspaceView<Terminal: View>: View {
         if selection == session.id { selection = nil }
 
         live.removeAll { $0 == session.id }
+        dispatcher.forget(session.id)
         withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
     }
 
+    private func insertAgentCommand(_ action: AgentResumeAction, _ sessionID: TerminalSession.ID) {
+        guard store.repository(hosting: sessionID) != nil else { return }
+
+        selection = sessionID
+        activate(sessionID)
+        dispatcher.dispatch(action, into: sessionID)
+    }
+
     private func openTerminalLink(_ raw: String, in repository: Repository) {
-        guard let url = Self.resolvedURL(from: raw, relativeTo: repository.url) else { return }
+        let resolved = WorkspacePaths.resolvedURL(from: raw, relativeTo: repository.url)
+        guard let url = resolved else { return }
 
         route(url)
     }
@@ -453,7 +430,10 @@ public struct WorkspaceView<Terminal: View>: View {
     private func persistPanelMode() {
         guard let repository = selectedRepository else { return }
 
-        store.updateWorkspace(repository.id) { $0.panelMode = Self.rawValue(for: filesMode) }
+        store
+            .updateWorkspace(repository.id) {
+                $0.panelMode = WorkspacePaths.rawValue(for: filesMode)
+            }
     }
 
     private func selectFirstIfNeeded() {

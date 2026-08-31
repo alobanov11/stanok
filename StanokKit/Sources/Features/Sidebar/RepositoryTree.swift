@@ -10,6 +10,8 @@ struct RepositoryTree: View {
 
     let live: Set<TerminalSession.ID>
 
+    let insertAgentCommand: (AgentResumeAction, TerminalSession.ID) -> Void
+
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
@@ -80,27 +82,45 @@ struct RepositoryTree: View {
     }
 
     private func sessionRow(_ session: TerminalSession, in repository: Repository) -> some View {
-        SidebarRow(
-            icon: "apple.terminal",
-            title: session.name,
-            isSelected: session.id == selection,
-            isMuted: !repository.isReachable,
-            isLive: live.contains(session.id),
-            indent: 20,
-            close: { closeSession(session) }
-        )
-        .onTapGesture { selection = session.id }
-        .contextMenu {
-            Button(session.isPinned ? "Открепить" : "Закрепить") { store.togglePin(session.id) }
-            Button("Закрыть терминал", role: .destructive) {
-                if selection == session.id { selection = nil }
-                store.removeSession(session.id)
+        VStack(alignment: .leading, spacing: 0) {
+            SidebarRow(
+                icon: "apple.terminal",
+                title: session.name,
+                isSelected: session.id == selection,
+                isMuted: !repository.isReachable,
+                isLive: live.contains(session.id),
+                indent: 20,
+                close: { closeSession(session) },
+                isSecondaryLevelExpanded: session.isAgentsExpanded,
+                toggleSecondaryLevel: { toggleAgentsExpansion(session) }
+            )
+            .onTapGesture { selection = session.id }
+            .contextMenu {
+                Button(session.isPinned ? "Открепить" : "Закрепить") { store.togglePin(session.id) }
+                Button("Закрыть терминал", role: .destructive) {
+                    if selection == session.id { selection = nil }
+                    store.removeSession(session.id)
+                }
+            }
+
+            if session.isAgentsExpanded {
+                AgentSessionsSection(
+                    projectURL: repository.url,
+                    indent: 20,
+                    onSelect: { agentSession in
+                        insertAgentCommand(agentSession.resumeAction, session.id)
+                    }
+                )
             }
         }
     }
 
     private func toggleExpansion(_ repository: Repository) {
         withAnimation(.smooth(duration: 0.22)) { store.toggleExpansion(repository.id) }
+    }
+
+    private func toggleAgentsExpansion(_ session: TerminalSession) {
+        withAnimation(.smooth(duration: 0.22)) { store.toggleAgentsExpansion(session.id) }
     }
 
     private func closeSession(_ session: TerminalSession) {

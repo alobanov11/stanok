@@ -33,6 +33,8 @@ final class GhosttySurfaceView: NSView {
 
     private var heldModifierKeys: [UInt16: ghostty_input_mods_e] = [:]
 
+    private var lastHandledInsertRequestID: UUID?
+
     init(app: ghostty_app_t, fontSize: Float, workingDirectory: URL?) {
         super.init(frame: .zero)
 
@@ -339,6 +341,13 @@ final class GhosttySurfaceView: NSView {
         surface = nil
     }
 
+    func apply(insertRequest: TerminalInsertRequest?) {
+        guard let insertRequest, insertRequest.id != lastHandledInsertRequestID else { return }
+
+        lastHandledInsertRequestID = insertRequest.id
+        insert(insertRequest.text)
+    }
+
     @objc
     private func render() {
         guard let surface else { return }
@@ -437,6 +446,20 @@ final class GhosttySurfaceView: NSView {
     @objc
     private func pasteFromClipboard() {
         performBindingAction("paste_from_clipboard")
+    }
+
+    private func insert(_ text: String) {
+        guard surface != nil, !text.isEmpty else { return }
+
+        let previous = NSPasteboard.general.string(forType: .string)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        performBindingAction("paste_from_clipboard")
+
+        NSPasteboard.general.clearContents()
+        if let previous {
+            NSPasteboard.general.setString(previous, forType: .string)
+        }
     }
 
     @objc

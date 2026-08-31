@@ -8,6 +8,7 @@ public struct TerminalView: View {
             runtime: runtime,
             workingDirectory: workingDirectory,
             isActive: isActive,
+            insertRequest: insertRequest,
             onCommandFinished: onCommandFinished,
             onOpenURL: onOpenURL,
             onCloseRequested: onCloseRequested
@@ -20,6 +21,8 @@ public struct TerminalView: View {
 
     private let isActive: Bool
 
+    private let insertRequest: TerminalInsertRequest?
+
     private let onCommandFinished: (CommandRun) -> Void
 
     private let onOpenURL: (String) -> Void
@@ -30,6 +33,7 @@ public struct TerminalView: View {
         runtime: GhosttyRuntime,
         workingDirectory: URL?,
         isActive: Bool,
+        insertRequest: TerminalInsertRequest? = nil,
         onCommandFinished: @escaping (CommandRun) -> Void,
         onOpenURL: @escaping (String) -> Void,
         onCloseRequested: @escaping (Bool) -> Void = { _ in }
@@ -37,6 +41,7 @@ public struct TerminalView: View {
         self.runtime = runtime
         self.workingDirectory = workingDirectory
         self.isActive = isActive
+        self.insertRequest = insertRequest
         self.onCommandFinished = onCommandFinished
         self.onOpenURL = onOpenURL
         self.onCloseRequested = onCloseRequested

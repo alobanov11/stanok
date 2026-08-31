@@ -7,6 +7,9 @@ struct SidebarRow: View {
         return isLive ? AnyShapeStyle(Color.green) : AnyShapeStyle(.secondary)
     }
 
+    @State
+    private var isHovering = false
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
@@ -19,6 +22,18 @@ struct SidebarRow: View {
                 .truncationMode(.middle)
 
             Spacer(minLength: 0)
+
+            if let toggleSecondaryLevel {
+                Button(action: toggleSecondaryLevel) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(isSecondaryLevelExpanded ? 90 : 0))
+                        .frame(width: 16, height: 16)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+            }
 
             RowAction(icon: "xmark", hint: "Закрыть терминал", isVisible: isHovering, action: close)
         }
@@ -51,7 +66,30 @@ struct SidebarRow: View {
 
     let close: () -> Void
 
-    @State
-    private var isHovering = false
+    let isSecondaryLevelExpanded: Bool
+
+    let toggleSecondaryLevel: (() -> Void)?
+
+    init(
+        icon: String,
+        title: String,
+        isSelected: Bool,
+        isMuted: Bool,
+        isLive: Bool,
+        indent: CGFloat,
+        close: @escaping () -> Void,
+        isSecondaryLevelExpanded: Bool = false,
+        toggleSecondaryLevel: (() -> Void)? = nil
+    ) {
+        self.icon = icon
+        self.title = title
+        self.isSelected = isSelected
+        self.isMuted = isMuted
+        self.isLive = isLive
+        self.indent = indent
+        self.close = close
+        self.isSecondaryLevelExpanded = isSecondaryLevelExpanded
+        self.toggleSecondaryLevel = toggleSecondaryLevel
+    }
 
 }

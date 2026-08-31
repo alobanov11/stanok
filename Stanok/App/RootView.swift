@@ -10,6 +10,9 @@ struct RootView: View {
     @State
     private var failure: String?
 
+    @State
+    private var agents = AgentSessionRegistry()
+
     var body: some View {
         content
             .onReceive(NotificationCenter.default.publisher(for: ConfigFile.changed)) { _ in
@@ -17,6 +20,7 @@ struct RootView: View {
             }
             .task {
                 DefaultConfig.seed()
+                AgentProviders.registerAll(into: agents)
                 do {
                     runtime = try GhosttyRuntime()
                 } catch {
@@ -28,17 +32,19 @@ struct RootView: View {
     @ViewBuilder
     private var content: some View {
         if let runtime {
-            WorkspaceView { repository, session, isActive, onCommandFinished, onOpenURL, onClose in
+            WorkspaceView { repository, session, active, insert, finished, openURL, close in
                 TerminalView(
                     runtime: runtime,
                     workingDirectory: repository.url,
-                    isActive: isActive,
-                    onCommandFinished: onCommandFinished,
-                    onOpenURL: onOpenURL,
-                    onCloseRequested: onClose
+                    isActive: active,
+                    insertRequest: insert,
+                    onCommandFinished: finished,
+                    onOpenURL: openURL,
+                    onCloseRequested: close
                 )
                 .id(session.id)
             }
+            .environment(\.agentSessionRegistry, agents)
         } else if let failure {
             ContentUnavailableView(
                 "Терминал не запустился",
