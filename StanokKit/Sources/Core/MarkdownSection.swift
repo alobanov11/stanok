@@ -19,11 +19,17 @@ enum MarkdownSection: Sendable {
 
         while index < blocks.count {
             if isTable(blocks[index].kind) {
-                let end = runEnd(in: blocks, from: index) { isTable($0.kind) }
+                let containerID = blocks[index].containerID
+                let end = runEnd(in: blocks, from: index) {
+                    isTable($0.kind) && $0.containerID == containerID
+                }
                 result.append(.table(Array(blocks[index..<end])))
                 index = end
             } else if blocks[index].isQuoted {
-                let end = runEnd(in: blocks, from: index) { $0.isQuoted && !isTable($0.kind) }
+                let containerID = blocks[index].containerID
+                let end = runEnd(in: blocks, from: index) {
+                    $0.isQuoted && !isTable($0.kind) && $0.containerID == containerID
+                }
                 result.append(.quote(Array(blocks[index..<end])))
                 index = end
             } else {

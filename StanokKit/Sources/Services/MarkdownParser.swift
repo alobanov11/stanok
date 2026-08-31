@@ -14,6 +14,10 @@ enum MarkdownParser {
         let identity: Int
 
         let isHeader: Bool
+
+        let isQuoted: Bool
+
+        let containerID: Int?
     }
 
     static func blocks(from markdown: String, baseURL: URL? = nil) -> [MarkdownBlock] {
@@ -62,7 +66,7 @@ enum MarkdownParser {
         var blocks: [MarkdownBlock] = []
         var cells: [AttributedString] = []
         var row: Row?
-        var lastItem: Int?
+        var lastItem: [Int: Int] = [:]
 
         for leaf in leaves {
             if let current = rowInfo(leaf.components) {
@@ -104,11 +108,15 @@ enum MarkdownParser {
         return parts.filter { !$0.characters.isEmpty }
     }
 
-    private static func split(_ block: MarkdownBlock, from id: Int) -> [MarkdownBlock] {
-        switch block.kind {
-        case .code, .divider, .tableRow: return [block]
-        default: break
+    private static func isListContent(_ kind: MarkdownBlock.Kind) -> Bool {
+        switch kind {
+        case .bullet, .numbered, .continuation: true
+        default: false
         }
+    }
+
+    private static func split(_ block: MarkdownBlock, from id: Int) -> [MarkdownBlock] {
+        guard isListContent(block.kind) else { return [block] }
 
         let parts = lines(of: block.text)
         guard parts.count > 1 else { return [block] }
@@ -119,7 +127,8 @@ enum MarkdownParser {
                 id: id + offset,
                 kind: offset == 0 ? block.kind : tail,
                 text: text,
-                isQuoted: block.isQuoted
+                isQuoted: block.isQuoted,
+                containerID: block.containerID
             )
         }
     }
@@ -144,9 +153,29 @@ enum MarkdownParser {
             id: blocks.count,
             kind: .tableRow(cells: cells, isHeader: row.isHeader),
             text: AttributedString(),
-            isQuoted: false
+            isQuoted: row.isQuoted,
+            containerID: row.containerID
         ))
         cells = []
+    }
+
+    private static func isQuoted(_ components: [PresentationIntent.IntentType]) -> Bool {
+        components.contains { component in
+            if case .blockQuote = component.kind { return true }
+            return false
+        }
+    }
+
+    private static func containerID(_ components: [PresentationIntent.IntentType]) -> Int? {
+        for component in components {
+            switch component.kind {
+            case .table: return component.identity
+            case .blockQuote: return component.identity
+            default: continue
+            }
+        }
+
+        return nil
     }
 
     private static func rowInfo(_ components: [PresentationIntent.IntentType]) -> Row? {
@@ -155,9 +184,21 @@ enum MarkdownParser {
             switch component.kind {
             case .tableCell: isCell = true
             case .tableHeaderRow:
-                return isCell ? Row(identity: component.identity, isHeader: true) : nil
+                guard isCell else { return nil }
+                return Row(
+                    identity: component.identity,
+                    isHeader: true,
+                    isQuoted: isQuoted(components),
+                    containerID: containerID(components)
+                )
             case .tableRow:
-                return isCell ? Row(identity: component.identity, isHeader: false) : nil
+                guard isCell else { return nil }
+                return Row(
+                    identity: component.identity,
+                    isHeader: false,
+                    isQuoted: isQuoted(components),
+                    containerID: containerID(components)
+                )
             default: continue
             }
         }
@@ -168,39 +209,45 @@ enum MarkdownParser {
     private static func block(
         _ id: Int,
         _ leaf: Leaf,
-        _ lastItem: inout Int?
+        _ lastItem: inout [Int: Int]
     ) -> MarkdownBlock? {
-        let quoted = leaf.components.contains { component in
-            if case .blockQuote = component.kind { return true }
-            return false
-        }
-
+        let quoted = isQuoted(leaf.components)
+        let container = containerID(leaf.components)
         let kind = kind(of: leaf.components, lastItem: &lastItem, text: leaf.text)
         if case .divider = kind {
-            return MarkdownBlock(id: id, kind: .divider, text: AttributedString(), isQuoted: quoted)
+            return MarkdownBlock(
+                id: id,
+                kind: .divider,
+                text: AttributedString(),
+                isQuoted: quoted,
+                containerID: container
+            )
         }
 
-        return MarkdownBlock(id: id, kind: kind, text: leaf.text, isQuoted: quoted)
+        return MarkdownBlock(
+            id: id,
+            kind: kind,
+            text: leaf.text,
+            isQuoted: quoted,
+            containerID: container
+        )
     }
 
     private static func kind(
         of components: [PresentationIntent.IntentType],
-        lastItem: inout Int?,
+        lastItem: inout [Int: Int],
         text: AttributedString
     ) -> MarkdownBlock.Kind {
         for (offset, component) in components.enumerated() {
             switch component.kind {
             case let .header(level):
-                lastItem = nil
                 return .heading(level)
 
             case let .codeBlock(language):
-                lastItem = nil
                 let source = String(text.characters)
                 return .code(lines: CodeHighlighter.lines(source, language: language))
 
             case .thematicBreak:
-                lastItem = nil
                 return .divider
 
             case let .listItem(ordinal):
@@ -211,7 +258,6 @@ enum MarkdownParser {
             }
         }
 
-        lastItem = nil
         return .paragraph
     }
 
@@ -219,7 +265,7 @@ enum MarkdownParser {
         _ components: [PresentationIntent.IntentType],
         from offset: Int,
         ordinal: Int,
-        lastItem: inout Int?
+        lastItem: inout [Int: Int]
     ) -> MarkdownBlock.Kind {
         let identity = components[offset].identity
         let depth = components.count(where: { component in
@@ -229,8 +275,8 @@ enum MarkdownParser {
             }
         })
 
-        defer { lastItem = identity }
-        if lastItem == identity { return .continuation(depth: depth) }
+        if lastItem[depth] == identity { return .continuation(depth: depth) }
+        lastItem[depth] = identity
 
         var ordered = false
         if offset + 1 < components.count, case .orderedList = components[offset + 1].kind {
