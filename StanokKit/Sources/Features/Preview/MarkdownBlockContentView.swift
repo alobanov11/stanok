@@ -48,10 +48,9 @@ struct MarkdownBlockContentView: View {
     }
 
     private func prose(_ text: AttributedString) -> some View {
-        var styled = LinkStyle.styled(text)
-        styled.font = font(fontSize)
+        let resolved = MarkdownInlineStyle.resolved(text, size: fontSize, family: fontFamily)
 
-        return Text(styled)
+        return Text(LinkStyle.styled(resolved))
             .lineSpacing(lineSpacing)
             .fixedSize(horizontal: false, vertical: true)
             .pointerStyle(LinkStyle.containsLink(text) ? .link : nil)
