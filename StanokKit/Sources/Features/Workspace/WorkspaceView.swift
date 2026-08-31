@@ -38,7 +38,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var isSidebarExpanded = true
 
     @State
-    private var isFilesExpanded = false
+    private var filesMode: FilePanelMode?
 
     @State
     private var live: [TerminalSession.ID] = []
@@ -51,6 +51,12 @@ public struct WorkspaceView<Terminal: View>: View {
 
     @State
     private var selectedFile: URL?
+
+    @State
+    private var fileTreeModel = FileTreeModel()
+
+    @State
+    private var changeTreeModel = ChangeTreeModel()
 
     public var body: some View {
         HStack(spacing: 0) {
@@ -67,8 +73,8 @@ public struct WorkspaceView<Terminal: View>: View {
                 .padding(.vertical, WorkspaceLayout.inset)
                 .environment(\.openURL, OpenURLAction(handler: handleLink))
 
-            if isFilesExpanded {
-                files
+            if let filesMode {
+                filesPanel(filesMode)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
@@ -79,11 +85,21 @@ public struct WorkspaceView<Terminal: View>: View {
         .frame(minWidth: 880, minHeight: 520)
         .task { selectFirstIfNeeded() }
         .task(id: selection) { await git.refresh(selectedRepository) }
+        .task(id: selectedRepository?.url) { openFileTree() }
         .onChange(of: selectedRepository?.id) { _, _ in resetPreview() }
         .onChange(of: selection) { _, new in
             guard let new else { return }
 
             activate(new)
+        }
+        .onChange(
+            of: git.snapshot(for: selectedRepository)?.gitDirectory,
+            initial: true
+        ) { _, new in
+            fileTreeModel.updateGitDirectory(new)
+        }
+        .onChange(of: git.snapshot(for: selectedRepository), initial: true) { _, snapshot in
+            changeTreeModel.apply(snapshot)
         }
     }
 
@@ -91,15 +107,6 @@ public struct WorkspaceView<Terminal: View>: View {
         SidebarToggle(action: toggleSidebar)
             .padding(.top, toggleTop)
             .padding(.leading, isSidebarExpanded ? outsideLeading : insideOffset)
-    }
-
-    private var files: some View {
-        FilePanel(url: selectedRepository?.url, selected: $selectedFile, onOpen: open)
-            .frame(width: WorkspaceLayout.filesWidth)
-            .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
-            .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
-            .padding(.trailing, WorkspaceLayout.inset)
-            .padding(.vertical, WorkspaceLayout.inset)
     }
 
     private var closeButton: some View {
@@ -117,8 +124,9 @@ public struct WorkspaceView<Terminal: View>: View {
             repository: selectedRepository,
             status: git.status(for: selectedRepository),
             leadingInset: headerLeading,
-            isFilesOpen: isFilesExpanded,
-            toggleFiles: toggleFiles
+            filesMode: filesMode,
+            selectAll: { selectFilesMode(.all) },
+            selectChanges: { selectFilesMode(.changes) }
         )
     }
 
@@ -208,6 +216,22 @@ public struct WorkspaceView<Terminal: View>: View {
         .transition(.opacity)
     }
 
+    private func filesPanel(_ mode: FilePanelMode) -> some View {
+        FilePanel(
+            mode: mode,
+            fileTreeModel: fileTreeModel,
+            changeTreeModel: changeTreeModel,
+            snapshot: git.snapshot(for: selectedRepository),
+            selected: $selectedFile,
+            onOpen: open
+        )
+        .frame(width: WorkspaceLayout.filesWidth)
+        .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
+        .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
+        .padding(.trailing, WorkspaceLayout.inset)
+        .padding(.vertical, WorkspaceLayout.inset)
+    }
+
     private static func contains(_ root: URL, _ candidate: URL) -> Bool {
         let base = root.standardizedFileURL.path(percentEncoded: false)
         let target = candidate.standardizedFileURL.path(percentEncoded: false)
@@ -226,6 +250,14 @@ public struct WorkspaceView<Terminal: View>: View {
         session.id == selection && navigator.current == nil
     }
 
+    private func openFileTree() {
+        fileTreeModel.open(
+            selectedRepository?.url,
+            gitDirectory: git.snapshot(for: selectedRepository)?.gitDirectory,
+            onGitChange: { Task { await git.refresh(selectedRepository) } }
+        )
+    }
+
     private func open(_ url: URL) {
         reveal(url)
 
@@ -241,9 +273,17 @@ public struct WorkspaceView<Terminal: View>: View {
         else { return }
 
         selectedFile = url
-        guard !isFilesExpanded else { return }
+        showAllFiles()
+    }
 
-        withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { isFilesExpanded = true }
+    private func showAllFiles() {
+        guard filesMode != .all else { return }
+
+        if filesMode == nil {
+            withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { filesMode = .all }
+        } else {
+            filesMode = .all
+        }
     }
 
     private func route(_ url: URL) {
@@ -290,9 +330,13 @@ public struct WorkspaceView<Terminal: View>: View {
         }
     }
 
-    private func toggleFiles() {
-        withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) {
-            isFilesExpanded.toggle()
+    private func selectFilesMode(_ mode: FilePanelMode) {
+        if filesMode == mode {
+            withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { filesMode = nil }
+        } else if filesMode == nil {
+            withAnimation(.smooth(duration: WorkspaceLayout.toggleDuration)) { filesMode = mode }
+        } else {
+            filesMode = mode
         }
     }
 
