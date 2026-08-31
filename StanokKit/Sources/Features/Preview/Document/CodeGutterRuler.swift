@@ -28,53 +28,36 @@ final class CodeGutterRuler: NSRulerView {
     }
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard
-            let source,
-            let text = clientView as? NSTextView,
-            let layout = text.textLayoutManager,
-            let viewport = layout.textViewportLayoutController.viewportRange
-        else { return }
+        guard let source, let text = clientView as? NSTextView else { return }
 
         let numbers: [NSAttributedString.Key: Any] = [
             .font: source.font,
             .foregroundColor: NSColor.tertiaryLabelColor
         ]
 
-        layout.enumerateTextLayoutFragments(from: viewport.location) { fragment in
-            let frame = fragment.layoutFragmentFrame
-            let origin = convert(
-                NSPoint(x: 0, y: text.textContainerOrigin.y + frame.minY),
-                from: text
-            )
-
-            guard origin.y < rect.maxY + frame.height else { return false }
-            guard origin.y + frame.height > rect.minY else { return true }
-
-            let line = sourceLine(of: fragment)
-            guard let line else { return true }
-
+        enumerateVisibleFragments(from: rect.minY, in: text) { line, top, height in
             let label = NSAttributedString(string: "\(line + 1)", attributes: numbers)
             let size = label.size()
-            label.draw(at: NSPoint(x: source.width + Metric.gap - size.width, y: origin.y))
+            label.draw(at: NSPoint(x: source.width + Metric.gap - size.width, y: top))
 
             if source.folds.fold(startingAt: line) != nil {
                 drawChevron(
-                    at: NSPoint(x: source.width + Metric.gap, y: origin.y + frame.height / 2),
+                    at: NSPoint(x: source.width + Metric.gap * 1.5, y: top + height / 2),
                     collapsed: source.folded.contains(line)
                 )
             }
 
-            if let change = source.changes[line + 1] {
-                NSColor.controlAccentColor.setFill()
-                NSRect(
-                    x: source.width + Metric.gap + Metric.chevron + Metric.gap - Metric.ribbon,
-                    y: origin.y,
-                    width: Metric.ribbon,
-                    height: change == .removed ? 2 : frame.height
-                ).fill()
-            }
+            guard let change = source.changes[line + 1] else { return top < rect.maxY }
 
-            return true
+            NSColor.controlAccentColor.setFill()
+            NSRect(
+                x: ruleThickness - Metric.ribbon - 2,
+                y: top,
+                width: Metric.ribbon,
+                height: change == .removed ? 2 : height
+            ).fill()
+
+            return top < rect.maxY
         }
     }
 
@@ -119,28 +102,41 @@ private extension CodeGutterRuler {
     }
 
     func line(at y: CGFloat) -> Int? {
-        guard
-            let text = clientView as? NSTextView,
-            let layout = text.textLayoutManager,
-            let viewport = layout.textViewportLayoutController.viewportRange
-        else { return nil }
+        guard let text = clientView as? NSTextView else { return nil }
 
         var found: Int?
 
-        layout.enumerateTextLayoutFragments(from: viewport.location) { fragment in
-            let frame = fragment.layoutFragmentFrame
-            let origin = convert(
-                NSPoint(x: 0, y: text.textContainerOrigin.y + frame.minY),
-                from: text
-            )
+        enumerateVisibleFragments(from: y, in: text) { line, top, height in
+            guard top <= y, top + height > y else { return top <= y }
 
-            guard origin.y <= y else { return false }
-            guard origin.y + frame.height > y else { return true }
-
-            found = sourceLine(of: fragment)
+            found = line
             return false
         }
 
         return found
+    }
+
+    func enumerateVisibleFragments(
+        from y: CGFloat,
+        in text: NSTextView,
+        body: (Int, CGFloat, CGFloat) -> Bool
+    ) {
+        guard let layout = text.textLayoutManager else { return }
+
+        let start = convert(NSPoint(x: 0, y: y), to: text).y - text.textContainerOrigin.y
+        guard let first = layout.textLayoutFragment(for: NSPoint(x: 0, y: max(start, 0)))
+        else { return }
+
+        layout.enumerateTextLayoutFragments(from: first.rangeInElement.location) { fragment in
+            let frame = fragment.layoutFragmentFrame
+            let top = convert(
+                NSPoint(x: 0, y: text.textContainerOrigin.y + frame.minY),
+                from: text
+            ).y
+
+            guard let line = sourceLine(of: fragment) else { return true }
+
+            return body(line, top, frame.height)
+        }
     }
 }

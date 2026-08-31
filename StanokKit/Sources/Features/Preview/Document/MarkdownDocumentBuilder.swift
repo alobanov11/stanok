@@ -158,20 +158,12 @@ private extension MarkdownDocumentBuilder {
         style.headIndent = indent
         style.tabStops = [NSTextTab(textAlignment: .left, location: indent + 18)]
 
-        let result = NSMutableAttributedString(text)
-        let whole = NSRange(location: 0, length: result.length)
-        result.addAttributes([.paragraphStyle: style], range: whole)
-        result.enumerateAttribute(.font, in: whole) { value, range, _ in
-            guard value == nil else { return }
-
-            result.addAttribute(.font, value: font, range: range)
-        }
-        result.enumerateAttribute(.foregroundColor, in: whole) { value, range, _ in
-            guard value == nil else { return }
-
-            result.addAttribute(.foregroundColor, value: NSColor.labelColor, range: range)
-        }
-        return result
+        return MarkdownInlineText.attributed(
+            text,
+            font: font,
+            codeFont: .monospacedSystemFont(ofSize: font.pointSize * 0.94, weight: .regular),
+            style: style
+        )
     }
 
     static func headingSize(_ level: Int, base: Double) -> Double {

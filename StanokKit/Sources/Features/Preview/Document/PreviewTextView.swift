@@ -13,6 +13,24 @@ struct PreviewTextView: NSViewRepresentable {
 
         var openLink: ((URL) -> Void)?
 
+        private var observer: NSObjectProtocol?
+
+        deinit {
+            guard let observer else { return }
+
+            NotificationCenter.default.removeObserver(observer)
+        }
+
+        func observe(_ scroll: NSScrollView) {
+            observer = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: scroll.contentView,
+                queue: .main
+            ) { [weak scroll] _ in
+                scroll?.verticalRulerView?.needsDisplay = true
+            }
+        }
+
         func textView(_ view: NSTextView, clickedOnLink link: Any, at index: Int) -> Bool {
             guard let url = link as? URL ?? (link as? String).flatMap(URL.init(string:)) else {
                 return false
@@ -70,12 +88,17 @@ struct PreviewTextView: NSViewRepresentable {
         }
 
         if let gutter {
+            scroll.hasVerticalRuler = true
             let ruler = CodeGutterRuler(scrollView: scroll, orientation: .verticalRuler)
+            ruler.reservedThicknessForMarkers = 0
+            ruler.reservedThicknessForAccessoryView = 0
             ruler.clientView = text
             ruler.source = gutter
             scroll.verticalRulerView = ruler
-            scroll.hasVerticalRuler = true
             scroll.rulersVisible = true
+
+            scroll.contentView.postsBoundsChangedNotifications = true
+            context.coordinator.observe(scroll)
         }
 
         return scroll
@@ -92,6 +115,7 @@ struct PreviewTextView: NSViewRepresentable {
         guard let ruler = scroll.verticalRulerView as? CodeGutterRuler else { return }
 
         ruler.source = gutter
+        scroll.tile()
         ruler.needsDisplay = true
     }
 
