@@ -19,28 +19,41 @@ struct SessionList: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 2) {
-                    ForEach(store.sessions) { session in
-                        sessionRow(session)
-
-                        ForEach(agentSessionRegistry.registeredProviders) { provider in
-                            agentSessions(provider, for: session)
-                        }
-                    }
-                }
-                .padding(.horizontal, 8)
-            }
-            .overlay(alignment: .top) {
-                if store.sessions.isEmpty {
-                    Text("Нет открытых терминалов")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 60)
-                }
+            if store.sessions.isEmpty {
+                emptyState
+            } else {
+                sessions
             }
 
             SidebarToolbar()
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 6) {
+            Text("Нет открытых терминалов")
+
+            Text("⌘N — новый")
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(.tertiary)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 12)
+    }
+
+    private var sessions: some View {
+        ScrollView {
+            VStack(spacing: 2) {
+                ForEach(store.sessions) { session in
+                    sessionRow(session)
+
+                    ForEach(agentSessionRegistry.registeredProviders) { provider in
+                        agentSessions(provider, for: session)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
         }
     }
 
