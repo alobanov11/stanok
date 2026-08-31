@@ -4,7 +4,6 @@ import Foundation
 public final class ShellProcessLabelStore {
 
     public nonisolated static let environmentVariable = "STANOK_TAB_ID"
-
     private let directory: URL
 
     public init(directory: URL = AppPaths.shellProcessLabels) {

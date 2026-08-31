@@ -15,7 +15,6 @@ public final class TerminalCommandDispatcher {
     public private(set) var copyNotice: CopyNotice?
 
     private(set) var insertRequests: [TerminalSession.ID: TerminalInsertRequest] = [:]
-
     private var confirmedIdle: Set<TerminalSession.ID> = []
 
     public nonisolated init() {}
