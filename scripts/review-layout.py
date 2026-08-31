@@ -89,6 +89,11 @@ def merged(groups: dict[str, list[Path]]) -> dict[str, list[Path]]:
     return result
 
 
+def anchor(path: Path, text: str) -> str:
+    """Xcode делает кликабельным только то, что начинается с файла и строки."""
+    return f"{path}:1:1: warning: {text}"
+
+
 def group_hints(directory: Path, files: list[Path], folders: set[str]) -> list[str]:
     """Просится ли внутри каталога отдельная папка.
 
@@ -109,10 +114,11 @@ def group_hints(directory: Path, files: list[Path], folders: set[str]) -> list[s
             continue
 
         names = ", ".join(path.name for path in paths)
-        hints.append(
-            f"{directory}: {len(paths)} файла начинаются на {name}, рядом ещё {outside} "
-            f"— точно ли им место в одном каталоге? Кандидат на {directory}/{name}/ ({names})"
-        )
+        hints.append(anchor(
+            paths[0],
+            f"{len(paths)} файла начинаются на {name}, рядом ещё {outside} — точно ли им "
+            f"место в одном каталоге? Кандидат на {directory}/{name}/ ({names})"
+        ))
 
     return hints
 
@@ -124,16 +130,18 @@ def folder_hints(root: Path, directory: Path, files: list[Path]) -> list[str]:
     children = [path for path in directory.iterdir() if path.is_dir()]
 
     if directory != root and not children and len(files) < Limit.FOLDER:
-        hints.append(
-            f"{directory}: папка из {len(files)} файла — точно ли она нужна? "
+        hints.append(anchor(
+            files[0],
+            f"папка {directory} держит {len(files)} файла — точно ли она нужна? "
             f"Кандидат на переезд в {directory.parent}"
-        )
+        ))
 
     if depth > Limit.DEPTH:
-        hints.append(
-            f"{directory}: вложенность {depth} уровня — точно ли файлы должны лежать "
+        hints.append(anchor(
+            files[0],
+            f"папка {directory} лежит на {depth} уровне — точно ли файлы должны быть "
             f"так глубоко?"
-        )
+        ))
 
     return hints
 
@@ -160,10 +168,11 @@ def name_hints(root: Path, directory: Path, files: list[Path]) -> list[str]:
             continue
 
         shorter = "".join(words[repeated:]) + path.suffix
-        hints.append(
-            f"{path}: имя повторяет папку {'/'.join(directory.relative_to(root).parts)} "
+        hints.append(anchor(
+            path,
+            f"имя повторяет папку {'/'.join(directory.relative_to(root).parts)} "
             f"— точно ли не {shorter}?"
-        )
+        ))
 
     return hints
 
@@ -192,7 +201,7 @@ def main() -> int:
         return 0
 
     for line in found:
-        print(f"warning: {line}")
+        print(line)
 
     print(f"{len(found)} кандидатов на рефакторинг — сборку это не ломает")
     return 0
