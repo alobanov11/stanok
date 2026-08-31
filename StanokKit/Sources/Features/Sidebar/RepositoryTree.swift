@@ -97,7 +97,6 @@ struct RepositoryTree: View {
             isSelected: session.id == selection,
             isMuted: !repository.isReachable,
             isLive: live.contains(session.id),
-            usageText: TabResourceDisplay.text(for: processUsage[session.id]),
             indent: 20,
             close: { closeSession(session) }
         )
