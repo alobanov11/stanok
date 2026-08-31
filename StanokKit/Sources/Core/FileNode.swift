@@ -142,7 +142,7 @@ final class FileNode: Identifiable {
         }
 
         return contents
-            .filter { $0.lastPathComponent != ".git" }
+            .filter { !IgnoredPaths.directories.contains($0.lastPathComponent) }
             .map { child in
                 existing[child] ?? FileNode(
                     url: child,

@@ -110,10 +110,6 @@ final class FileWatcher {
 
     private enum PathFilters {
 
-        static let ignored: Set<String> = [
-            ".git", "node_modules", ".build", "DerivedData", ".next", ".venv", "Pods", ".zig-cache"
-        ]
-
         static let relevantGit: Set<String> = [
             "HEAD", "index", "MERGE_HEAD", "ORIG_HEAD", "logs/HEAD"
         ]
@@ -153,7 +149,7 @@ final class FileWatcher {
     }
 
     private nonisolated static func isIgnored(_ url: URL) -> Bool {
-        url.pathComponents.contains { PathFilters.ignored.contains($0) }
+        IgnoredPaths.contains(url)
     }
 
     private nonisolated static func isRelevantGitEvent(
