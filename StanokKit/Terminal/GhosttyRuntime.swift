@@ -93,6 +93,19 @@ public final class GhosttyRuntime {
                     return true
                 }
 
+            case GHOSTTY_ACTION_MOUSE_SHAPE:
+                let shape = action.action.mouse_shape
+                GhosttyRuntime.assertMainThread()
+                return MainActor.assumeIsolated {
+                    guard
+                        let surface = target.target.surface,
+                        let view = GhosttySurfaceView.from(surface: surface)
+                    else { return false }
+
+                    view.setCursorShape(shape)
+                    return true
+                }
+
             default:
                 return false
             }

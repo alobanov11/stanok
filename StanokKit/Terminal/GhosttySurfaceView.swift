@@ -23,6 +23,8 @@ final class GhosttySurfaceView: NSView {
 
     private var tracking: NSTrackingArea?
 
+    private var desiredCursor = NSCursor.iBeam
+
     private var surface: ghostty_surface_t?
 
     private var link: CADisplayLink?
@@ -99,11 +101,15 @@ final class GhosttySurfaceView: NSView {
         if let tracking { removeTrackingArea(tracking) }
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect],
+            options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect],
             owner: self
         )
         addTrackingArea(area)
         tracking = area
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        desiredCursor.set()
     }
 
     override func viewDidChangeBackingProperties() {
@@ -314,6 +320,13 @@ final class GhosttySurfaceView: NSView {
 
             window.makeFirstResponder(window.contentView)
         }
+    }
+
+    func setCursorShape(_ shape: ghostty_action_mouse_shape_e) {
+        guard !isHidden, let cursor = GhosttyCursorShape.cursor(for: shape) else { return }
+
+        desiredCursor = cursor
+        cursor.set()
     }
 
     func shutdown() {
