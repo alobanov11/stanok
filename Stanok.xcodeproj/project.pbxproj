@@ -7,8 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		54C2F148584F40BE1DE6DF83 /* StanokTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = DA31851DFDBCD2E68380C265 /* StanokTerminal */; };
 		7C9B1AEF9DBBF7CB814BA3EE /* StanokTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = 4D1AF5D6A6D2975D29F27003 /* StanokTerminal */; };
 		A77AB9E7CD362CD5406B8BCD /* StanokKit in Frameworks */ = {isa = PBXBuildFile; productRef = B7E06AB1B026D9C8992ADEA1 /* StanokKit */; };
+		CC2E39DAB1F8C21A5C772894 /* StanokKit in Frameworks */ = {isa = PBXBuildFile; productRef = 28A110CFD23CB439BBBCA19A /* StanokKit */; };
 		D8F465EBFFF07F678FD0345D /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 68DD610276F8434E15A59EB6 /* Carbon.framework */; };
 /* End PBXBuildFile section */
 
@@ -75,6 +77,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CC2E39DAB1F8C21A5C772894 /* StanokKit in Frameworks */,
+				54C2F148584F40BE1DE6DF83 /* StanokTerminal in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -132,7 +136,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = E2AA031830446888008EA09A /* Build configuration list for PBXNativeTarget "Stanok" */;
 			buildPhases = (
-				87B9B5732B56A901C9AFB668 /* SwiftLint */,
+				24631DF6751128FF94ADAAFB /* SwiftLint */,
 				E2AA02F330446886008EA09A /* Sources */,
 				E2AA02F430446886008EA09A /* Frameworks */,
 				E2AA02F530446886008EA09A /* Resources */,
@@ -171,6 +175,10 @@
 				E2AA030730446888008EA09A /* StanokTests */,
 			);
 			name = StanokTests;
+			packageProductDependencies = (
+				28A110CFD23CB439BBBCA19A /* StanokKit */,
+				DA31851DFDBCD2E68380C265 /* StanokTerminal */,
+			);
 			productName = StanokTests;
 			productReference = E2AA030430446888008EA09A /* StanokTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -268,7 +276,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		3CBAE9D88D358019BBA320D5 /* SwiftLint */ = {
+		24631DF6751128FF94ADAAFB /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -285,7 +293,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.\nfor candidate in /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint; do\n  if [ -x \"$candidate\" ]; then\n    exec \"$candidate\" lint --quiet --force-exclude --use-alternative-excluding Stanok StanokKit/Sources\n  fi\ndone\necho \"warning: swiftlint not found — run: brew install swiftlint\"\n";
+			shellScript = "# Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.\nfor candidate in /opt/homebrew/bin/swiftlint /usr/local/bin/swiftlint; do\n  if [ -x \"$candidate\" ]; then\n    exec \"$candidate\" lint --quiet --force-exclude --use-alternative-excluding Stanok StanokKit/Sources StanokKit/Terminal\n  fi\ndone\necho \"warning: swiftlint not found — run: brew install swiftlint\"\n";
 		};
 		87B9B5732B56A901C9AFB668 /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -694,6 +702,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		28A110CFD23CB439BBBCA19A /* StanokKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 94DA019E79D12F98CDC5CAB6 /* XCLocalSwiftPackageReference "StanokKit" */;
+			productName = StanokKit;
+		};
 		4D1AF5D6A6D2975D29F27003 /* StanokTerminal */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 94DA019E79D12F98CDC5CAB6 /* XCLocalSwiftPackageReference "StanokKit" */;
@@ -702,6 +715,11 @@
 		B7E06AB1B026D9C8992ADEA1 /* StanokKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = StanokKit;
+		};
+		DA31851DFDBCD2E68380C265 /* StanokTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 94DA019E79D12F98CDC5CAB6 /* XCLocalSwiftPackageReference "StanokKit" */;
+			productName = StanokTerminal;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

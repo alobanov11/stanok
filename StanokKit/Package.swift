@@ -11,6 +11,11 @@ let package = Package(
     targets: [
         .target(name: "StanokKit", path: "Sources"),
         .binaryTarget(name: "GhosttyKit", path: "GhosttyKit.xcframework"),
-        .target(name: "StanokTerminal", dependencies: ["StanokKit", "GhosttyKit"], path: "Terminal")
+        .target(
+            name: "StanokTerminal",
+            dependencies: ["StanokKit", "GhosttyKit"],
+            path: "Terminal",
+            linkerSettings: [.linkedLibrary("stdc++"), .linkedFramework("Carbon")]
+        )
     ]
 )

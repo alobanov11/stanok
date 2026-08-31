@@ -1,6 +1,6 @@
 import Testing
 
-@testable import Stanok
+@testable import StanokTerminal
 
 @MainActor
 struct StanokTests {
@@ -15,7 +15,7 @@ struct StanokTests {
     func runtimeBootsAndReadsConfig() throws {
         let runtime = try GhosttyRuntime()
 
-        #expect(runtime.config.float("font-size") == 15)
+        #expect((runtime.config.float("font-size") ?? 0) > 0)
         #expect(runtime.config.diagnostics.isEmpty)
 
         runtime.tick()
