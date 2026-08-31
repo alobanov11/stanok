@@ -54,6 +54,10 @@ public struct WorkspaceView<Terminal: View>: View {
         AgentCommandRouter(dispatcher: dispatcher, tracker: processTracker)
     }
 
+    private var previewWidth: CGFloat {
+        (mainWidth / 2 - WorkspaceLayout.inset).rounded()
+    }
+
     private var isPreviewSplit: Bool {
         WorkspaceGeometry.isPreviewSplit(hasPreview: navigator.current != nil, width: mainWidth)
     }
@@ -285,7 +289,7 @@ public struct WorkspaceView<Terminal: View>: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .modifier(WorkspaceCard())
-            .padding(.trailing, isPreviewSplit ? mainWidth / 2 : 0)
+            .padding(.trailing, isPreviewSplit ? previewWidth + WorkspaceLayout.inset : 0)
 
             if let entry = navigator.current {
                 previewLayer(
@@ -294,7 +298,7 @@ public struct WorkspaceView<Terminal: View>: View {
                         ? WorkspaceGeometry.expandedHeaderLeading
                         : WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
                 )
-                .frame(width: isPreviewSplit ? mainWidth / 2 - WorkspaceLayout.inset : nil)
+                .frame(width: isPreviewSplit ? previewWidth : nil)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .transition(WorkspaceGeometry.previewTransition(split: isPreviewSplit))
             }

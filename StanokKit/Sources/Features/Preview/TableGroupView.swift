@@ -8,15 +8,19 @@ struct TableGroupView: View {
         }
     }
 
+    @AppStorage(PreviewTypography.Keys.markdownFontFamily)
+    private var fontFamily = PreviewTypography.Defaults.markdownFontFamily
+
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 GridRow {
                     ForEach(Array(row.cells.enumerated()), id: \.offset) { _, cell in
                         Text(cell)
-                            .font(.system(
+                            .font(PreviewTypography.markdownFont(
                                 size: fontSize * 0.92,
-                                weight: row.isHeader ? .semibold : .regular
+                                weight: row.isHeader ? .semibold : .regular,
+                                family: fontFamily
                             ))
                             .lineSpacing(3)
                     }
