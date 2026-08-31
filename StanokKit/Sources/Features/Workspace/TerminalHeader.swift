@@ -20,6 +20,10 @@ struct TerminalHeader: View {
             : AnyShapeStyle(.white.opacity(0.05))
     }
 
+    private var hasChanges: Bool {
+        status?.hasChanges ?? false
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             if let repository {
@@ -51,6 +55,10 @@ struct TerminalHeader: View {
     let selectChanges: () -> Void
 
     let selectBranches: () -> Void
+
+    let stashChanges: () -> Void
+
+    let discardChanges: () -> Void
 
     private func folderBadge(_ name: String) -> some View {
         Button(action: selectAll) {
@@ -90,7 +98,7 @@ struct TerminalHeader: View {
     private func changesBadge() -> some View {
         Button(action: selectChanges) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "arrow.up.arrow.down")
+                Image(systemName: "plusminus")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
 
@@ -105,6 +113,13 @@ struct TerminalHeader: View {
         }
         .buttonStyle(.plain)
         .help(filesMode == .changes ? "Скрыть изменения" : "Показать изменения")
+        .contextMenu {
+            Button("Отложить в заначку", action: stashChanges)
+                .disabled(!hasChanges)
+
+            Button("Сбросить изменения", role: .destructive, action: discardChanges)
+                .disabled(!hasChanges)
+        }
     }
 
     private func counters(_ status: GitStatus) -> some View {

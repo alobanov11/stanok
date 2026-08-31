@@ -95,6 +95,12 @@ public struct WorkspaceView<Terminal: View>: View {
     private var mainWidth: CGFloat = 0
 
     @State
+    private var workingTreeAction: WorkingTreeAction?
+
+    @State
+    private var workingTreeError: String?
+
+    @State
     private var fileTreeModel = FileTreeModel()
 
     @State
@@ -209,7 +215,16 @@ public struct WorkspaceView<Terminal: View>: View {
             filesMode: filesMode,
             selectAll: { selectFilesMode(.all) },
             selectChanges: { selectFilesMode(.changes) },
-            selectBranches: { selectFilesMode(.branches) }
+            selectBranches: { selectFilesMode(.branches) },
+            stashChanges: { workingTreeAction = .stash },
+            discardChanges: { workingTreeAction = .discard }
+        )
+        .modifier(
+            WorkingTreeConfirmation(
+                action: $workingTreeAction,
+                failure: $workingTreeError,
+                perform: perform
+            )
         )
     }
 
@@ -373,6 +388,18 @@ public struct WorkspaceView<Terminal: View>: View {
             into: sessionID,
             runningProcessNames: processTracker.processNames(for: sessionID)
         )
+    }
+
+    private func perform(_ action: WorkingTreeAction) async {
+        guard let root = git.snapshot(for: selectedRepository)?.root else { return }
+
+        let outcome = await GitWorkingTreeOperations.run(action, at: root)
+        guard outcome.succeeded else {
+            workingTreeError = outcome.message
+            return
+        }
+
+        await afterBranchSwitch()
     }
 
     private func afterBranchSwitch() async {
