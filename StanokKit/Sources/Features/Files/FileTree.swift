@@ -31,6 +31,7 @@ struct FileTree: View {
                 }
                 .contextMenu { rootMenu(root) }
                 .onChange(of: selected) { _, target in reveal(target, in: root, proxy: proxy) }
+                .task { reveal(selected, in: root, proxy: proxy) }
                 .dragContainer(for: URL.self, itemID: \.self, in: dragNamespace) { $0 }
                 .dragConfiguration(dragConfiguration)
             }
@@ -91,9 +92,6 @@ struct FileTree: View {
     private var dropTarget: URL?
 
     @State
-    private var dropOperation = DropOperation.copy
-
-    @State
     private var expandTarget: URL?
 
     @State
@@ -137,38 +135,35 @@ struct FileTree: View {
         }
         .contextMenu { menu(node) }
         .draggable(containerItemID: node.url, containerNamespace: dragNamespace)
-        .dropDestination(for: URL.self, isEnabled: true) { items, _ in
-            handleDrop(items, onto: node)
+        .dropDestination(for: URL.self, isEnabled: true) { items, session in
+            handleDrop(items, onto: node, session: session)
         }
         .dropConfiguration { session in dropConfiguration(for: node, session: session) }
         .onDropSessionUpdated { session in sessionUpdated(session, for: node) }
     }
 
     private func dropConfiguration(for node: FileNode, session: DropSession) -> DropConfiguration {
-        let target = container(of: node)
+        let operation = Self.resolvedOperation(for: session, target: container(of: node))
+        return DropConfiguration(operation: operation)
+    }
 
-        guard let localSession = session.localSession else {
-            dropOperation = .copy
-            return DropConfiguration(operation: .copy)
-        }
+    private static func resolvedOperation(for session: DropSession, target: URL) -> DropOperation {
+        guard let localSession = session.localSession else { return .copy }
 
         let sources = localSession.draggedItemIDs(for: URL.self)
         guard !sources.isEmpty, sources.allSatisfy({ !FileOperations.isNested(target, inside: $0) })
         else {
-            return DropConfiguration(operation: .forbidden)
+            return .forbidden
         }
 
         let operation: DropOperation = session.suggestedOperations.contains(.move) ? .move : .copy
-        if operation == .move {
-            let normalizedTarget = target.standardizedFileURL
-            let redundant = sources.allSatisfy {
-                $0.deletingLastPathComponent().standardizedFileURL == normalizedTarget
-            }
-            guard !redundant else { return DropConfiguration(operation: .forbidden) }
-        }
+        guard operation == .move else { return operation }
 
-        dropOperation = operation
-        return DropConfiguration(operation: operation)
+        let normalizedTarget = target.standardizedFileURL
+        let redundant = sources.allSatisfy {
+            $0.deletingLastPathComponent().standardizedFileURL == normalizedTarget
+        }
+        return redundant ? .forbidden : operation
     }
 
     private func sessionUpdated(_ session: DropSession, for node: FileNode) {
@@ -209,21 +204,61 @@ struct FileTree: View {
         expandTarget = nil
     }
 
-    private func handleDrop(_ items: [URL], onto node: FileNode) {
+    private func handleDrop(_ items: [URL], onto node: FileNode, session: DropSession) {
         let sources = items.filter(\.isFileURL)
         guard !sources.isEmpty else { return }
 
         let target = container(of: node)
-        let operation = dropOperation
+        let operation = Self.resolvedOperation(for: session, target: target)
+        guard operation == .move || operation == .copy else { return }
+
+        var results: [URL] = []
         let succeeded = perform {
-            switch operation {
-            case .move: try FileOperations.move(sources, into: target)
-            default: try FileOperations.copy(sources, into: target)
+            for source in sources {
+                results.append(Self.resolvedTarget(for: source, operation: operation, in: target))
+
+                switch operation {
+                case .move: try FileOperations.move([source], into: target)
+                default: try FileOperations.copy([source], into: target)
+                }
             }
         }
 
         dropTarget = nil
-        if succeeded, let last = sources.last { selected = last }
+        if succeeded, let last = results.last { selected = last }
+    }
+
+    private static func resolvedTarget(
+        for source: URL,
+        operation: DropOperation,
+        in directory: URL
+    ) -> URL {
+        if operation == .move {
+            let parent = source.deletingLastPathComponent().standardizedFileURL
+            guard parent != directory.standardizedFileURL else { return source }
+        }
+
+        return availableName(source.lastPathComponent, in: directory)
+    }
+
+    private static func availableName(_ name: String, in directory: URL) -> URL {
+        let manager = FileManager.default
+        var candidate = directory.appending(path: name)
+        guard manager.fileExists(atPath: candidate.path(percentEncoded: false)) else {
+            return candidate
+        }
+
+        let base = (name as NSString).deletingPathExtension
+        let suffix = (name as NSString).pathExtension
+        var index = 2
+
+        repeat {
+            let next = suffix.isEmpty ? "\(base) \(index)" : "\(base) \(index).\(suffix)"
+            candidate = directory.appending(path: next)
+            index += 1
+        } while manager.fileExists(atPath: candidate.path(percentEncoded: false))
+
+        return candidate
     }
 
     private func reveal(_ target: URL?, in root: FileNode, proxy: ScrollViewProxy) {

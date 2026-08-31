@@ -131,10 +131,20 @@ public final class RepositoryStore {
     }
 
     private func quarantine() {
-        let backup = file.appendingPathExtension("corrupt-\(Int(Date.now.timeIntervalSince1970))")
+        try? FileManager.default.moveItem(at: file, to: uniqueBackupURL())
+    }
 
-        try? FileManager.default.removeItem(at: backup)
-        try? FileManager.default.moveItem(at: file, to: backup)
+    private func uniqueBackupURL() -> URL {
+        let timestamp = Int(Date.now.timeIntervalSince1970)
+        var candidate = file.appendingPathExtension("corrupt-\(timestamp)")
+        var index = 2
+
+        while FileManager.default.fileExists(atPath: candidate.path(percentEncoded: false)) {
+            candidate = file.appendingPathExtension("corrupt-\(timestamp)-\(index)")
+            index += 1
+        }
+
+        return candidate
     }
 
     private func sort() {

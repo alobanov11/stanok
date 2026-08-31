@@ -16,6 +16,19 @@ public struct WorkspaceView<Terminal: View>: View {
         selection.flatMap { store.repository(hosting: $0) }
     }
 
+    private var selectedFileBinding: Binding<URL?> {
+        Binding(
+            get: { selectedFile },
+            set: { newValue in
+                if let newValue {
+                    reveal(newValue)
+                } else {
+                    selectedFile = nil
+                }
+            }
+        )
+    }
+
     private var headerLeading: CGFloat {
         guard !isSidebarExpanded else { return 14 }
 
@@ -97,6 +110,7 @@ public struct WorkspaceView<Terminal: View>: View {
 
             activate(new)
         }
+        .onChange(of: store.repositories) { _, _ in reconcileLiveSessions() }
         .onChange(
             of: git.snapshot(for: selectedRepository)?.gitDirectory,
             initial: true
@@ -161,7 +175,7 @@ public struct WorkspaceView<Terminal: View>: View {
                             isVisible(session),
                             { model.record($0)
                                 Task { await git.refresh(repository) } },
-                            { openTerminalLink($0) },
+                            { openTerminalLink($0, in: repository) },
                             { _ in closeSession(session) }
                         )
                         .opacity(isVisible(session) ? 1 : 0)
@@ -245,7 +259,7 @@ public struct WorkspaceView<Terminal: View>: View {
             fileTreeModel: fileTreeModel,
             changeTreeModel: changeTreeModel,
             snapshot: git.snapshot(for: selectedRepository),
-            selected: $selectedFile,
+            selected: selectedFileBinding,
             onOpen: open
         )
         .frame(width: WorkspaceLayout.filesWidth)
@@ -263,10 +277,11 @@ public struct WorkspaceView<Terminal: View>: View {
         return target.hasPrefix(base.hasSuffix("/") ? base : base + "/")
     }
 
-    private static func resolvedURL(from raw: String) -> URL? {
+    private static func resolvedURL(from raw: String, relativeTo base: URL) -> URL? {
         if let url = URL(string: raw), url.scheme != nil { return url }
+        if raw.hasPrefix("/") { return URL(fileURLWithPath: raw) }
 
-        return URL(fileURLWithPath: raw)
+        return base.appending(path: raw)
     }
 
     private static func relativePath(for url: URL, in root: URL) -> String? {
@@ -346,7 +361,10 @@ public struct WorkspaceView<Terminal: View>: View {
         else { return }
 
         selectedFile = url
-        showAllFiles()
+
+        if filesMode != .changes {
+            showAllFiles()
+        }
 
         if let relative = Self.relativePath(for: url, in: repository.url) {
             store.updateWorkspace(repository.id) { $0.selectedFile = relative }
@@ -391,8 +409,8 @@ public struct WorkspaceView<Terminal: View>: View {
         withAnimation(.smooth(duration: 0.22)) { store.removeSession(session.id) }
     }
 
-    private func openTerminalLink(_ raw: String) {
-        guard let url = Self.resolvedURL(from: raw) else { return }
+    private func openTerminalLink(_ raw: String, in repository: Repository) {
+        guard let url = Self.resolvedURL(from: raw, relativeTo: repository.url) else { return }
 
         route(url)
     }
@@ -442,7 +460,15 @@ public struct WorkspaceView<Terminal: View>: View {
             .flatMap { id in repository.sessions.first { $0.id == id } }
 
         selection = (remembered ?? repository.sessions.first)?.id
-        if let selection { activate(selection) }
+    }
+
+    private func reconcileLiveSessions() {
+        let known = Set(store.repositories.flatMap { $0.sessions.map(\.id) })
+        live.removeAll { !known.contains($0) }
+
+        if let selection, !known.contains(selection) {
+            self.selection = nil
+        }
     }
 
     private func activate(_ id: TerminalSession.ID) {

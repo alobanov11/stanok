@@ -134,6 +134,37 @@ struct RepositoryStoreTests {
     }
 
     @Test
+    func secondCorruptionInTheSameSecondDoesNotClobberTheFirstBackup() throws {
+        let file = Self.temporaryFile()
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        try Data("first corrupt".utf8).write(to: file)
+        _ = RepositoryStore(file: file)
+
+        try Data("second corrupt".utf8).write(to: file)
+        _ = RepositoryStore(file: file)
+
+        let directory = file.deletingLastPathComponent()
+        let siblings = try FileManager.default.contentsOfDirectory(atPath: directory.path())
+        let quarantined = siblings.filter {
+            $0.hasPrefix(file.lastPathComponent) && $0 != file.lastPathComponent
+        }
+        defer {
+            for name in quarantined {
+                try? FileManager.default.removeItem(at: directory.appending(path: name))
+            }
+        }
+
+        #expect(quarantined.count == 2)
+
+        let contents = try quarantined
+            .map { try Data(contentsOf: directory.appending(path: $0)) }
+            .compactMap { String(data: $0, encoding: .utf8) }
+
+        #expect(Set(contents) == ["first corrupt", "second corrupt"])
+    }
+
+    @Test
     func updateWorkspaceDebouncesTheDiskWriteUntilFlush() throws {
         let file = Self.temporaryFile()
         defer { try? FileManager.default.removeItem(at: file) }
