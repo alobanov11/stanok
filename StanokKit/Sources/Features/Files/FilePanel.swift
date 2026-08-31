@@ -40,7 +40,11 @@ struct FilePanel: View {
             ChangeTree(model: changeTreeModel, selected: $selected, onOpen: onOpen)
 
         case .branches:
-            BranchTree(model: branchTreeModel, actions: branchActions)
+            BranchTree(
+                model: branchTreeModel,
+                actions: branchActions,
+                tracking: snapshot?.tracking ?? .none
+            )
         }
     }
 

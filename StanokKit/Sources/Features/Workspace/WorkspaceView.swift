@@ -25,10 +25,6 @@ public struct WorkspaceView<Terminal: View>: View {
         )
     }
 
-    private var panelLeading: CGFloat {
-        WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
-    }
-
     private var fileSelection: FileSelectionController {
         FileSelectionController(
             selectedFile: $selectedFile,
@@ -221,7 +217,7 @@ public struct WorkspaceView<Terminal: View>: View {
             selectBranches: { selectFilesMode(.branches) },
             stashChanges: { workingTreeAction = .stash },
             discardChanges: { workingTreeAction = .discard },
-            isBusy: branchStore.isOperating(selectedRepository) || isWorkingTreeBusy
+            isBusy: branchStore.isOperating(selectedSession) || isWorkingTreeBusy
         )
         .modifier(
             WorkingTreeConfirmation(
@@ -257,7 +253,9 @@ public struct WorkspaceView<Terminal: View>: View {
 
     @ViewBuilder
     private var copyNoticeOverlay: some View {
-        if let copyNotice = dispatcher.copyNotice, isVisible(copyNotice) {
+        if
+            let notice = dispatcher.copyNotice,
+            notice.sessionID == nil || notice.sessionID == selection {
             CopyNoticeBanner()
                 .padding(.top, WorkspaceLayout.headerHeight + 8)
                 .transition(.opacity)
@@ -282,7 +280,7 @@ public struct WorkspaceView<Terminal: View>: View {
                     entry,
                     leadingInset: isPreviewSplit
                         ? WorkspaceGeometry.expandedHeaderLeading
-                        : panelLeading
+                        : WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
                 )
                 .frame(width: isPreviewSplit ? mainWidth / 2 : nil)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -342,19 +340,11 @@ public struct WorkspaceView<Terminal: View>: View {
             selected: selectedFileBinding,
             onOpen: fileSelection.open
         )
-        .frame(width: WorkspaceLayout.filesWidth)
-        .background { WorkspaceLayout.cardStyle.background(radius: WorkspaceLayout.cardRadius) }
-        .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
-        .padding(.trailing, WorkspaceLayout.inset)
-        .padding(.vertical, WorkspaceLayout.inset)
+        .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
     }
 
     private func isVisible(_ session: TerminalSession) -> Bool {
         session.id == selection && navigator.current == nil
-    }
-
-    private func isVisible(_ copyNotice: TerminalCommandDispatcher.CopyNotice) -> Bool {
-        copyNotice.sessionID == nil || copyNotice.sessionID == selection
     }
 
     private func openFileTree() {
@@ -390,7 +380,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private func perform(_ action: WorkingTreeAction) async {
-        guard let root = git.snapshot(for: selectedRepository)?.root else { return }
+        guard let root = git.snapshot(for: selectedSession)?.root else { return }
 
         isWorkingTreeBusy = true
         let outcome = await GitWorkingTreeOperations.run(action, at: root)

@@ -74,6 +74,8 @@ struct BranchTree: View {
 
     let actions: BranchActions
 
+    let tracking: GitTracking
+
     @State
     private var isPromptingNewBranch = false
 
@@ -156,7 +158,7 @@ struct BranchTree: View {
 
     private func leafRow(_ node: BranchNode, ref: GitBranchRef) -> some View {
         FileRow(
-            name: node.name,
+            name: leafName(node, ref: ref),
             isDirectory: false,
             isExpanded: false,
             depth: node.depth,
@@ -168,6 +170,16 @@ struct BranchTree: View {
         .opacity(ref.occupyingWorktreePath != nil ? 0.5 : 1)
         .help(helpText(for: ref))
         .onTapGesture(count: 2) { Task { await handleTap(ref) } }
+    }
+
+    private func leafName(_ node: BranchNode, ref: GitBranchRef) -> String {
+        guard ref.isCurrent, tracking.hasDivergence else { return node.name }
+
+        var suffix = ""
+        if tracking.ahead > 0 { suffix += "  \(tracking.ahead)↑" }
+        if tracking.behind > 0 { suffix += "  \(tracking.behind)↓" }
+
+        return node.name + suffix
     }
 
     private func folderActions(_ node: BranchNode) -> FileRow.Actions? {
