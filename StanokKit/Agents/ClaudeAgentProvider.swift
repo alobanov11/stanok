@@ -19,11 +19,14 @@ public final class ClaudeAgentProvider: AgentSessionProvider, Sendable {
 
     private let loader: ClaudeSessionsLoader
 
+    private let globalLoader: ClaudeGlobalSessionsLoader
+
     private let watcher: ClaudeProjectsWatcher
 
     public init(projectsRoot: URL = ClaudeAgentProvider.defaultProjectsRoot) {
         self.projectsRoot = projectsRoot
         self.loader = ClaudeSessionsLoader()
+        self.globalLoader = ClaudeGlobalSessionsLoader()
         self.watcher = ClaudeProjectsWatcher()
     }
 
@@ -34,5 +37,9 @@ public final class ClaudeAgentProvider: AgentSessionProvider, Sendable {
 
     public func loadSessions(for projectURL: URL) async -> AgentSessionsLoadState {
         await loader.load(root: projectsRoot, projectURL: projectURL)
+    }
+
+    public func loadAllSessions() async -> AgentSessionsLoadState {
+        await globalLoader.load(root: projectsRoot)
     }
 }

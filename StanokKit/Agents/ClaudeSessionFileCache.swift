@@ -12,6 +12,12 @@ actor ClaudeSessionFileCache {
 
         let title: String?
 
+        let cwd: String?
+
+        let firstTimestamp: Date?
+
+        let firstUserMessageText: String?
+
         let modifiedAt: Date
     }
 
@@ -29,8 +35,6 @@ actor ClaudeSessionFileCache {
     private struct Entry {
 
         var identity: Identity
-
-        var headBytes: Data
 
         var result: ClaudeSessionRecordScanner.Result
     }
@@ -98,42 +102,33 @@ actor ClaudeSessionFileCache {
         )
 
         if let existing = entries[path], existing.identity == identity {
-            return Resolution(
-                sessionID: existing.result.sessionID,
-                title: existing.result.title,
-                modifiedAt: identity.modifiedAt
-            )
+            return resolution(from: existing.result, modifiedAt: identity.modifiedAt)
         }
 
-        let previous = entries[path]
-        let sameFile = previous.map {
-            $0.identity.device == identity.device && $0.identity.inode == identity.inode
-        } ?? false
-
-        var headBytes = Data()
-        if sameFile, let previous, identity.size >= previous.identity.size {
-            headBytes = previous.headBytes
-        }
-        let alreadyRead = headBytes.count
         let targetLength = min(identity.size, Limits.headCap)
-
-        if
-            alreadyRead < targetLength,
-            let delta = Self.readRange(path, from: alreadyRead, upTo: targetLength) {
-            headBytes.append(delta)
-        }
+        let headBytes = Self.readRange(path, from: 0, upTo: targetLength) ?? Data()
 
         let result = ClaudeSessionRecordScanner.scan(headBytes)
-        entries[path] = Entry(identity: identity, headBytes: headBytes, result: result)
-        return Resolution(
-            sessionID: result.sessionID,
-            title: result.title,
-            modifiedAt: identity.modifiedAt
-        )
+        entries[path] = Entry(identity: identity, result: result)
+        return resolution(from: result, modifiedAt: identity.modifiedAt)
     }
 
     func purge(keeping validPaths: Set<String>) {
         entries = entries.filter { validPaths.contains($0.key) }
+    }
+
+    private func resolution(
+        from result: ClaudeSessionRecordScanner.Result,
+        modifiedAt: Date
+    ) -> Resolution {
+        Resolution(
+            sessionID: result.sessionID,
+            title: result.title,
+            cwd: result.cwd,
+            firstTimestamp: result.firstTimestamp,
+            firstUserMessageText: result.firstUserMessageText,
+            modifiedAt: modifiedAt
+        )
     }
 
 }

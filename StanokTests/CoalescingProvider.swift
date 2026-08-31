@@ -35,4 +35,8 @@ actor CoalescingProvider: AgentSessionProvider {
 
         return results.isEmpty ? .loaded([]) : results.removeFirst()
     }
+
+    func loadAllSessions() async -> AgentSessionsLoadState {
+        .loaded([])
+    }
 }

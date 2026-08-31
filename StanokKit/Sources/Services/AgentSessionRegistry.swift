@@ -18,6 +18,11 @@ public final class AgentSessionRegistry {
         let projectURL: URL
     }
 
+    private enum GlobalRefresh {
+
+        static let debounce = Duration.seconds(5)
+    }
+
     public var registeredProviders: [ProviderInfo] {
         providers.values
             .map { ProviderInfo(id: $0.id, displayName: $0.displayName) }
@@ -35,6 +40,16 @@ public final class AgentSessionRegistry {
     private var pendingRefresh: Set<TrackingKey> = []
 
     private var observedProjects: Set<URL> = []
+
+    private var globalStates: [String: AgentSessionsLoadState] = [:]
+
+    private var globalInFlight: Set<String> = []
+
+    private var globalPendingRefresh: Set<String> = []
+
+    private var observedGlobalProviders: Set<String> = []
+
+    private var globalRefreshTasks: [String: Task<Void, Never>] = [:]
 
     public nonisolated init() {}
 
@@ -66,7 +81,10 @@ public final class AgentSessionRegistry {
 
         providers[provider.id] = provider
         provider.startWatching { [weak self] in
-            Task { @MainActor in self?.refreshAllObserved(providerID: provider.id) }
+            Task { @MainActor in
+                self?.refreshAllObserved(providerID: provider.id)
+                self?.scheduleGlobalRefresh(providerID: provider.id)
+            }
         }
     }
 
@@ -78,10 +96,20 @@ public final class AgentSessionRegistry {
         perProviderState[TrackingKey(providerID: providerID, projectURL: projectURL)] ?? .loading
     }
 
+    public func allSessions(providerID: String) -> AgentSessionsLoadState {
+        globalStates[providerID] ?? .loading
+    }
+
     public func observe(_ projectURL: URL) {
         guard observedProjects.insert(projectURL).inserted else { return }
 
         refreshAll(projectURL)
+    }
+
+    public func observeAllSessions(providerID: String) {
+        guard observedGlobalProviders.insert(providerID).inserted else { return }
+
+        refreshGlobal(providerID: providerID)
     }
 
     private func refreshAllObserved(providerID: String) {
@@ -131,6 +159,43 @@ public final class AgentSessionRegistry {
         let keys = providers.keys.map { TrackingKey(providerID: $0, projectURL: projectURL) }
         let states = keys.compactMap { perProviderState[$0] }
         snapshots[projectURL] = Self.merge(states)
+    }
+
+    private func scheduleGlobalRefresh(providerID: String) {
+        guard observedGlobalProviders.contains(providerID) else { return }
+
+        globalRefreshTasks[providerID]?.cancel()
+        globalRefreshTasks[providerID] = Task { [weak self] in
+            try? await Task.sleep(for: GlobalRefresh.debounce)
+            guard !Task.isCancelled else { return }
+
+            self?.refreshGlobal(providerID: providerID)
+        }
+    }
+
+    private func refreshGlobal(providerID: String) {
+        guard let provider = providers[providerID] else { return }
+
+        guard !globalInFlight.contains(providerID) else {
+            globalPendingRefresh.insert(providerID)
+            return
+        }
+
+        globalInFlight.insert(providerID)
+
+        Task { [weak self] in
+            await self?.runGlobalRefreshLoop(provider: provider, providerID: providerID)
+        }
+    }
+
+    private func runGlobalRefreshLoop(provider: AgentSessionProvider, providerID: String) async {
+        repeat {
+            globalPendingRefresh.remove(providerID)
+            let result = await provider.loadAllSessions()
+            globalStates[providerID] = result
+        } while globalPendingRefresh.contains(providerID)
+
+        globalInFlight.remove(providerID)
     }
 
 }

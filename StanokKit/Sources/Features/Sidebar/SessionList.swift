@@ -14,18 +14,24 @@ struct SessionList: View {
     @Binding
     var selection: TerminalSession.ID?
 
+    @State
+    private var chatFilter = ""
+
     @Environment(\.agentSessionRegistry)
     private var agentSessionRegistry
 
     var body: some View {
         VStack(spacing: 0) {
-            if store.sessions.isEmpty {
-                emptyState
-            } else {
-                sessions
+            ScrollView {
+                VStack(spacing: 2) {
+                    shells
+
+                    chats
+                }
+                .padding(.horizontal, 8)
             }
 
-            SidebarToolbar()
+            SidebarToolbar(filterText: $chatFilter)
         }
     }
 
@@ -38,23 +44,41 @@ struct SessionList: View {
         .font(.system(size: 12))
         .foregroundStyle(.tertiary)
         .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
         .padding(.horizontal, 12)
     }
 
-    private var sessions: some View {
-        ScrollView {
-            VStack(spacing: 2) {
-                ForEach(store.sessions) { session in
-                    sessionRow(session)
+    @ViewBuilder
+    private var shells: some View {
+        if store.sessions.isEmpty {
+            emptyState
+        } else {
+            ForEach(store.sessions) { session in
+                sessionRow(session)
 
-                    ForEach(agentSessionRegistry.registeredProviders) { provider in
-                        agentSessions(provider, for: session)
-                    }
+                ForEach(agentSessionRegistry.registeredProviders) { provider in
+                    agentSessions(provider, for: session)
                 }
             }
-            .padding(.horizontal, 8)
         }
+    }
+
+    private var chats: some View {
+        ForEach(agentSessionRegistry.registeredProviders) { provider in
+            AgentChatListSection(
+                providerID: provider.id,
+                title: provider.displayName,
+                filter: chatFilter,
+                onSelect: resumeAgentChat
+            )
+        }
+    }
+
+    private func resumeAgentChat(_ session: AgentSession) {
+        guard let folder = session.folder else { return }
+
+        insertAgentCommand(session.resumeAction, store.addSession(url: folder).id)
     }
 
     private func sessionRow(_ session: TerminalSession) -> some View {

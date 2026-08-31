@@ -35,6 +35,10 @@ public struct SettingsWindow: View {
             PreviewSettings()
                 .navigationTitle(SettingsSection.preview.title)
 
+        case .agents:
+            AgentSessionsSettings()
+                .navigationTitle(SettingsSection.agents.title)
+
         case nil:
             EmptyView()
         }

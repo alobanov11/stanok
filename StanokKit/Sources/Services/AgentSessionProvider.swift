@@ -10,4 +10,6 @@ public protocol AgentSessionProvider: Sendable {
     func startWatching(onChange: @escaping @Sendable () -> Void)
 
     func loadSessions(for projectURL: URL) async -> AgentSessionsLoadState
+
+    func loadAllSessions() async -> AgentSessionsLoadState
 }
