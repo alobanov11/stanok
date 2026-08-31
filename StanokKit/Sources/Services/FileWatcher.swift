@@ -217,6 +217,11 @@ public final class FileWatcher {
             return
         }
 
+        let exclusions = IgnoredPaths.homeExclusions
+        if !exclusions.isEmpty {
+            FSEventStreamSetExclusionPaths(stream, exclusions as CFArray)
+        }
+
         FSEventStreamSetDispatchQueue(stream, DispatchQueue.global(qos: .utility))
 
         guard FSEventStreamStart(stream) else {

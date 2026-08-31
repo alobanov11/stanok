@@ -142,7 +142,7 @@ final class FileNode: Identifiable {
         }
 
         return contents
-            .filter { !IgnoredPaths.directories.contains($0.lastPathComponent) }
+            .filter { !IgnoredPaths.contains($0) }
             .map { child in
                 existing[child] ?? FileNode(
                     url: child,
