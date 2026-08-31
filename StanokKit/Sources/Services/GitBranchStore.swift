@@ -50,9 +50,10 @@ final class GitBranchStore {
             let isCurrent = generation[path, default: 0] == generationAtStart
 
             if isCurrent {
-                rootByPath[path] = snapshot.root
-                if let root = snapshot.root, cache[root] != snapshot {
-                    cache[root] = snapshot
+                let key = snapshot.root ?? path
+                rootByPath[path] = key
+                if cache[key] != snapshot {
+                    cache[key] = snapshot
                 }
             }
         } while pending.contains(path)

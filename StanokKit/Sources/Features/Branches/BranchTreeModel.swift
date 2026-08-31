@@ -10,6 +10,8 @@ final class BranchTreeModel {
 
     var isLoaded: Bool { snapshot != nil }
 
+    var isRepository: Bool { snapshot?.root != nil }
+
     var isEmpty: Bool { snapshot?.refs.isEmpty ?? true }
 
     private(set) var root: BranchNode?

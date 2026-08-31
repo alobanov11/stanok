@@ -48,9 +48,19 @@ struct FileRow: View {
                         RowAction(icon: item.icon, hint: item.hint, action: item.action)
                     }
                 }
-            } else {
+            } else if trailing == nil {
                 Color.clear.frame(width: CGFloat(actions.items.count) * 20, height: 18)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var trailingText: some View {
+        if let trailing {
+            Text(trailing)
+                .font(.system(size: 11))
+                .monospacedDigit()
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -84,6 +94,7 @@ struct FileRow: View {
 
             Spacer(minLength: 4)
 
+            trailingText
             actionButtons
             statusBadge
         }
@@ -119,6 +130,8 @@ struct FileRow: View {
     var isDropTarget = false
 
     let actions: Actions?
+
+    var trailing: String?
 
     var icon: Image?
 

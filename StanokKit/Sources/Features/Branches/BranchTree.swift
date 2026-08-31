@@ -46,6 +46,8 @@ struct BranchTree: View {
     private var content: some View {
         if !model.isLoaded {
             placeholder("Загрузка веток…")
+        } else if !model.isRepository {
+            placeholder("Здесь нет git-репозитория")
         } else if model.isEmpty {
             placeholder("Нет веток")
         } else if let root = model.root {
@@ -158,13 +160,14 @@ struct BranchTree: View {
 
     private func leafRow(_ node: BranchNode, ref: GitBranchRef) -> some View {
         FileRow(
-            name: leafName(node, ref: ref),
+            name: node.name,
             isDirectory: false,
             isExpanded: false,
             depth: node.depth,
             status: nil,
             isSelected: ref.isCurrent,
             actions: leafActions(ref),
+            trailing: divergence(for: ref),
             icon: leafIcon(for: ref)
         )
         .opacity(ref.occupyingWorktreePath != nil ? 0.5 : 1)
@@ -172,14 +175,15 @@ struct BranchTree: View {
         .onTapGesture(count: 2) { Task { await handleTap(ref) } }
     }
 
-    private func leafName(_ node: BranchNode, ref: GitBranchRef) -> String {
-        guard ref.isCurrent, tracking.hasDivergence else { return node.name }
+    private func divergence(for ref: GitBranchRef) -> String? {
+        guard ref.isCurrent, tracking.hasDivergence else { return nil }
 
-        var suffix = ""
-        if tracking.ahead > 0 { suffix += "  \(tracking.ahead)↑" }
-        if tracking.behind > 0 { suffix += "  \(tracking.behind)↓" }
+        var text = ""
+        if tracking.ahead > 0 { text += "\(tracking.ahead)↑" }
+        if tracking.ahead > 0, tracking.behind > 0 { text += " " }
+        if tracking.behind > 0 { text += "\(tracking.behind)↓" }
 
-        return node.name + suffix
+        return text
     }
 
     private func folderActions(_ node: BranchNode) -> FileRow.Actions? {
