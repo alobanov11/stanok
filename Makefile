@@ -1,4 +1,4 @@
-.PHONY: ghostty check-ghostty
+.PHONY: ghostty check-ghostty install
 
 ghostty:
 	./scripts/build-ghostty.sh
@@ -9,3 +9,10 @@ check-ghostty:
 		exit 1; \
 	fi
 	@echo "StanokKit/GhosttyKit.xcframework resolves ok"
+
+install:
+	xcodebuild -project Stanok.xcodeproj -scheme Stanok -configuration Release \
+		-destination 'platform=macOS' -derivedDataPath .build/release build
+	rm -rf /Applications/Stanok.app
+	cp -R .build/release/Build/Products/Release/Stanok.app /Applications/
+	@echo "Stanok.app обновлён в /Applications"
