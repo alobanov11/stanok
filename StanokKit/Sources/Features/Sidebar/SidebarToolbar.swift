@@ -40,8 +40,8 @@ struct SidebarToolbar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
-        .background { CardStyle.flat.background(radius: 8) }
-        .clipShape(.rect(cornerRadius: 8, style: .continuous))
+        .background { CardStyle.flat.background(radius: WorkspaceLayout.cardRadius) }
+        .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
     }
 
 }
