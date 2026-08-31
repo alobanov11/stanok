@@ -5,7 +5,7 @@ struct FilePanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            FileTree(url: url, selected: $selected, onOpen: onOpen)
+            content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -23,7 +23,24 @@ struct FilePanel: View {
         .frame(height: WorkspaceLayout.headerHeight)
     }
 
-    let url: URL?
+    @ViewBuilder
+    private var content: some View {
+        switch mode {
+        case .all:
+            FileTree(model: fileTreeModel, snapshot: snapshot, selected: $selected, onOpen: onOpen)
+
+        case .changes:
+            ChangeTree(model: changeTreeModel, selected: $selected, onOpen: onOpen)
+        }
+    }
+
+    let mode: FilePanelMode
+
+    let fileTreeModel: FileTreeModel
+
+    let changeTreeModel: ChangeTreeModel
+
+    let snapshot: GitSnapshot?
 
     @Binding
     var selected: URL?
