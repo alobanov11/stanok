@@ -156,6 +156,11 @@ final class GhosttySurfaceView: NSView {
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        guard let surface, ghostty_surface_mouse_captured(surface) else {
+            showContextMenu(with: event)
+            return
+        }
+
         sendMouse(event, state: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_RIGHT)
     }
 
@@ -333,6 +338,54 @@ final class GhosttySurfaceView: NSView {
             bounds.height - point.y,
             Self.mods(from: event.modifierFlags)
         )
+    }
+
+    private func showContextMenu(with event: NSEvent) {
+        let menu = NSMenu()
+
+        let copyItem = menu.addItem(
+            withTitle: "Копировать",
+            action: #selector(copySelection),
+            keyEquivalent: ""
+        )
+        copyItem.target = self
+        copyItem.isEnabled = surface.map { ghostty_surface_has_selection($0) } ?? false
+
+        let pasteItem = menu.addItem(
+            withTitle: "Вставить",
+            action: #selector(pasteFromClipboard),
+            keyEquivalent: ""
+        )
+        pasteItem.target = self
+
+        let selectAllItem = menu.addItem(
+            withTitle: "Выделить всё",
+            action: #selector(selectAllText),
+            keyEquivalent: ""
+        )
+        selectAllItem.target = self
+
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    @objc
+    private func copySelection() {
+        performBindingAction("copy_to_clipboard")
+    }
+
+    @objc
+    private func pasteFromClipboard() {
+        performBindingAction("paste_from_clipboard")
+    }
+
+    @objc
+    private func selectAllText() {
+        performBindingAction("select_all")
+    }
+
+    private func performBindingAction(_ name: String) {
+        guard let surface else { return }
+        _ = name.withCString { ghostty_surface_binding_action(surface, $0, UInt(name.utf8.count)) }
     }
 
     private func applyScale() {
