@@ -6,6 +6,8 @@ public final class ProcessTreeMonitor {
 
     public private(set) var usage: [Int32: ProcessTreeUsage] = [:]
 
+    public private(set) var processNames: [Int32: Set<String>] = [:]
+
     private let reader: any ProcessTableReading
 
     private let interval: Duration
@@ -36,6 +38,7 @@ public final class ProcessTreeMonitor {
         guard observedRoots.remove(pid) != nil else { return }
 
         usage.removeValue(forKey: pid)
+        processNames.removeValue(forKey: pid)
         guard observedRoots.isEmpty else { return }
 
         stop()
@@ -72,6 +75,7 @@ public final class ProcessTreeMonitor {
         let elapsed = previousCapturedAt.map { now.timeIntervalSince($0) } ?? 0
 
         var next: [Int32: ProcessTreeUsage] = [:]
+        var nextNames: [Int32: Set<String>] = [:]
         for root in roots {
             next[root] = ProcessTreeAggregator.usage(
                 forSubtreeRoot: root,
@@ -79,9 +83,11 @@ public final class ProcessTreeMonitor {
                 previous: previousSnapshot,
                 elapsed: elapsed
             )
+            nextNames[root] = ProcessTreeAggregator.subtreeProcessNames(ofRoot: root, in: current)
         }
 
         usage = next
+        processNames = nextNames
         previousSnapshot = current
         previousCapturedAt = now
     }

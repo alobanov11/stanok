@@ -55,6 +55,12 @@ public final class TabProcessTracker {
         labels.removeLabel(sessionID.uuidString)
     }
 
+    public func processNames(for sessionID: TerminalSession.ID) -> Set<String> {
+        guard let pid = trackedPIDs[sessionID] else { return [] }
+
+        return monitor.processNames[pid] ?? []
+    }
+
     private func pollForPID(sessionID: TerminalSession.ID, label: String) async {
         for _ in 0..<PollBudget.attempts {
             guard !Task.isCancelled else { return }

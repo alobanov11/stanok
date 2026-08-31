@@ -124,6 +124,21 @@ struct ProcessTreeAggregatorTests {
     }
 
     @Test
+    func subtreeProcessNamesCollectsNamesFromTheRootAndDescendantsButExcludesForeignBranches() {
+        let root = entry(pid: 1, parentPID: 0, name: "zsh")
+        let child = entry(pid: 2, parentPID: 1, name: "claude")
+        let unnamed = entry(pid: 3, parentPID: 2, name: "")
+        let foreignParent = entry(pid: 50, parentPID: 0, name: "bash")
+
+        let snapshot = ProcessTableSnapshot(entries: [
+            1: root, 2: child, 3: unnamed, 50: foreignParent
+        ])
+
+        let names = ProcessTreeAggregator.subtreeProcessNames(ofRoot: 1, in: snapshot)
+        #expect(names == ["zsh", "claude"])
+    }
+
+    @Test
     func aDeepChainDoesNotOverflowTheStackDuringTheIterativeWalk() {
         let depth = 20000
         var entries: [Int32: ProcessTableEntry] = [:]
@@ -141,6 +156,7 @@ struct ProcessTreeAggregatorTests {
     private func entry(
         pid: Int32,
         parentPID: Int32,
+        name: String = "",
         startedAt: UInt64 = 1,
         cpuTimeNanoseconds: UInt64 = 0,
         residentMemoryBytes: UInt64 = 0
@@ -148,6 +164,7 @@ struct ProcessTreeAggregatorTests {
         ProcessTableEntry(
             pid: pid,
             parentPID: parentPID,
+            name: name,
             startedAt: startedAt,
             cpuTimeNanoseconds: cpuTimeNanoseconds,
             residentMemoryBytes: residentMemoryBytes

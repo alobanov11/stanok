@@ -24,6 +24,17 @@ public enum ProcessTreeAggregator {
         return subtree
     }
 
+    public static func subtreeProcessNames(
+        ofRoot root: Int32,
+        in snapshot: ProcessTableSnapshot
+    ) -> Set<String> {
+        Set(
+            subtreePIDs(ofRoot: root, in: snapshot)
+                .compactMap { snapshot.entries[$0]?.name }
+                .filter { !$0.isEmpty }
+        )
+    }
+
     public static func totals(
         forSubtreeRoot root: Int32,
         in snapshot: ProcessTableSnapshot

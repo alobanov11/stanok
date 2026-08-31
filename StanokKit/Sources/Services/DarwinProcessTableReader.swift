@@ -44,9 +44,17 @@ public struct DarwinProcessTableReader: ProcessTableReading {
             return nil
         }
 
+        let name = withUnsafeBytes(of: &bsdInfo.pbi_comm) { buffer -> String in
+            let bytes = buffer.bindMemory(to: CChar.self)
+            guard bytes.contains(0), let baseAddress = bytes.baseAddress else { return "" }
+
+            return String(cString: baseAddress)
+        }
+
         return ProcessTableEntry(
             pid: pid,
             parentPID: Int32(bsdInfo.pbi_ppid),
+            name: name,
             startedAt: bsdInfo.pbi_start_tvsec,
             cpuTimeNanoseconds: taskInfo.pti_total_user + taskInfo.pti_total_system,
             residentMemoryBytes: taskInfo.pti_resident_size
