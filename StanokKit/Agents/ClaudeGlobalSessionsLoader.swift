@@ -34,7 +34,8 @@ final class ClaudeGlobalSessionsLoader: Sendable {
                 executable: "claude",
                 arguments: ["--resume", id.uuidString],
                 runningProcessName: "claude",
-                inSessionText: "/resume \(id.uuidString)"
+                inSessionText: "/resume \(id.uuidString)",
+                workingDirectory: folder
             ),
             folder: folder
         )

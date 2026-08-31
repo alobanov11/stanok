@@ -29,7 +29,7 @@ struct SidebarToolbar: View {
     }
 
     private var filterField: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 7) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 10))
                 .foregroundStyle(.tertiary)
@@ -38,8 +38,8 @@ struct SidebarToolbar: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 11))
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background { CardStyle.flat.background(radius: WorkspaceLayout.cardRadius) }
         .clipShape(.rect(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous))
     }

@@ -11,6 +11,8 @@ struct SessionList: View {
 
     let insertAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
 
+    let copyAgentCommand: (AgentResumeAction, TerminalSession.ID?) -> Void
+
     @Binding
     var selection: TerminalSession.ID?
 
@@ -30,9 +32,20 @@ struct SessionList: View {
                 }
                 .padding(.horizontal, 8)
             }
+            .overlay(alignment: .bottom) { bottomFade }
 
             SidebarToolbar(filterText: $chatFilter)
         }
+    }
+
+    private var bottomFade: some View {
+        LinearGradient(
+            colors: [.black.opacity(0), .black.opacity(0.28)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 28)
+        .allowsHitTesting(false)
     }
 
     private var emptyState: some View {
@@ -66,9 +79,14 @@ struct SessionList: View {
                 providerID: provider.id,
                 title: provider.displayName,
                 filter: chatFilter,
-                onSelect: resumeAgentChat
+                onCopy: copyAgentChat,
+                onInsert: resumeAgentChat
             )
         }
+    }
+
+    private func copyAgentChat(_ session: AgentSession) {
+        copyAgentCommand(session.resumeAction, selection)
     }
 
     private func resumeAgentChat(_ session: AgentSession) {
