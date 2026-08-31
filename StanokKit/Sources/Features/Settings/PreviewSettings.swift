@@ -2,6 +2,9 @@ import SwiftUI
 
 public struct PreviewSettings: View {
 
+    @AppStorage(PreviewTypography.Keys.markdownFontFamily)
+    private var markdownFontFamily = PreviewTypography.Defaults.markdownFontFamily
+
     @AppStorage(PreviewTypography.Keys.markdownFontSize)
     private var markdownFontSize = PreviewTypography.Defaults.markdownFontSize
 
@@ -17,11 +20,18 @@ public struct PreviewSettings: View {
     public var body: some View {
         Form {
             Section("Markdown") {
+                Picker("Гарнитура", selection: $markdownFontFamily) {
+                    Text("Системный").tag("")
+                    ForEach(readingFamilies, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                }
+
                 LabeledContent("Размер текста") {
                     HStack(spacing: 10) {
                         Slider(
                             value: $markdownFontSize,
-                            in: PreviewTypography.markdownFontSizeRange,
+                            in: PreviewTypography.Ranges.markdownFontSize,
                             step: 1
                         )
                         .frame(width: 180)
@@ -36,7 +46,7 @@ public struct PreviewSettings: View {
                     HStack(spacing: 10) {
                         Slider(
                             value: $markdownLineSpacing,
-                            in: PreviewTypography.markdownLineSpacingRange,
+                            in: PreviewTypography.Ranges.markdownLineSpacing,
                             step: 1
                         )
                         .frame(width: 180)
@@ -60,7 +70,7 @@ public struct PreviewSettings: View {
                     HStack(spacing: 10) {
                         Slider(
                             value: $codeFontSize,
-                            in: PreviewTypography.codeFontSizeRange,
+                            in: PreviewTypography.Ranges.codeFontSize,
                             step: 1
                         )
                         .frame(width: 180)
@@ -77,6 +87,8 @@ public struct PreviewSettings: View {
     }
 
     private let families = FontCatalog.monospaced
+
+    private let readingFamilies = FontCatalog.reading
 
     public init() {}
 

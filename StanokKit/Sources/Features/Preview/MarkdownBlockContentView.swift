@@ -40,9 +40,16 @@ struct MarkdownBlockContentView: View {
 
     let markerWidth: CGFloat
 
+    @AppStorage(PreviewTypography.Keys.markdownFontFamily)
+    private var fontFamily = PreviewTypography.Defaults.markdownFontFamily
+
+    private func font(_ size: Double, weight: Font.Weight = .regular) -> Font {
+        PreviewTypography.markdownFont(size: size, weight: weight, family: fontFamily)
+    }
+
     private func prose(_ text: AttributedString) -> some View {
         Text(LinkStyle.styled(text))
-            .font(.system(size: fontSize))
+            .font(font(fontSize))
             .lineSpacing(lineSpacing)
             .fixedSize(horizontal: false, vertical: true)
             .pointerStyle(LinkStyle.containsLink(text) ? .link : nil)
@@ -51,7 +58,7 @@ struct MarkdownBlockContentView: View {
     private func item(_ marker: String, _ text: AttributedString, _ depth: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: ListMetrics.Metric.markerSpacing) {
             Text(marker)
-                .font(.system(size: fontSize))
+                .font(font(fontSize))
                 .foregroundStyle(.tertiary)
                 .monospacedDigit()
                 .frame(width: markerWidth, alignment: .trailing)
@@ -68,23 +75,23 @@ struct MarkdownBlockContentView: View {
         switch level {
         case 1, 2, 3:
             Text(text)
-                .font(.system(
-                    size: Self.headingSize(level, base: fontSize),
+                .font(font(
+                    Self.headingSize(level, base: fontSize),
                     weight: level == 1 ? .bold : .semibold
                 ))
 
         case 4:
             Text(text)
-                .font(.system(size: fontSize * 1.05, weight: .semibold))
+                .font(font(fontSize * 1.05, weight: .semibold))
 
         case 5:
             Text(text)
-                .font(.system(size: fontSize, weight: .semibold))
+                .font(font(fontSize, weight: .semibold))
                 .foregroundStyle(.secondary)
 
         default:
             Text(text)
-                .font(.system(size: fontSize * 0.92, weight: .semibold))
+                .font(font(fontSize * 0.92, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .tracking(0.4)
                 .textCase(.uppercase)

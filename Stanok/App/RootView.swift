@@ -48,6 +48,7 @@ struct RootView: View {
                 .id(session.id)
             }
             .environment(\.agentSessionRegistry, agents)
+            .fontDesign(.rounded)
         } else if let failure {
             ContentUnavailableView(
                 "Терминал не запустился",
