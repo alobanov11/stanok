@@ -42,15 +42,14 @@ struct FileRow: View {
     @ViewBuilder
     private var actionButtons: some View {
         if let actions {
-            HStack(spacing: 0) {
-                ForEach(Array(actions.items.enumerated()), id: \.offset) { _, item in
-                    RowAction(
-                        icon: item.icon,
-                        hint: item.hint,
-                        isVisible: isHovering,
-                        action: item.action
-                    )
+            if isHovering {
+                HStack(spacing: 0) {
+                    ForEach(Array(actions.items.enumerated()), id: \.offset) { _, item in
+                        RowAction(icon: item.icon, hint: item.hint, action: item.action)
+                    }
                 }
+            } else {
+                Color.clear.frame(width: CGFloat(actions.items.count) * 20, height: 18)
             }
         }
     }

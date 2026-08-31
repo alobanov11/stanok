@@ -17,7 +17,34 @@ enum IgnoredPaths {
         ".idea", ".gems", "vendor/bundle"
     ]
 
+    static let homeDirectories: Set<String> = [
+        "Library", "Applications", ".Trash", "Movies", "Music", "Pictures", "Public"
+    ]
+
+    static var homeExclusions: [String] {
+        let home = URL(filePath: NSHomeDirectory())
+
+        return homeDirectories
+            .map { home.appending(path: $0, directoryHint: .isDirectory) }
+            .filter { FileManager.default.fileExists(atPath: $0.path(percentEncoded: false)) }
+            .map { $0.path(percentEncoded: false) }
+            .sorted()
+    }
+
     static func contains(_ url: URL) -> Bool {
-        url.pathComponents.contains { directories.contains($0) }
+        if url.pathComponents.contains(where: directories.contains) { return true }
+
+        return isInsideExcludedHomeDirectory(url)
+    }
+
+    private static func isInsideExcludedHomeDirectory(_ url: URL) -> Bool {
+        let home = NSHomeDirectory()
+        let path = url.path(percentEncoded: false)
+        guard path.hasPrefix(home + "/") else { return false }
+
+        let rest = String(path.dropFirst(home.count + 1))
+        let first = rest.split(separator: "/", maxSplits: 1).first.map(String.init)
+
+        return first.map(homeDirectories.contains) ?? false
     }
 }

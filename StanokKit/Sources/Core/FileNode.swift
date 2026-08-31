@@ -94,9 +94,10 @@ final class FileNode: Identifiable {
             existing[child.url] = child
         }
 
-        if let rebuilt = rebuild(reusing: existing) {
-            self.children = rebuilt
-        }
+        guard let rebuilt = rebuild(reusing: existing) else { return }
+        guard rebuilt.map(\.url) != children.map(\.url) else { return }
+
+        self.children = rebuilt
     }
 
     private func appendVisibleDescendants(to result: inout [FileNode]) {
@@ -142,7 +143,7 @@ final class FileNode: Identifiable {
         }
 
         return contents
-            .filter { !IgnoredPaths.directories.contains($0.lastPathComponent) }
+            .filter { !IgnoredPaths.contains($0) }
             .map { child in
                 existing[child] ?? FileNode(
                     url: child,

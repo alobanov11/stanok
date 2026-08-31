@@ -23,7 +23,11 @@ struct SidebarRow: View {
 
             Spacer(minLength: 0)
 
-            RowAction(icon: "xmark", hint: "Закрыть терминал", isVisible: isHovering, action: close)
+            if isHovering {
+                RowAction(icon: "xmark", hint: "Закрыть терминал", action: close)
+            } else {
+                Color.clear.frame(width: 20, height: 18)
+            }
         }
         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
         .foregroundStyle(isMuted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
