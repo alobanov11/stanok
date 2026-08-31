@@ -40,18 +40,8 @@ struct PreviewPanel: View {
     @ViewBuilder
     private var content: some View {
         switch preview.content {
-        case let .markdown(blocks):
-            ScrollView {
-                MarkdownView(blocks: blocks)
-                    .padding(.horizontal, 22)
-                    .padding(.vertical, 18)
-            }
-
-        case let .code(lines):
-            ScrollView(.vertical) {
-                CodeBlockView(lines: lines, showsNumbers: true, changes: preview.changes)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+        case .markdown, .code:
+            PreviewContentView(preview: preview)
 
         default:
             FileInfoView(preview: preview)
