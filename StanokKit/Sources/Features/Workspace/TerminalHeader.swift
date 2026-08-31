@@ -20,6 +20,10 @@ struct TerminalHeader: View {
             : AnyShapeStyle(.white.opacity(0.05))
     }
 
+    private var hasChanges: Bool {
+        status?.hasChanges ?? false
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             if let session {
@@ -52,6 +56,12 @@ struct TerminalHeader: View {
 
     let selectBranches: () -> Void
 
+    let stashChanges: () -> Void
+
+    let discardChanges: () -> Void
+
+    let isBusy: Bool
+
     private func folderBadge(_ name: String) -> some View {
         Button(action: selectAll) {
             HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -77,7 +87,7 @@ struct TerminalHeader: View {
 
     private func branchBadge(_ branch: String) -> some View {
         Button(action: selectBranches) {
-            label("arrow.trianglehead.branch", branch)
+            busyLabel(branch)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(branchBackground, in: .capsule)
@@ -90,7 +100,7 @@ struct TerminalHeader: View {
     private func changesBadge() -> some View {
         Button(action: selectChanges) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "arrow.up.arrow.down")
+                Image(systemName: "plusminus")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
 
@@ -105,6 +115,17 @@ struct TerminalHeader: View {
         }
         .buttonStyle(.plain)
         .help(filesMode == .changes ? "Скрыть изменения" : "Показать изменения")
+        .contextMenu {
+            Button(WorkingTreeAction.stash.command, action: stashChanges)
+                .disabled(!hasChanges)
+
+            Button(
+                WorkingTreeAction.discard.command,
+                role: .destructive,
+                action: discardChanges
+            )
+            .disabled(!hasChanges)
+        }
     }
 
     private func counters(_ status: GitStatus) -> some View {
@@ -117,6 +138,42 @@ struct TerminalHeader: View {
         return Text(added + AttributedString("  ") + removed)
             .font(.system(size: 11))
             .monospacedDigit()
+    }
+
+    @ViewBuilder
+    private func busyLabel(_ branch: String) -> some View {
+        if isBusy {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(width: 11, height: 11)
+
+                Text(branch)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .font(.system(size: 11))
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                label("arrow.trianglehead.branch", branch)
+
+                if let tracking = status?.tracking, tracking.hasDivergence {
+                    divergence(tracking)
+                }
+            }
+        }
+    }
+
+    private func divergence(_ tracking: GitTracking) -> some View {
+        var text = AttributedString()
+        if tracking.ahead > 0 { text += AttributedString("\(tracking.ahead)↑") }
+        if tracking.ahead > 0, tracking.behind > 0 { text += AttributedString(" ") }
+        if tracking.behind > 0 { text += AttributedString("\(tracking.behind)↓") }
+
+        return Text(text)
+            .font(.system(size: 11))
+            .monospacedDigit()
+            .foregroundStyle(.tertiary)
     }
 
     private func label(_ icon: String, _ text: String) -> some View {

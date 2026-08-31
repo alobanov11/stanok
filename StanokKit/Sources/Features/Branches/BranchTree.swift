@@ -167,7 +167,7 @@ struct BranchTree: View {
         )
         .opacity(ref.occupyingWorktreePath != nil ? 0.5 : 1)
         .help(helpText(for: ref))
-        .onTapGesture { Task { await handleTap(ref) } }
+        .onTapGesture(count: 2) { Task { await handleTap(ref) } }
     }
 
     private func folderActions(_ node: BranchNode) -> FileRow.Actions? {
@@ -245,10 +245,10 @@ struct BranchTree: View {
         if ref.isCurrent { return "Текущая ветка" }
 
         if ref.kind == .remote {
-            return "Создать локальную ветку «\(ref.displayName)» и переключиться"
+            return "Двойной клик — создать локальную ветку «\(ref.displayName)» и переключиться"
         }
 
-        return "Переключиться на «\(ref.displayName)»"
+        return "Двойной клик — переключиться на «\(ref.displayName)»"
     }
 
     private func createMessage(for ref: GitBranchRef) -> String {

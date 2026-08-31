@@ -10,9 +10,12 @@ public struct GitStatus: Equatable, Sendable {
 
     public let removed: Int
 
-    public init(branch: String?, added: Int, removed: Int) {
+    public let tracking: GitTracking
+
+    public init(branch: String?, added: Int, removed: Int, tracking: GitTracking = .none) {
         self.branch = branch
         self.added = added
         self.removed = removed
+        self.tracking = tracking
     }
 }

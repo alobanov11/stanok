@@ -16,6 +16,8 @@ public struct GitSnapshot: Equatable, Sendable {
 
     public let changes: [GitChange]
 
+    public let tracking: GitTracking
+
     public let byPath: [String: GitFileStatus]
 
     public let dirtyDirectories: Set<String>
@@ -27,7 +29,8 @@ public struct GitSnapshot: Equatable, Sendable {
         gitDirectory: String,
         added: Int,
         removed: Int,
-        changes: [GitChange]
+        changes: [GitChange],
+        tracking: GitTracking = .none
     ) {
         self.branch = branch
         self.isDetached = isDetached
@@ -36,6 +39,7 @@ public struct GitSnapshot: Equatable, Sendable {
         self.added = added
         self.removed = removed
         self.changes = changes
+        self.tracking = tracking
 
         var byPath: [String: GitFileStatus] = [:]
         var dirtyDirectories: Set<String> = []
