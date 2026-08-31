@@ -12,6 +12,10 @@ public struct WorkspaceView<Terminal: View>: View {
         WorkspaceLayout.sidebarWidth - WorkspaceLayout.toggleWidth - WorkspaceLayout.toggleGap
     }
 
+    private var knownSessionIDs: Set<TerminalSession.ID> {
+        Set(store.repositories.flatMap { $0.sessions.map(\.id) })
+    }
+
     private var selectedRepository: Repository? {
         selection.flatMap { store.repository(hosting: $0) }
     }
@@ -110,7 +114,7 @@ public struct WorkspaceView<Terminal: View>: View {
 
             activate(new)
         }
-        .onChange(of: store.repositories) { _, _ in reconcileLiveSessions() }
+        .onChange(of: knownSessionIDs) { _, known in reconcileLiveSessions(known) }
         .onChange(
             of: git.snapshot(for: selectedRepository)?.gitDirectory,
             initial: true
@@ -462,8 +466,7 @@ public struct WorkspaceView<Terminal: View>: View {
         selection = (remembered ?? repository.sessions.first)?.id
     }
 
-    private func reconcileLiveSessions() {
-        let known = Set(store.repositories.flatMap { $0.sessions.map(\.id) })
+    private func reconcileLiveSessions(_ known: Set<TerminalSession.ID>) {
         live.removeAll { !known.contains($0) }
 
         if let selection, !known.contains(selection) {
