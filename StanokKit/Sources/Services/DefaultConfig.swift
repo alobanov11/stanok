@@ -35,12 +35,15 @@ public enum DefaultConfig {
         typeset -g STANOK_PLACEHOLDER=${STANOK_PLACEHOLDER:-"Введите команду"}
         typeset -g STANOK_HIST_HALFLIFE=${STANOK_HIST_HALFLIFE:-604800}
         typeset -g STANOK_MENU_LIMIT=${STANOK_MENU_LIMIT:-30}
+        typeset -g STANOK_TITLE_MIN_DURATION=${STANOK_TITLE_MIN_DURATION:-1}
 
         typeset -gA _stanok_hist_weight
         typeset -g _stanok_hist_offset=0
         typeset -ga _stanok_ranked
         typeset -gA _stanok_bucket
         typeset -g _stanok_suggestion=""
+        typeset -g _stanok_title_gen=0
+        typeset -g _stanok_title_gen_file="${TMPDIR:-/tmp}/stanok-title-gen-$$"
 
         HISTSIZE=50000
         SAVEHIST=50000
@@ -242,7 +245,52 @@ public enum DefaultConfig {
           fi
         }
 
+        _stanok_title_set() {
+          print -n -- $'\\e]2;'"$1"$'\\a'
+        }
+
+        _stanok_title_sanitize() {
+          local text=${1//$'\\n'/ }
+          text=$(print -rn -- "$text" | tr -d '\\000-\\037\\177')
+          (( ${#text} > 60 )) && text=${text[1,60]}
+          print -r -- "$text"
+        }
+
+        _stanok_title_preexec() {
+          local cmd=$1
+          [[ $cmd == ' '* ]] && return
+
+          local text
+          text=$(_stanok_title_sanitize "$cmd")
+          [[ -z $text ]] && return
+
+          (( _stanok_title_gen++ ))
+          print -r -- $_stanok_title_gen >| $_stanok_title_gen_file 2>/dev/null
+
+          local gen=$_stanok_title_gen
+          (
+            sleep $STANOK_TITLE_MIN_DURATION
+            [[ -f $_stanok_title_gen_file ]] || exit
+            current=$(<$_stanok_title_gen_file)
+            [[ $current == $gen ]] || exit
+            _stanok_title_set "$text"
+          ) &!
+        }
+
+        _stanok_title_precmd() {
+          (( _stanok_title_gen++ ))
+          print -r -- $_stanok_title_gen >| $_stanok_title_gen_file 2>/dev/null
+          _stanok_title_set ""
+        }
+
+        _stanok_title_cleanup() {
+          rm -f -- $_stanok_title_gen_file 2>/dev/null
+        }
+
         add-zsh-hook precmd _stanok_gap
+        add-zsh-hook preexec _stanok_title_preexec
+        add-zsh-hook precmd _stanok_title_precmd
+        add-zsh-hook zshexit _stanok_title_cleanup
 
         if [[ -o interactive ]]; then
           zle -N _stanok_hint

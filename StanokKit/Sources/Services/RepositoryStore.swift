@@ -72,6 +72,18 @@ public final class RepositoryStore {
         save()
     }
 
+    public func setLiveTitle(_ title: String?, for sessionID: TerminalSession.ID) {
+        for repositoryIndex in repositories.indices {
+            guard
+                let index = repositories[repositoryIndex].sessions
+                    .firstIndex(where: { $0.id == sessionID })
+            else { continue }
+
+            repositories[repositoryIndex].sessions[index].liveTitle = title
+            return
+        }
+    }
+
     public func toggleExpansion(_ repositoryID: Repository.ID) {
         guard let index = repositories.firstIndex(where: { $0.id == repositoryID }) else { return }
 

@@ -32,7 +32,7 @@ struct RootView: View {
     @ViewBuilder
     private var content: some View {
         if let runtime {
-            WorkspaceView { repository, session, active, insert, finished, openURL, close in
+            WorkspaceView { repository, session, active, insert, finished, openURL, title, close in
                 TerminalView(
                     runtime: runtime,
                     workingDirectory: repository.url,
@@ -40,6 +40,7 @@ struct RootView: View {
                     insertRequest: insert,
                     onCommandFinished: finished,
                     onOpenURL: openURL,
+                    onTitleChanged: title,
                     onCloseRequested: close
                 )
                 .id(session.id)

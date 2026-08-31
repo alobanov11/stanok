@@ -11,6 +11,7 @@ public struct TerminalView: View {
             insertRequest: insertRequest,
             onCommandFinished: onCommandFinished,
             onOpenURL: onOpenURL,
+            onTitleChanged: onTitleChanged,
             onCloseRequested: onCloseRequested
         )
     }
@@ -27,6 +28,8 @@ public struct TerminalView: View {
 
     private let onOpenURL: (String) -> Void
 
+    private let onTitleChanged: (String) -> Void
+
     private let onCloseRequested: (Bool) -> Void
 
     public init(
@@ -36,6 +39,7 @@ public struct TerminalView: View {
         insertRequest: TerminalInsertRequest? = nil,
         onCommandFinished: @escaping (CommandRun) -> Void,
         onOpenURL: @escaping (String) -> Void,
+        onTitleChanged: @escaping (String) -> Void = { _ in },
         onCloseRequested: @escaping (Bool) -> Void = { _ in }
     ) {
         self.runtime = runtime
@@ -44,6 +48,7 @@ public struct TerminalView: View {
         self.insertRequest = insertRequest
         self.onCommandFinished = onCommandFinished
         self.onOpenURL = onOpenURL
+        self.onTitleChanged = onTitleChanged
         self.onCloseRequested = onCloseRequested
     }
 }

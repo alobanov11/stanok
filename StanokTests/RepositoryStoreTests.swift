@@ -205,4 +205,24 @@ struct RepositoryStoreTests {
         let onDisk = try JSONDecoder().decode([Repository].self, from: Data(contentsOf: file))
         #expect(onDisk.first?.sessions.count == 2)
     }
+
+    @Test
+    func setLiveTitleUpdatesTheSessionWithoutTouchingDisk() throws {
+        let file = Self.temporaryFile()
+        defer { try? FileManager.default.removeItem(at: file) }
+
+        let store = RepositoryStore(file: file)
+        let sessionID = try #require(store.repositories.first?.sessions.first?.id)
+
+        store.setLiveTitle("npm run dev", for: sessionID)
+
+        let session = store.repositories.first?.sessions.first
+        #expect(session?.liveTitle == "npm run dev")
+        #expect(session?.displayName == "npm run dev")
+
+        let onDisk = try Data(contentsOf: file)
+        let json = try #require(String(data: onDisk, encoding: .utf8))
+        #expect(!json.contains("liveTitle"))
+        #expect(!json.contains("npm run dev"))
+    }
 }

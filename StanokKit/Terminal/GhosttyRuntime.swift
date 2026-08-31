@@ -93,6 +93,9 @@ public final class GhosttyRuntime {
                     return true
                 }
 
+            case GHOSTTY_ACTION_SET_TITLE:
+                return GhosttyRuntime.handleSetTitle(action.action.set_title, target: target)
+
             case GHOSTTY_ACTION_MOUSE_SHAPE:
                 let shape = action.action.mouse_shape
                 GhosttyRuntime.assertMainThread()
@@ -165,6 +168,25 @@ public final class GhosttyRuntime {
             MainActor.assumeIsolated {
                 context.runtime?.tick()
             }
+        }
+    }
+
+    private static func handleSetTitle(
+        _ setTitle: ghostty_action_set_title_s,
+        target: ghostty_target_s
+    ) -> Bool {
+        guard let pointer = setTitle.title else { return false }
+
+        let title = UntrustedText.sanitizedSingleLine(String(cString: pointer), maxLength: 60)
+        GhosttyRuntime.assertMainThread()
+        return MainActor.assumeIsolated {
+            guard
+                let surface = target.target.surface,
+                let view = GhosttySurfaceView.from(surface: surface)
+            else { return false }
+
+            view.onTitleChanged?(title)
+            return true
         }
     }
 

@@ -91,7 +91,7 @@ struct RepositoryTree: View {
     private func sessionRow(_ session: TerminalSession, in repository: Repository) -> some View {
         SidebarRow(
             icon: "apple.terminal",
-            title: session.name,
+            title: session.displayName,
             isSelected: session.id == selection,
             isMuted: !repository.isReachable,
             isLive: live.contains(session.id),

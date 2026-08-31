@@ -190,6 +190,7 @@ public struct WorkspaceView<Terminal: View>: View {
                                 dispatcher.markAtPrompt(session.id)
                                 Task { await git.refresh(repository) } },
                             { openTerminalLink($0, in: repository) },
+                            { store.setLiveTitle($0.isEmpty ? nil : $0, for: session.id) },
                             { _ in closeSession(session) }
                         )
                         .opacity(isVisible(session) ? 1 : 0)
@@ -233,6 +234,7 @@ public struct WorkspaceView<Terminal: View>: View {
         TerminalInsertRequest?,
         @escaping (CommandRun) -> Void,
         @escaping (String) -> Void,
+        @escaping (String) -> Void,
         @escaping (Bool) -> Void
     ) -> Terminal
 
@@ -243,6 +245,7 @@ public struct WorkspaceView<Terminal: View>: View {
             Bool,
             TerminalInsertRequest?,
             @escaping (CommandRun) -> Void,
+            @escaping (String) -> Void,
             @escaping (String) -> Void,
             @escaping (Bool) -> Void
         ) -> Terminal

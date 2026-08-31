@@ -10,7 +10,7 @@ struct PinnedRow: View {
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(pinned.session.name)
+                Text(pinned.session.displayName)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                     .lineLimit(1)
 
