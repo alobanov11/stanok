@@ -498,23 +498,9 @@ private extension GhosttySurfaceView {
     }
 
     func insert(_ text: String) {
-        guard surface != nil, !text.isEmpty else { return }
+        guard let surface, !text.isEmpty else { return }
 
-        let pasteboard = NSPasteboard.general
-        let saved = pasteboard.pasteboardItems?.map { item -> NSPasteboardItem in
-            let copy = NSPasteboardItem()
-            for type in item.types {
-                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
-            }
-            return copy
-        } ?? []
-
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-        performBindingAction("paste_from_clipboard")
-
-        pasteboard.clearContents()
-        if !saved.isEmpty { pasteboard.writeObjects(saved) }
+        text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }
     }
 
     @objc
