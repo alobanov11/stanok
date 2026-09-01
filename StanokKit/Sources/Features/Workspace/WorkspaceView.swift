@@ -369,6 +369,36 @@ public struct WorkspaceView<Terminal: View>: View {
 
 private extension WorkspaceView {
 
+    var gitReview: ReviewSet {
+        guard let snapshot = gitSnapshot else { return ReviewSet(title: "Изменения", files: []) }
+
+        let root = URL(filePath: snapshot.root)
+        let files = snapshot.changes.map {
+            ReviewFile(
+                url: root.appending(path: $0.path),
+                path: $0.path,
+                status: $0.status
+            )
+        }
+
+        return ReviewSet(title: "Изменения", files: files)
+    }
+
+    var agentReview: ReviewSet {
+        let files = (agentChanges ?? ownChanges).repositories.flatMap { repository in
+            repository.changes.map {
+                ReviewFile(
+                    url: URL(filePath: repository.root).appending(path: $0.path),
+                    path: $0.path,
+                    status: $0.status,
+                    group: repository.name
+                )
+            }
+        }
+
+        return ReviewSet(title: "Изменения агентов", files: files)
+    }
+
     var agentsPanel: some View {
         FilePanel(
             mode: .agents,
@@ -379,7 +409,9 @@ private extension WorkspaceView {
             branchActions: branchActions,
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
-            onOpen: inspectorControls.open
+            onOpen: inspectorControls.open,
+            hasReview: !agentReview.files.isEmpty,
+            onReview: { navigator.openReview(agentReview) }
         )
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
     }
@@ -500,7 +532,9 @@ private extension WorkspaceView {
             branchActions: branchActions,
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
-            onOpen: inspectorControls.open
+            onOpen: inspectorControls.open,
+            hasReview: !gitReview.files.isEmpty,
+            onReview: { navigator.openReview(gitReview) }
         )
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
     }

@@ -26,6 +26,18 @@ struct FilePanel: View {
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 0)
+
+            if mode == .changes || mode == .agents {
+                Button(action: onReview) {
+                    Image(systemName: "rectangle.grid.1x2")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Смотреть все изменения")
+                .disabled(!hasReview)
+                .opacity(hasReview ? 1 : 0.4)
+            }
         }
         .padding(.horizontal, 14)
         .frame(height: WorkspaceLayout.headerHeight)
@@ -64,4 +76,6 @@ struct FilePanel: View {
     var selected: URL?
 
     let onOpen: (URL) -> Void
+    let hasReview: Bool
+    let onReview: () -> Void
 }

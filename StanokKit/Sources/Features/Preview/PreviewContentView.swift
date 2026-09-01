@@ -98,7 +98,8 @@ struct PreviewContentView: View {
             mode: isCode ? .code : .reading,
             gutter: gutter,
             topInset: topInset,
-            openLink: { openURL($0) }
+            openLink: { openURL($0) },
+            scrolls: scrolls
         )
         .overlay(alignment: .trailing) { marks }
         .task(id: revision) { await rebuild() }
@@ -109,7 +110,7 @@ struct PreviewContentView: View {
 
     @ViewBuilder
     private var marks: some View {
-        if isCode, !preview.changes.kinds.isEmpty {
+        if scrolls, isCode, !preview.changes.kinds.isEmpty {
             ChangeMarksStrip(lines: document.lines, changes: preview.changes)
                 .padding(.top, topInset)
         }
@@ -118,6 +119,7 @@ struct PreviewContentView: View {
     let preview: FilePreview
 
     var topInset: CGFloat = 0
+    var scrolls = true
 }
 
 private extension PreviewContentView {

@@ -20,6 +20,14 @@ struct PreviewLayer: View {
                 onBack: onBack
             )
 
+        case let .review(set):
+            ReviewPanel(
+                set: set,
+                leadingInset: leadingInset,
+                previousName: previousName,
+                onBack: onBack
+            )
+
         case let .web(preview):
             WebPreviewPanel(
                 preview: preview,

@@ -50,6 +50,19 @@ struct PreviewTextView: NSViewRepresentable {
     let topInset: CGFloat
     let openLink: (URL) -> Void
 
+    var scrolls = true
+
+    static func height(of scroll: NSScrollView) -> CGFloat {
+        guard
+            let text = scroll.documentView as? NSTextView,
+            let layout = text.textLayoutManager
+        else { return 0 }
+
+        layout.ensureLayout(for: layout.documentRange)
+
+        return layout.usageBoundsForTextContainer.height + text.textContainerInset.height * 2
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
@@ -71,9 +84,14 @@ struct PreviewTextView: NSViewRepresentable {
         let scroll = NSScrollView()
         scroll.drawsBackground = false
         scroll.automaticallyAdjustsContentInsets = false
-        scroll.hasVerticalScroller = true
+        scroll.hasVerticalScroller = scrolls
         scroll.documentView = text
         scroll.autohidesScrollers = true
+
+        if !scrolls {
+            scroll.verticalScrollElasticity = .none
+            scroll.horizontalScrollElasticity = .none
+        }
 
         scroll.contentView.postsBoundsChangedNotifications = true
         context.coordinator.observe(scroll)
@@ -106,8 +124,15 @@ struct PreviewTextView: NSViewRepresentable {
         scroll.reflectScrolledClipView(scroll.contentView)
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
-        CGSize(width: proposal.width ?? 0, height: proposal.height ?? 0)
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView: NSScrollView,
+        context: Context
+    ) -> CGSize? {
+        let width = proposal.width ?? 0
+        guard !scrolls else { return CGSize(width: width, height: proposal.height ?? 0) }
+
+        return CGSize(width: width, height: Self.height(of: nsView))
     }
 
     private func configure(_ scroll: NSScrollView, text: NSTextView) {
