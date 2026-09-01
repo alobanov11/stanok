@@ -15,6 +15,7 @@ public final class TerminalCommandDispatcher {
     public private(set) var copyNotice: CopyNotice?
 
     private(set) var insertRequests: [TerminalSession.ID: TerminalInsertRequest] = [:]
+    private(set) var closeRequests: [TerminalSession.ID: UUID] = [:]
 
     private var confirmedIdle: Set<TerminalSession.ID> = []
 
@@ -37,10 +38,25 @@ public final class TerminalCommandDispatcher {
     public func forget(_ id: TerminalSession.ID) {
         confirmedIdle.remove(id)
         insertRequests[id] = nil
+        closeRequests[id] = nil
     }
 
     public func insertRequest(for id: TerminalSession.ID) -> TerminalInsertRequest? {
         insertRequests[id]
+    }
+
+    public func closeRequest(for id: TerminalSession.ID) -> UUID? {
+        closeRequests[id]
+    }
+
+    public func requestSurfaceClose(_ id: TerminalSession.ID) {
+        closeRequests[id] = UUID()
+    }
+
+    public func markCloseHandled(_ id: TerminalSession.ID, request: UUID) {
+        guard closeRequests[id] == request else { return }
+
+        closeRequests[id] = nil
     }
 
     public func copy(

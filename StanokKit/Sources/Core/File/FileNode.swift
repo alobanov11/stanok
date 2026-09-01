@@ -148,7 +148,9 @@ private extension FileNode {
 
         return contents
             .filter { child in
-                !IgnoredPaths.contains(
+                guard Self.isDirectory(child) else { return true }
+
+                return !IgnoredPaths.contains(
                     relativePath: childRelativePath(child.lastPathComponent)
                 ) && !IgnoredPaths.isExcludedHomeChild(child)
             }

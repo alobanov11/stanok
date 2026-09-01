@@ -2,6 +2,11 @@ import Foundation
 
 enum IgnoredPaths {
 
+    private enum Home {
+
+        static let path = IgnoredPaths.trimmed(URL(filePath: NSHomeDirectory()))
+    }
+
     static let directories: Set<String> = [
         ".git", ".hg", ".svn", ".jj",
         ".build", ".swiftpm", "DerivedData", "Pods", "Carthage", "xcuserdata",
@@ -41,10 +46,12 @@ enum IgnoredPaths {
     }
 
     static func contains(_ url: URL, under root: URL) -> Bool {
-        let base = root.standardizedFileURL.path(percentEncoded: false)
-        let path = url.standardizedFileURL.path(percentEncoded: false)
+        let base = root.standardizedFileURL.resolvingSymlinksInPath()
+            .path(percentEncoded: false)
+        let path = url.standardizedFileURL.resolvingSymlinksInPath()
+            .path(percentEncoded: false)
         let prefix = base.hasSuffix("/") ? base : base + "/"
-        guard path.hasPrefix(prefix) else { return contains(url) }
+        guard path.hasPrefix(prefix) else { return path != base && contains(url) }
 
         if contains(relativePath: String(path.dropFirst(prefix.count))) { return true }
 
@@ -52,13 +59,18 @@ enum IgnoredPaths {
     }
 
     static func isExcludedHomeChild(_ url: URL) -> Bool {
-        let home = URL(filePath: NSHomeDirectory()).standardizedFileURL
-            .path(percentEncoded: false)
-        let parent = url.deletingLastPathComponent().standardizedFileURL
-            .path(percentEncoded: false)
+        let home = Home.path
+        let parent = trimmed(url.deletingLastPathComponent())
         guard parent == home else { return false }
 
         return homeDirectories.contains(url.lastPathComponent)
+    }
+
+    static func trimmed(_ url: URL) -> String {
+        let path = url.standardizedFileURL.path(percentEncoded: false)
+        guard path.count > 1, path.hasSuffix("/") else { return path }
+
+        return String(path.dropLast())
     }
 
     static func contains(_ url: URL) -> Bool {

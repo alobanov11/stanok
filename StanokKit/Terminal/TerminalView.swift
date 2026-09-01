@@ -21,6 +21,8 @@ public struct TerminalView: View {
             onPwdChanged: onPwdChanged,
             onInput: onInput,
             onInsertHandled: onInsertHandled,
+            closeRequest: closeRequest,
+            onCloseHandled: onCloseHandled,
             onFocused: onFocused,
             onScrollbar: scrollController.report,
             scrollController: scrollController
@@ -43,7 +45,9 @@ public struct TerminalView: View {
     private let onPwdChanged: (String) -> Void
     private let onInput: () -> Void
     private let onInsertHandled: (UUID) -> Void
+    private let onCloseHandled: (UUID) -> Void
     private let onFocused: () -> Void
+    private let closeRequest: UUID?
 
     public init(
         runtime: GhosttyRuntime,
@@ -59,6 +63,8 @@ public struct TerminalView: View {
         onPwdChanged: @escaping (String) -> Void = { _ in },
         onInput: @escaping () -> Void = {},
         onInsertHandled: @escaping (UUID) -> Void = { _ in },
+        closeRequest: UUID? = nil,
+        onCloseHandled: @escaping (UUID) -> Void = { _ in },
         onFocused: @escaping () -> Void = {}
     ) {
         self.runtime = runtime
@@ -74,6 +80,8 @@ public struct TerminalView: View {
         self.onPwdChanged = onPwdChanged
         self.onInput = onInput
         self.onInsertHandled = onInsertHandled
+        self.closeRequest = closeRequest
+        self.onCloseHandled = onCloseHandled
         self.onFocused = onFocused
     }
 }

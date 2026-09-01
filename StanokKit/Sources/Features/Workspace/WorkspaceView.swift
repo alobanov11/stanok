@@ -97,7 +97,7 @@ public struct WorkspaceView<Terminal: View>: View {
             live: $live,
             selection: $selection,
             navigators: navigators,
-            confirmClose: { closeRequest = $0 }
+            askSurface: { dispatcher.requestSurfaceClose($0) }
         )
     }
 
@@ -301,7 +301,7 @@ public struct WorkspaceView<Terminal: View>: View {
             isPresented: isClosingLiveSession,
             presenting: closeRequest
         ) { session in
-            Button("Закрыть", role: .destructive) { liveSessions.requestClose(session) }
+            Button("Закрыть", role: .destructive) { liveSessions.close(session) }
             Button("Отмена", role: .cancel) {}
         } message: { _ in
             Text("В терминале ещё работает процесс — он будет прерван.")
@@ -449,6 +449,8 @@ private extension WorkspaceView {
                 onPwdChanged: { WorkingDirectoryTracker.report($0, for: session.id, into: store) },
                 onInput: { dispatcher.markBusy(session.id) },
                 onInsertHandled: { dispatcher.markInserted(session.id, request: $0) },
+                closeRequest: dispatcher.closeRequest(for: session.id),
+                onCloseHandled: { dispatcher.markCloseHandled(session.id, request: $0) },
                 onFocused: { selection = session.id }
             )
         )

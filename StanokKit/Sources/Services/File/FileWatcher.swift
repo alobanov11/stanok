@@ -11,6 +11,7 @@ public final class FileWatcher {
         private var pendingDirectories: Set<URL> = []
         private var pendingNeedsFullRescan = false
         private var pendingGitChange = false
+        private var pendingIgnoredGitChange = false
         private var deliveryScheduled = false
 
         private let lock = NSLock()
@@ -45,21 +46,24 @@ public final class FileWatcher {
                     continue
                 }
 
-                if
-                    let owner = gitDirectories.first(where: {
-                        FileWatcher.isInside(path, gitDirectory: $0)
-                    }) {
+                let owner = gitDirectories
+                    .filter { FileWatcher.isInside(path, gitDirectory: $0) }
+                    .max { $0.count < $1.count }
+
+                if let owner {
                     if FileWatcher.isRelevantGitEvent(path, gitDirectory: owner) {
                         pendingGitChange = true
                     }
                     continue
                 }
 
-                pendingGitChange = true
-
                 let url = URL(filePath: path)
-                guard !FileWatcher.isIgnored(url, under: root) else { continue }
+                guard !FileWatcher.isIgnored(url, under: root) else {
+                    pendingIgnoredGitChange = true
+                    continue
+                }
 
+                pendingGitChange = true
                 pendingDirectories.insert(url.deletingLastPathComponent())
             }
 
@@ -72,18 +76,25 @@ public final class FileWatcher {
             scheduleDelivery()
         }
 
-        func drain() -> (directories: Set<URL>, needsFullRescan: Bool, gitChanged: Bool) {
+        func drain() -> (
+            directories: Set<URL>,
+            needsFullRescan: Bool,
+            gitChanged: Bool,
+            ignoredGitChanged: Bool
+        ) {
             lock.lock()
             defer { lock.unlock() }
 
             let directories = pendingDirectories
             let needsFullRescan = pendingNeedsFullRescan
             let gitChanged = pendingGitChange
+            let ignoredGitChanged = pendingIgnoredGitChange
             pendingDirectories.removeAll()
             pendingNeedsFullRescan = false
             pendingGitChange = false
+            pendingIgnoredGitChange = false
             deliveryScheduled = false
-            return (directories, needsFullRescan, gitChanged)
+            return (directories, needsFullRescan, gitChanged, ignoredGitChanged)
         }
     }
 
@@ -108,6 +119,7 @@ public final class FileWatcher {
         static let directories = Duration.milliseconds(150)
         static let git = Duration.milliseconds(300)
         static let gitCap: TimeInterval = 2
+        static let ignoredGitCap: TimeInterval = 10
     }
 
     private enum PathFilters {
@@ -193,7 +205,7 @@ public final class FileWatcher {
         let context = Context(
             generation: currentGeneration,
             gitDirectories: unique,
-            root: url.path(percentEncoded: false),
+            root: url.resolvingSymlinksInPath().path(percentEncoded: false),
             scheduleDelivery: scheduleDelivery
         )
         self.context = context
@@ -255,6 +267,7 @@ public final class FileWatcher {
         directoriesFlush = nil
         gitFlush?.cancel()
         gitFlush = nil
+        gitFlushStartedAt = nil
         pendingDirectories.removeAll()
         context = nil
 
@@ -273,9 +286,12 @@ private extension FileWatcher {
         guard let context, context.generation == delivered else { return }
 
         let drained = context.drain()
-        guard !drained.directories.isEmpty || drained.needsFullRescan || drained.gitChanged else {
-            return
-        }
+        guard
+            !drained.directories.isEmpty
+            || drained.needsFullRescan
+            || drained.gitChanged
+            || drained.ignoredGitChanged
+        else { return }
 
         if !drained.directories.isEmpty || drained.needsFullRescan {
             pendingDirectories.formUnion(drained.directories)
@@ -286,7 +302,9 @@ private extension FileWatcher {
         }
 
         if drained.gitChanged {
-            scheduleGitFlush()
+            scheduleGitFlush(cap: FlushDelay.gitCap)
+        } else if drained.ignoredGitChanged {
+            scheduleGitFlush(cap: FlushDelay.ignoredGitCap)
         }
     }
 
@@ -300,8 +318,10 @@ private extension FileWatcher {
         }
     }
 
-    func scheduleGitFlush() {
-        if let gitFlushStartedAt, Date().timeIntervalSince(gitFlushStartedAt) >= FlushDelay.gitCap {
+    func scheduleGitFlush(cap: TimeInterval) {
+        if let gitFlushStartedAt, Date().timeIntervalSince(gitFlushStartedAt) >= cap {
+            gitFlush?.cancel()
+            gitFlush = nil
             emitGitChange()
             return
         }

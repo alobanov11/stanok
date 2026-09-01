@@ -102,7 +102,7 @@ struct PreviewTextView: NSViewRepresentable {
         guard opened else { return }
 
         text.setSelectedRange(NSRange(location: 0, length: 0))
-        scroll.contentView.scroll(to: .zero)
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: -scroll.contentInsets.top))
         scroll.reflectScrolledClipView(scroll.contentView)
     }
 

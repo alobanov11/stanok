@@ -100,6 +100,53 @@ struct TerminalCommandDispatcherTests {
         #expect(NSPasteboard.general.string(forType: .string) == "claude --resume fifth")
     }
 
+    @Test
+    func aDeliveredCommandIsForgotten() throws {
+        let dispatcher = TerminalCommandDispatcher()
+        let session = UUID()
+        dispatcher.markAtPrompt(session)
+        dispatcher.dispatch(action("third"), into: session)
+
+        let request = try #require(dispatcher.insertRequest(for: session))
+        dispatcher.markInserted(session, request: request.id)
+
+        #expect(dispatcher.insertRequest(for: session) == nil)
+    }
+
+    @Test
+    func aForeignRequestIdLeavesTheCommandInPlace() {
+        let dispatcher = TerminalCommandDispatcher()
+        let session = UUID()
+        dispatcher.markAtPrompt(session)
+        dispatcher.dispatch(action("fourth"), into: session)
+        dispatcher.markInserted(session, request: UUID())
+
+        #expect(dispatcher.insertRequest(for: session) != nil)
+    }
+
+    @Test
+    func forgettingASessionDropsBothItsPromptStateAndItsCommand() {
+        let dispatcher = TerminalCommandDispatcher()
+        let session = UUID()
+        dispatcher.markAtPrompt(session)
+        dispatcher.dispatch(action("fifth"), into: session)
+        dispatcher.forget(session)
+        dispatcher.dispatch(action("sixth"), into: session)
+
+        #expect(dispatcher.insertRequest(for: session) == nil)
+    }
+
+    @Test
+    func typingInTheTerminalMakesItBusyAgain() {
+        let dispatcher = TerminalCommandDispatcher()
+        let session = UUID()
+        dispatcher.markAtPrompt(session)
+        dispatcher.markBusy(session)
+        dispatcher.dispatch(action("seventh"), into: session)
+
+        #expect(dispatcher.insertRequest(for: session) == nil)
+    }
+
     private func action(_ id: String) -> AgentResumeAction {
         AgentResumeAction(executable: "claude", arguments: ["--resume", id])
     }

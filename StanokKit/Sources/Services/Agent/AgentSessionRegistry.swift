@@ -194,6 +194,8 @@ public final class AgentSessionRegistry {
     }
 
     private func refreshGlobal(providerID: String) {
+        globalRefreshTasks[providerID]?.cancel()
+        globalRefreshTasks[providerID] = nil
         lastGlobalRefreshAt[providerID] = Date()
         guard let provider = providers[providerID] else { return }
 

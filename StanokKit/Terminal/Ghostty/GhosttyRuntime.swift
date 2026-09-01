@@ -23,6 +23,9 @@ public final class GhosttyRuntime {
     @ObservationIgnored
     private static var isInitialized = false
 
+    @ObservationIgnored
+    private static var isAsking = false
+
     private(set) var config: GhosttyConfig
 
     @ObservationIgnored
@@ -244,15 +247,33 @@ private extension GhosttyRuntime {
         state: UnsafeMutableRawPointer?,
         request: ghostty_clipboard_request_e
     ) {
-        guard let surface = GhosttySurfaceView.from(userdata: userdata)?.handle else { return }
+        guard let view = GhosttySurfaceView.from(userdata: userdata) else { return }
+
+        guard !isAsking else {
+            answer("", to: view.handle, state: state)
+            return
+        }
+
+        isAsking = true
 
         let question = message(for: request)
-        DispatchQueue.main.async {
-            let answer = ask(question, detail: preview(of: text)) ? text : ""
+        DispatchQueue.main.async { [weak view] in
+            let allowed = ask(question, detail: preview(of: text))
+            isAsking = false
 
-            answer.withCString { pointer in
-                ghostty_surface_complete_clipboard_request(surface, pointer, state, true)
-            }
+            answer(allowed ? text : "", to: view?.handle, state: state)
+        }
+    }
+
+    static func answer(
+        _ text: String,
+        to surface: ghostty_surface_t?,
+        state: UnsafeMutableRawPointer?
+    ) {
+        guard let surface else { return }
+
+        text.withCString { pointer in
+            ghostty_surface_complete_clipboard_request(surface, pointer, state, true)
         }
     }
 

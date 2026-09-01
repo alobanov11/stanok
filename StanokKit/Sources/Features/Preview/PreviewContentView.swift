@@ -77,6 +77,9 @@ struct PreviewContentView: View {
     private var builtFor = ""
 
     @State
+    private var rebuildTask: Task<Void, Never>?
+
+    @State
     private var folds = CodeFoldMap.empty
 
     @State
@@ -91,7 +94,7 @@ struct PreviewContentView: View {
     var body: some View {
         PreviewTextView(
             document: document,
-            fileKey: fileRevision,
+            fileKey: preview.url.path(percentEncoded: false),
             mode: isCode ? .code : .reading,
             gutter: gutter,
             topInset: topInset,
@@ -119,25 +122,25 @@ private extension PreviewContentView {
     }
 
     func rebuild() async {
-        if builtFor != fileRevision {
-            builtFor = fileRevision
+        let file = fileRevision
+        if builtFor != file {
+            builtFor = file
             folds = .empty
             folded = []
             expanded = []
+            document = .empty
         }
 
         let wanted = documentRevision
-        guard let built = await build(revision: wanted) else {
-            document = .empty
-            return
-        }
+        let built = await build(revision: wanted)
 
-        guard wanted == documentRevision else { return }
+        guard !Task.isCancelled, builtFor == file, wanted == documentRevision else { return }
 
-        document = built
+        folds = built?.folds ?? .empty
+        document = built?.document ?? .empty
     }
 
-    func build(revision: String) async -> PreviewDocument? {
+    func build(revision: String) async -> (document: PreviewDocument, folds: CodeFoldMap)? {
         switch preview.content {
         case let .markdown(blocks):
             let size = markdownSize
@@ -146,7 +149,7 @@ private extension PreviewContentView {
             let codeSize = codeSize
             let codeFamily = resolvedCodeFamily
 
-            return await Task.detached(priority: .userInitiated) {
+            let document = await Task.detached(priority: .userInitiated) {
                 MarkdownDocumentBuilder.document(
                     blocks: blocks,
                     size: size,
@@ -158,12 +161,10 @@ private extension PreviewContentView {
                 )
             }.value
 
-        case let .code(lines):
-            if folds.isEmpty {
-                folds = CodeFoldMap(folds: CodeFolding.folds(for: lines))
-            }
+            return (document, .empty)
 
-            let folds = folds
+        case let .code(lines):
+            let known = folds
             let folded = folded
             let expanded = expanded
             let changes = preview.changes
@@ -171,7 +172,11 @@ private extension PreviewContentView {
             let family = resolvedCodeFamily
 
             return await Task.detached(priority: .userInitiated) {
-                CodeDocumentBuilder.document(
+                let folds = known.isEmpty
+                    ? CodeFoldMap(folds: CodeFolding.folds(for: lines))
+                    : known
+
+                let document = CodeDocumentBuilder.document(
                     lines: lines,
                     folds: folds,
                     folded: folded,
@@ -180,6 +185,8 @@ private extension PreviewContentView {
                     font: PreviewTypographyFonts.code(size: size, family: family),
                     revision: revision
                 )
+
+                return (document, folds)
             }.value
 
         default:
@@ -194,7 +201,7 @@ private extension PreviewContentView {
             folded.insert(line)
         }
 
-        Task { await rebuild() }
+        restart()
     }
 
     func showChange(_ line: Int) {
@@ -204,6 +211,11 @@ private extension PreviewContentView {
             expanded.insert(line)
         }
 
-        Task { await rebuild() }
+        restart()
+    }
+
+    func restart() {
+        rebuildTask?.cancel()
+        rebuildTask = Task { await rebuild() }
     }
 }

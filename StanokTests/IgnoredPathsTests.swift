@@ -43,4 +43,27 @@ struct IgnoredPathsTests {
         #expect(IgnoredPaths.contains(URL(filePath: "/a/vendor/bundle/gems/x")))
         #expect(!IgnoredPaths.contains(URL(filePath: "/a/vendor/assets/x")))
     }
+
+    @Test
+    func aProjectInsideAnIgnoredNameStaysVisible() {
+        let root = URL(filePath: "/Users/tom/target/app")
+
+        #expect(!IgnoredPaths.contains(root.appending(path: "Sources/main.swift"), under: root))
+        #expect(IgnoredPaths.contains(root, under: URL(filePath: "/Users/tom")))
+    }
+
+    @Test
+    func dependenciesInsideTheProjectStayHidden() {
+        let root = URL(filePath: "/Users/tom/Projects/app")
+
+        #expect(IgnoredPaths.contains(root.appending(path: "node_modules/x"), under: root))
+        #expect(IgnoredPaths.contains(root.appending(path: "vendor/bundle/gems"), under: root))
+        #expect(!IgnoredPaths.contains(root.appending(path: "vendor/assets"), under: root))
+    }
+
+    @Test
+    func onlyTheHomesOwnChildrenAreExcludedByName() {
+        #expect(IgnoredPaths.isExcludedHomeChild(home.appending(path: "Library")))
+        #expect(!IgnoredPaths.isExcludedHomeChild(home.appending(path: "Projects/Music")))
+    }
 }

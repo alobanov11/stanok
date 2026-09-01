@@ -6,6 +6,16 @@ import StanokKit
 
 final class GhosttySurfaceView: NSView {
 
+    private enum DeviceMask {
+
+        static let byKeyCode: [UInt16: UInt] = [
+            56: 0x02, 60: 0x04,
+            59: 0x01, 62: 0x2000,
+            58: 0x20, 61: 0x40,
+            55: 0x08, 54: 0x10
+        ]
+    }
+
     private static let resizeInterval: CFTimeInterval = 0.03
 
     override var acceptsFirstResponder: Bool {
@@ -25,6 +35,7 @@ final class GhosttySurfaceView: NSView {
     var onCommandFinished: ((CommandRun) -> Void)?
     var onInput: (() -> Void)?
     var onInsertHandled: ((UUID) -> Void)?
+    var onCloseHandled: ((UUID) -> Void)?
     var onOpenURL: ((String) -> Void)?
     var onTitleChanged: ((String) -> Void)?
     var onCloseRequested: ((Bool) -> Void)?
@@ -43,6 +54,7 @@ final class GhosttySurfaceView: NSView {
     private var resizeWork: DispatchWorkItem?
     private var lastResizeAt: CFTimeInterval = 0
     private var lastHandledInsertRequestID: UUID?
+    private var lastHandledCloseRequestID: UUID?
 
     init(app: ghostty_app_t, fontSize: Float, workingDirectory: URL?, processLabel: String) {
         super.init(frame: .zero)
@@ -175,9 +187,9 @@ final class GhosttySurfaceView: NSView {
         guard let surface else { return }
 
         let keyCode = event.keyCode
-        guard let held = Self.modifier(for: keyCode, flags: event.modifierFlags) else { return }
+        guard Self.modifier(for: keyCode) != nil else { return }
 
-        let pressed = Self.mods(from: event.modifierFlags).rawValue & held.rawValue != 0
+        let pressed = Self.isPressed(keyCode: keyCode, flags: event.modifierFlags)
         let action = pressed ? GHOSTTY_ACTION_PRESS : GHOSTTY_ACTION_RELEASE
 
         var key = ghostty_input_key_s()
@@ -316,12 +328,26 @@ final class GhosttySurfaceView: NSView {
         surface = nil
     }
 
+    func apply(closeRequest: UUID?) {
+        guard let closeRequest, closeRequest != lastHandledCloseRequestID else { return }
+
+        lastHandledCloseRequestID = closeRequest
+
+        let id = closeRequest
+        DispatchQueue.main.async { [weak self] in self?.onCloseHandled?(id) }
+        guard let surface else { return }
+
+        ghostty_surface_request_close(surface)
+    }
+
     func apply(insertRequest: TerminalInsertRequest?) {
         guard let insertRequest, insertRequest.id != lastHandledInsertRequestID else { return }
 
         lastHandledInsertRequestID = insertRequest.id
         insert(insertRequest.text)
-        onInsertHandled?(insertRequest.id)
+
+        let id = insertRequest.id
+        DispatchQueue.main.async { [weak self] in self?.onInsertHandled?(id) }
     }
 
     private func momentumCode(_ phase: NSEvent.Phase) -> UInt32 {
@@ -353,27 +379,32 @@ private extension GhosttySurfaceView {
         return characters
     }
 
-    static func modifier(
-        for keyCode: UInt16,
-        flags: NSEvent.ModifierFlags
-    ) -> ghostty_input_mods_e? {
+    static func modifier(for keyCode: UInt16) -> ghostty_input_mods_e? {
         switch keyCode {
         case 56, 60: GHOSTTY_MODS_SHIFT
         case 59, 62: GHOSTTY_MODS_CTRL
         case 58, 61: GHOSTTY_MODS_ALT
         case 54, 55: GHOSTTY_MODS_SUPER
-        case 57: capsLockModifier(from: flags)
+        case 57: GHOSTTY_MODS_CAPS
         default: nil
         }
     }
 
-    static func capsLockModifier(
-        from flags: NSEvent.ModifierFlags
-    ) -> ghostty_input_mods_e {
-        if flags.contains(.control) { return GHOSTTY_MODS_CTRL }
-        if flags.contains(.option) { return GHOSTTY_MODS_ALT }
-        if flags.contains(.command) { return GHOSTTY_MODS_SUPER }
-        return GHOSTTY_MODS_CAPS
+    static func isPressed(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
+        guard let mask = DeviceMask.byKeyCode[keyCode] else {
+            return flags.contains(.capsLock)
+        }
+
+        return flags.rawValue & mask != 0
+    }
+
+    static func unshifted(from event: NSEvent) -> UInt32 {
+        guard
+            let scalar = event.characters(byApplyingModifiers: [])?.unicodeScalars.first,
+            !(0xF700...0xF8FF).contains(scalar.value)
+        else { return 0 }
+
+        return scalar.value
     }
 
     static func mods(from flags: NSEvent.ModifierFlags) -> ghostty_input_mods_e {
@@ -397,11 +428,7 @@ private extension GhosttySurfaceView {
             from: event.modifierFlags.subtracting([.control, .command])
         )
         key.composing = false
-        key.unshifted_codepoint = Self.insertableText(
-            from: event,
-            using: \.charactersIgnoringModifiers
-        )?
-            .unicodeScalars.first?.value ?? 0
+        key.unshifted_codepoint = Self.unshifted(from: event)
 
         let text = event
             .type == .keyDown ? (Self.insertableText(from: event, using: \.characters) ?? "") : ""
@@ -485,7 +512,32 @@ private extension GhosttySurfaceView {
     func insert(_ text: String) {
         guard let surface, !text.isEmpty else { return }
 
-        text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }
+        let executes = text.hasSuffix("\n")
+        let body = executes ? String(text.dropLast()) : text
+
+        if !body.isEmpty {
+            body.withCString { ghostty_surface_text(surface, $0, UInt(body.utf8.count)) }
+        }
+
+        // Почему: текст уезжает в bracketed paste, шелл его не выполнит без Return
+        guard executes else { return }
+
+        sendReturn(surface)
+    }
+
+    func sendReturn(_ surface: ghostty_surface_t) {
+        var key = ghostty_input_key_s()
+        key.keycode = 36
+        key.mods = GHOSTTY_MODS_NONE
+        key.consumed_mods = GHOSTTY_MODS_NONE
+        key.composing = false
+        key.unshifted_codepoint = 0
+        key.text = nil
+
+        key.action = GHOSTTY_ACTION_PRESS
+        _ = ghostty_surface_key(surface, key)
+        key.action = GHOSTTY_ACTION_RELEASE
+        _ = ghostty_surface_key(surface, key)
     }
 
     @objc
