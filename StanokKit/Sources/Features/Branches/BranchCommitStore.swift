@@ -4,38 +4,74 @@ import Foundation
 @Observable
 final class BranchCommitStore {
 
-    // Почему: полсотни коммитов читаются за десятки миллисекунд даже на большой истории
-    static let limit = 50
+    private enum Limit {
 
-    private var histories: [String: [GitCommitChanges]] = [:]
-    private var loading: Set<String> = []
+        // Почему: полсотни коммитов читаются за десятки миллисекунд даже на большой истории
+        static let commits = 50
 
-    func commits(for branch: String) -> [GitCommitChanges] {
-        histories[branch] ?? []
+        static let freshness: TimeInterval = 60
     }
 
-    func commit(_ sha: String) -> GitCommitChanges? {
-        histories.values.lazy.compactMap { $0.first { $0.sha == sha } }.first
+    private struct Entry {
+
+        let commits: [GitCommitChanges]
+        let loadedAt: Date
     }
 
-    func load(branch: String, root: String) async {
-        guard histories[branch] == nil, !loading.contains(branch) else { return }
+    private var entries: [String: Entry] = [:]
 
-        loading.insert(branch)
-        defer { loading.remove(branch) }
+    @ObservationIgnored
+    private var loading: [String: Task<Void, Never>] = [:]
 
-        let found = await GitClient.history(
-            of: branch,
-            at: URL(filePath: root),
-            limit: Self.limit
-        )
+    private static func key(_ root: String, _ branch: String) -> String {
+        root + "\n" + branch
+    }
 
-        guard !Task.isCancelled else { return }
+    func commits(root: String, branch: String) -> [GitCommitChanges] {
+        entries[Self.key(root, branch)]?.commits ?? []
+    }
 
-        histories[branch] = found
+    func commit(root: String, sha: String) -> GitCommitChanges? {
+        for (key, entry) in entries where key.hasPrefix(root + "\n") {
+            if let found = entry.commits.first(where: { $0.sha == sha }) { return found }
+        }
+
+        return nil
+    }
+
+    func load(root: String, branch: String) async {
+        let key = Self.key(root, branch)
+
+        if let entry = entries[key], Date().timeIntervalSince(entry.loadedAt) < Limit.freshness {
+            return
+        }
+
+        // Почему: повторное раскрытие ждёт уже идущую загрузку, а не запускает вторую
+        if let running = loading[key] {
+            await running.value
+            return
+        }
+
+        let task = Task { [weak self] in
+            let found = await GitClient.history(
+                of: branch,
+                at: URL(filePath: root),
+                limit: Limit.commits
+            )
+
+            self?.store(found, at: key)
+        }
+
+        loading[key] = task
+        await task.value
+        loading[key] = nil
     }
 
     func forget(root: String) {
-        histories = [:]
+        entries = entries.filter { !$0.key.hasPrefix(root + "\n") }
+    }
+
+    private func store(_ commits: [GitCommitChanges], at key: String) {
+        entries[key] = Entry(commits: commits, loadedAt: Date())
     }
 }

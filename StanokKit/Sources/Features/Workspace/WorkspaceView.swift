@@ -560,10 +560,8 @@ private extension WorkspaceView {
                 repository: nil
             )
 
-        case let .commit(sha, _):
-            guard let root = inspectorGitRoot, let commit = branchCommits.commit(sha) else {
-                return []
-            }
+        case let .commit(root, sha, _):
+            guard let commit = branchCommits.commit(root: root, sha: sha) else { return [] }
 
             return ReviewFiles.build(root: root, changes: [], commits: [commit], repository: nil)
         }

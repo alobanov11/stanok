@@ -121,9 +121,7 @@ private extension TouchedRepositoriesModel {
 
         try Task.checkCancellation()
 
-        let scoped = focused.map { root in roots.filter { $0.key == root } } ?? roots
-
-        return try await collect(roots: scoped, touched: byRoot, focused: focused)
+        return try await collect(roots: roots, touched: byRoot, focused: focused)
     }
 
     nonisolated static func root(

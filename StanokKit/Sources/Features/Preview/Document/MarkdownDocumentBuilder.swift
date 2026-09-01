@@ -160,8 +160,9 @@ private extension MarkdownDocumentBuilder {
         style.paragraphSpacing = 10
 
         let text = NSMutableAttributedString()
-        // Почему: фон рисуется по глифам, поэтому строки добиваем до общей ширины
-        let width = lines.map { $0.reduce(0) { $0 + $1.text.count } }.max() ?? 0
+        // Почему: фон рисуется по глифам, поэтому короткие строки добиваем до общей ширины
+        let longest = lines.map { $0.reduce(0) { $0 + $1.text.count } }.max() ?? 0
+        let width = longest > 200 ? 0 : longest
 
         for (position, tokens) in lines.enumerated() {
             var filled = 0

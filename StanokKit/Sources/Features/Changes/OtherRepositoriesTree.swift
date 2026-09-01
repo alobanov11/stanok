@@ -4,10 +4,10 @@ struct OtherRepositoriesTree: View {
 
     @ViewBuilder
     private var content: some View {
-        if !model.repositories.isEmpty {
+        if !others.isEmpty {
             SectionHeader(title: "Изменения в других репозиториях")
 
-            ForEach(model.repositories) { repository in
+            ForEach(others) { repository in
                 row(repository)
 
                 if opened.contains(repository.root) {
@@ -33,10 +33,16 @@ struct OtherRepositoriesTree: View {
     let inspector: InspectorState
     let branches: GitBranchStore
     let commits: BranchCommitStore
-    let onReviewCommit: (GitCommitChanges) -> Void
+    let active: String?
+    let onReviewCommit: (String, GitCommitChanges) -> Void
 
     @State
     private var opened: Set<String> = []
+
+    // Почему: репозиторий активного терминала уже показан секцией веток выше
+    private var others: [TouchedRepository] {
+        model.repositories.filter { $0.root != active }
+    }
 
     private func row(_ repository: TouchedRepository) -> some View {
         FileRow(

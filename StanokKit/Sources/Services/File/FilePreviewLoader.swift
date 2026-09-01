@@ -86,6 +86,9 @@ enum FilePreviewLoader {
 
     private static func read(_ url: URL, text: String) -> FilePreview {
         let size = Int64(text.utf8.count)
+        let all = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        let cut = all.count > Limit.lines
+        let text = cut ? all.prefix(Limit.lines).joined(separator: "\n") : text
 
         if markdownExtensions.contains(url.pathExtension.lowercased()) {
             let blocks = MarkdownParser.blocks(from: text, baseURL: url.deletingLastPathComponent())
@@ -96,21 +99,17 @@ enum FilePreviewLoader {
                 size: size,
                 kind: "Файл",
                 modified: nil,
-                isTruncated: false
+                isTruncated: cut
             )
         }
 
-        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-        let truncated = lines.count > Limit.lines
-        let shown = truncated ? lines.prefix(Limit.lines).joined(separator: "\n") : text
-
         return FilePreview(
             url: url,
-            content: .code(CodeHighlighter.lines(shown, language: url.pathExtension.lowercased())),
+            content: .code(CodeHighlighter.lines(text, language: url.pathExtension.lowercased())),
             size: size,
             kind: "Файл",
             modified: nil,
-            isTruncated: truncated
+            isTruncated: cut
         )
     }
 

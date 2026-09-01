@@ -74,7 +74,7 @@ struct BranchTree: View {
     let tracking: GitTracking
     let root: String?
     let commits: BranchCommitStore
-    let onReviewCommit: (GitCommitChanges) -> Void
+    let onReviewCommit: (String, GitCommitChanges) -> Void
 
     @State
     private var isPromptingNewBranch = false
@@ -148,7 +148,8 @@ private extension BranchTree {
 
     @ViewBuilder
     func leafRow(_ node: BranchNode, ref: GitBranchRef) -> some View {
-        let isOpen = opened.contains(ref.fullName)
+        let key = (root ?? "") + "\n" + ref.fullName
+        let isOpen = opened.contains(key)
 
         FileRow(
             name: node.name,
@@ -165,10 +166,10 @@ private extension BranchTree {
         .help(helpText(for: ref))
         .onTapGesture(count: 2) { Task { await handleTap(ref) } }
         .onTapGesture { toggle(ref) }
-        .task(id: isOpen ? ref.fullName : "") { await loadCommits(ref, isOpen: isOpen) }
+        .task(id: isOpen ? key : "") { await loadCommits(ref, isOpen: isOpen) }
 
         if isOpen {
-            ForEach(commits.commits(for: ref.fullName), id: \.sha) { commit in
+            ForEach(commits.commits(root: root ?? "", branch: ref.fullName), id: \.sha) { commit in
                 commitRow(commit, depth: node.depth + 1)
             }
         }
@@ -186,23 +187,21 @@ private extension BranchTree {
             icon: Image(systemName: "point.3.connected.trianglepath.dotted")
         )
         .help("Двойной клик — ревью коммита")
-        .onTapGesture(count: 2) { onReviewCommit(commit) }
+        .onTapGesture(count: 2) { onReviewCommit(root ?? "", commit) }
     }
 
     func toggle(_ ref: GitBranchRef) {
+        let key = (root ?? "") + "\n" + ref.fullName
+
         withAnimation(.smooth(duration: 0.2)) {
-            if opened.contains(ref.fullName) {
-                opened.remove(ref.fullName)
-            } else {
-                opened.insert(ref.fullName)
-            }
+            if opened.contains(key) { opened.remove(key) } else { opened.insert(key) }
         }
     }
 
     func loadCommits(_ ref: GitBranchRef, isOpen: Bool) async {
         guard isOpen, let root else { return }
 
-        await commits.load(branch: ref.fullName, root: root)
+        await commits.load(root: root, branch: ref.fullName)
     }
 
     func divergence(for ref: GitBranchRef) -> String? {
@@ -308,6 +307,8 @@ private extension BranchTree {
     }
 
     func handleTap(_ ref: GitBranchRef) async {
+        guard actions != nil else { return }
+
         guard
             actions?.isOperating != true,
             !isTapping,

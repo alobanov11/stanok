@@ -47,7 +47,7 @@ struct FilePanel: View {
                     tracking: snapshot?.tracking ?? .none,
                     root: snapshot?.root,
                     commits: branchCommits,
-                    onReviewCommit: { onReview(.commit(sha: $0.sha, subject: $0.subject)) }
+                    onReviewCommit: { onReview(.commit(root: $0, sha: $1.sha, subject: $1.subject)) }
                 )
 
                 ChangeTree(
@@ -62,7 +62,8 @@ struct FilePanel: View {
                     inspector: inspector,
                     branches: branches,
                     commits: branchCommits,
-                    onReviewCommit: { onReview(.commit(sha: $0.sha, subject: $0.subject)) }
+                    active: snapshot?.root,
+                    onReviewCommit: { onReview(.commit(root: $0, sha: $1.sha, subject: $1.subject)) }
                 )
             }
             .padding(.horizontal, 8)

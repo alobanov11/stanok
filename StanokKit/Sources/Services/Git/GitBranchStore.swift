@@ -11,6 +11,9 @@ final class GitBranchStore {
     private var inFlight: Set<String> = []
     private var pending: Set<String> = []
 
+    @ObservationIgnored
+    private var loadingRoots: [String: Task<Void, Never>] = [:]
+
     func snapshot(for session: TerminalSession?) -> GitBranchSnapshot? {
         guard let session else { return nil }
 
@@ -36,14 +39,19 @@ final class GitBranchStore {
 
     // Почему: ветки чужого репозитория читаются по пути, сессии для него нет
     func refresh(root: String) async {
-        guard !inFlight.contains(root) else { return }
+        if let running = loadingRoots[root] {
+            await running.value
+            return
+        }
 
-        inFlight.insert(root)
-        defer { inFlight.remove(root) }
+        let task = Task { [weak self] in
+            let snapshot = await GitBranchClient.listBranches(for: URL(filePath: root))
+            self?.store(snapshot, at: root, generation: self?.generation[root, default: 0] ?? 0)
+        }
 
-        let snapshot = await GitBranchClient.listBranches(for: URL(filePath: root))
-
-        store(snapshot, at: root, generation: generation[root, default: 0])
+        loadingRoots[root] = task
+        await task.value
+        loadingRoots[root] = nil
     }
 
     func refresh(_ session: TerminalSession?) async {
