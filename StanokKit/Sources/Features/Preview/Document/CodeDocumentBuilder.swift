@@ -13,9 +13,11 @@ enum CodeDocumentBuilder {
     ) -> PreviewDocument {
         let visible = folds.visibleLines(count: lines.count, folded: folded)
         let text = NSMutableAttributedString()
+        var rendered: [Int] = []
 
         func appendRemoved(_ gone: [String]) {
             for line in gone {
+                rendered.append(-1)
                 text.append(NSAttributedString(
                     string: line + "\n",
                     attributes: [
@@ -33,6 +35,8 @@ enum CodeDocumentBuilder {
             let follows = changes.kinds[number] == .removed
 
             if let gone, !follows { appendRemoved(gone) }
+
+            rendered.append(index)
 
             let paragraph = NSMutableAttributedString()
 
@@ -73,6 +77,6 @@ enum CodeDocumentBuilder {
             }
         }
 
-        return PreviewDocument(text: text, lines: visible, revision: revision)
+        return PreviewDocument(text: text, lines: rendered, revision: revision)
     }
 }

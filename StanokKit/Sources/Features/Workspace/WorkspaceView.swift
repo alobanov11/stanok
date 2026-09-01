@@ -208,6 +208,7 @@ public struct WorkspaceView<Terminal: View>: View {
 
             if filesMode == .agents {
                 agentsPanel
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
             } else if let filesMode, let folder = inspectorFolder, let root = inspectorGitRoot {
                 filesPanel(filesMode, folder: folder, gitRoot: root)
                     .transition(.move(edge: .trailing).combined(with: .opacity))

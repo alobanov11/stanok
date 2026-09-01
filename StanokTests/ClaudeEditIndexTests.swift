@@ -20,6 +20,21 @@ struct ClaudeEditIndexTests {
         """
     }
 
+    private static func append(_ text: String, to url: URL) throws {
+        let handle = try FileHandle(forWritingTo: url)
+        defer { try? handle.close() }
+
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(text.utf8))
+    }
+
+    private static func truncate(_ url: URL, to length: Int) throws {
+        let handle = try FileHandle(forWritingTo: url)
+        defer { try? handle.close() }
+
+        try handle.truncate(atOffset: UInt64(length))
+    }
+
     @Test
     func editedPathsAndTheWorkingDirectoryComeFromTheLog() async throws {
         let root = Self.makeRoot()
@@ -52,14 +67,14 @@ struct ClaudeEditIndexTests {
         let partial = await index.touched(under: root)
         #expect(partial.0.map(\.url.lastPathComponent) == ["one.swift"])
 
-        try (first + "\n" + second + "\n").write(to: log, atomically: true, encoding: .utf8)
+        try Self.append(String(second.dropFirst(40)) + "\n", to: log)
 
         let complete = await index.touched(under: root)
         #expect(Set(complete.0.map(\.url.lastPathComponent)) == ["one.swift", "two.swift"])
     }
 
     @Test
-    func aTruncatedLogIsReadFromTheStartAgain() async throws {
+    func aLogTruncatedInPlaceIsReadFromTheStartAgain() async throws {
         let root = Self.makeRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
@@ -71,7 +86,8 @@ struct ClaudeEditIndexTests {
         _ = await index.touched(under: root)
 
         let fresh = Self.record("/Users/tom/Projects/app/new.swift", at: "2026-09-01T12:00:00.000Z")
-        try (fresh + "\n").write(to: log, atomically: true, encoding: .utf8)
+        try Self.truncate(log, to: 0)
+        try Self.append(fresh + "\n", to: log)
 
         let found = await index.touched(under: root)
 

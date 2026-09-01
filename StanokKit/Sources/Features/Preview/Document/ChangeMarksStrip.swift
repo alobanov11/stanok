@@ -15,7 +15,7 @@ struct ChangeMarksStrip: View {
         let span = Double(lines.count)
         var runs: [(start: Int, length: Int)] = []
 
-        for (index, line) in lines.enumerated() where changes.kinds[line + 1] != nil {
+        for (index, line) in lines.enumerated() where line >= 0 && changes.kinds[line + 1] != nil {
             if let last = runs.last, last.start + last.length == index {
                 runs[runs.count - 1].length += 1
             } else {

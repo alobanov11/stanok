@@ -26,9 +26,6 @@ public final class AgentChangesModel {
 
     public func refresh() async {
         isLoading = true
-
-        defer { isLoading = false }
-
         await reload()
     }
 }
@@ -73,11 +70,7 @@ private extension AgentChangesModel {
     func root(of directory: String, known: inout [String: String?]) async -> String? {
         if let cached = known[directory] { return cached }
 
-        // Почему: каталог под уже известным корнем не стоит отдельного процесса git
-        if
-            let inherited = known.values.compactMap(\.self).first(where: {
-                directory == $0 || directory.hasPrefix($0.hasSuffix("/") ? $0 : $0 + "/")
-            }) {
+        if let inherited = GitRootResolver.inherited(for: directory, from: Set(known.values.compactMap(\.self))) {
             known[directory] = inherited
             return inherited
         }
@@ -97,7 +90,7 @@ private extension AgentChangesModel {
             guard !Task.isCancelled else { break }
 
             let changes = await GitClient.changes(at: URL(filePath: root))
-            let changed = Set(changes.map { root + "/" + $0.path })
+            let changed = Set(changes.map { Self.resolved(URL(filePath: root + "/" + $0.path)) })
             let untouched = (touched[root] ?? [])
                 .filter { !changed.contains(Self.resolved($0.url)) }
                 .sorted { $0.touchedAt > $1.touchedAt }

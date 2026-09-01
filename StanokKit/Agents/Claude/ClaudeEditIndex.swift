@@ -11,6 +11,7 @@ actor ClaudeEditIndex {
 
         let inode: UInt64
         let size: Int
+        let modified: TimeInterval
     }
 
     struct Entry {
@@ -90,7 +91,10 @@ private extension ClaudeEditIndex {
         var info = Foundation.stat()
         guard path.withCString({ stat($0, &info) }) == 0 else { return nil }
 
-        return Identity(inode: UInt64(info.st_ino), size: Int(info.st_size))
+        let modified = TimeInterval(info.st_mtimespec.tv_sec)
+            + TimeInterval(info.st_mtimespec.tv_nsec) / 1_000_000_000
+
+        return Identity(inode: UInt64(info.st_ino), size: Int(info.st_size), modified: modified)
     }
 
     func scan(_ path: String, budget: inout Int) -> Entry? {
@@ -100,8 +104,10 @@ private extension ClaudeEditIndex {
         }
 
         var entry = entries[path]
-        // Почему: лог могли заменить или обрезать на месте, тогда прежний офсет уже не о том файле
-        if entry?.identity.inode != identity.inode || identity.size < (entry?.scanned ?? 0) {
+        // Почему: лог могли заменить или переписать на месте, тогда прежний офсет уже не о том файле
+        if let known = entry, Self.rewritten(known, into: identity) {
+            entry = Entry(identity: identity, scanned: 0, touches: [:], directory: nil)
+        } else if entry == nil {
             entry = Entry(identity: identity, scanned: 0, touches: [:], directory: nil)
         }
 
@@ -114,13 +120,19 @@ private extension ClaudeEditIndex {
         let length = min(identity.size - start, budget)
         guard let chunk = Self.read(path, from: start, length: length) else { return entry }
 
-        budget -= chunk.count
-
         let consumed = Self.collect(chunk, skipsHead: start > entry.scanned, into: &entry)
+        budget -= max(consumed, 1)
         entry.identity = identity
         entry.scanned = start + consumed
         entries[path] = entry
         return entry
+    }
+
+    static func rewritten(_ entry: Entry, into identity: Identity) -> Bool {
+        if entry.identity.inode != identity.inode { return true }
+        if identity.size < entry.scanned { return true }
+
+        return identity.size == entry.scanned && identity.modified != entry.identity.modified
     }
 
     static func read(_ path: String, from offset: Int, length: Int) -> Data? {

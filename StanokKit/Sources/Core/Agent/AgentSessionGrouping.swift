@@ -25,7 +25,7 @@ public enum AgentSessionGrouping {
         if calendar.isDateInYesterday(day) { return "Вчера" }
 
         let days = calendar.dateComponents([.day], from: day, to: calendar.startOfDay(for: now)).day
-        if let days, days < 7 {
+        if let days, days >= 0, days < 7 {
             return weekday.string(from: day).capitalized
         }
 
