@@ -83,6 +83,9 @@ struct PreviewContentView: View {
     private var builtFor = ""
 
     @State
+    private var builtURL: URL?
+
+    @State
     private var rebuildTask: Task<Void, Never>?
 
     @State
@@ -146,7 +149,12 @@ private extension PreviewContentView {
             folds = .empty
             folded = []
             expanded = []
-            document = .empty
+
+            // Почему: тот же файл дочитывается со старым текстом, чужой — не мелькает вовсе
+            if builtURL != preview.url {
+                builtURL = preview.url
+                document = .empty
+            }
         }
 
         let wanted = documentRevision

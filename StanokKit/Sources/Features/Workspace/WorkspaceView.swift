@@ -554,7 +554,9 @@ private extension WorkspaceView {
             }
 
         case .agents:
-            return (agentChanges ?? ownChanges).repositories.flatMap { repository in
+            let ordered = (agentChanges ?? ownChanges).repositories.sorted { $0.root < $1.root }
+
+            return ordered.flatMap { repository in
                 repository.changes.map {
                     ReviewFile(
                         url: URL(filePath: repository.root).appending(path: $0.path),

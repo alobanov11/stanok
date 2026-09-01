@@ -49,6 +49,12 @@ struct ReviewFileCard: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
 
+            if isExpanded, preview?.isTruncated == true {
+                Text("первые 5000 строк")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+
             Spacer(minLength: 8)
 
             if let status = file.status {

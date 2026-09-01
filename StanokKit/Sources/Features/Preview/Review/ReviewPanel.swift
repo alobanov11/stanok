@@ -10,7 +10,7 @@ struct ReviewPanel: View {
     }
 
     private var stamp: String {
-        kind.rawValue + "\n" + files.map(\.path).joined(separator: "\n")
+        kind.rawValue + "\n" + files.map { $0.url.path(percentEncoded: false) }.joined(separator: "\n")
     }
 
     @State
@@ -106,9 +106,13 @@ struct ReviewPanel: View {
     }
 
     private func adopt() {
-        if let initial, files.contains(where: { $0.url == initial }) { return }
+        let present = Set(files.map(\.url))
+        expanded.formIntersection(present)
+        collapsed.formIntersection(present)
 
-        // Почему: пока человек сам что-то раскрыл, не отбираем у него раскрытую карточку
+        if let initial, present.contains(initial) { return }
+
+        // Почему: пока раскрытая человеком карточка на экране, не отбираем её ради первой
         guard expanded.isEmpty else {
             initial = nil
             return

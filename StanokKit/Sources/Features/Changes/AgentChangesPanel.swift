@@ -54,6 +54,9 @@ struct AgentChangesPanel: View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .task { await model.refresh() }
+            .onChange(of: selected) { _, url in
+                if url != chosen { chosen = url }
+            }
     }
 
     let model: AgentChangesModel
