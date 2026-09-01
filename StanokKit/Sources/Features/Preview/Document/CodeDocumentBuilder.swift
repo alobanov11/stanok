@@ -73,6 +73,6 @@ enum CodeDocumentBuilder {
             }
         }
 
-        return PreviewDocument(text: text, revision: revision)
+        return PreviewDocument(text: text, lines: visible, revision: revision)
     }
 }

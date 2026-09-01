@@ -6,6 +6,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
 
         case id
         case name
+        case title
+        case header
         case url
         case workspace
         case parentID
@@ -13,10 +15,12 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
     }
 
     public var displayName: String {
-        liveTitle ?? name
+        title ?? liveTitle ?? name
     }
 
     public var name: String
+    public var title: String?
+    public var header: String?
     public var url: URL
     public var workspace: WorkspaceState
     public var parentID: UUID?
@@ -29,6 +33,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
     public init(
         id: UUID = UUID(),
         name: String,
+        title: String? = nil,
+        header: String? = nil,
         url: URL,
         workspace: WorkspaceState = WorkspaceState(),
         parentID: UUID? = nil,
@@ -38,6 +44,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
     ) {
         self.id = id
         self.name = name
+        self.title = title
+        self.header = header
         self.url = url
         self.workspace = workspace
         self.parentID = parentID
@@ -50,6 +58,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(UUID.self, forKey: .id)
         self.name = try container.decode(String.self, forKey: .name)
+        self.title = try container.decodeIfPresent(String.self, forKey: .title)
+        self.header = try container.decodeIfPresent(String.self, forKey: .header)
         self.url = try container.decode(URL.self, forKey: .url)
         self.workspace = try container.decode(WorkspaceState.self, forKey: .workspace)
         self.parentID = try container.decodeIfPresent(UUID.self, forKey: .parentID)
@@ -61,6 +71,8 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
     public static func == (lhs: TerminalSession, rhs: TerminalSession) -> Bool {
         lhs.id == rhs.id
             && lhs.name == rhs.name
+            && lhs.title == rhs.title
+            && lhs.header == rhs.header
             && lhs.url == rhs.url
             && lhs.workspace == rhs.workspace
             && lhs.parentID == rhs.parentID

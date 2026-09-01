@@ -5,9 +5,10 @@ struct PreviewDocument: @unchecked Sendable {
     static let sourceLine = NSAttributedString.Key("stanok.sourceLine")
 
     static var empty: PreviewDocument {
-        PreviewDocument(text: NSAttributedString(), revision: "")
+        PreviewDocument(text: NSAttributedString(), lines: [], revision: "")
     }
 
     let text: NSAttributedString
+    let lines: [Int]
     let revision: String
 }

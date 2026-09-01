@@ -103,6 +103,22 @@ public final class SessionStore {
         return layout.leafIDs.compactMap { id in sessions.first { $0.id == id } }
     }
 
+    public func setTitle(_ title: String?, for sessionID: TerminalSession.ID) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        guard sessions[index].title != title else { return }
+
+        sessions[index].title = title
+        save()
+    }
+
+    public func setHeader(_ header: String?, for sessionID: TerminalSession.ID) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        guard sessions[index].header != header else { return }
+
+        sessions[index].header = header
+        save()
+    }
+
     public func setLiveTitle(_ title: String?, for sessionID: TerminalSession.ID) {
         guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
 
@@ -206,6 +222,7 @@ private extension SessionStore {
         }
 
         sessions[heirIndex].parentID = nil
+        sessions[heirIndex].header = root.header
         sessions[heirIndex].layout = pruned(remaining, soleLeaf: heirID)
 
         for index in sessions.indices where sessions[index].parentID == root.id {

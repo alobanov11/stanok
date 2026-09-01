@@ -147,6 +147,29 @@ struct TerminalCommandDispatcherTests {
         #expect(dispatcher.insertRequest(for: session) == nil)
     }
 
+    @Test
+    func anOldCloseAnswerDoesNotCancelANewRequest() throws {
+        let dispatcher = TerminalCommandDispatcher()
+        let session = UUID()
+        dispatcher.requestSurfaceClose(session)
+
+        let first = try #require(dispatcher.closeRequest(for: session))
+        dispatcher.requestSurfaceClose(session)
+        dispatcher.markCloseHandled(session, request: first)
+
+        #expect(dispatcher.closeRequest(for: session) != nil)
+    }
+
+    @Test
+    func forgettingASessionDropsItsCloseRequest() {
+        let dispatcher = TerminalCommandDispatcher()
+        let session = UUID()
+        dispatcher.requestSurfaceClose(session)
+        dispatcher.forget(session)
+
+        #expect(dispatcher.closeRequest(for: session) == nil)
+    }
+
     private func action(_ id: String) -> AgentResumeAction {
         AgentResumeAction(executable: "claude", arguments: ["--resume", id])
     }

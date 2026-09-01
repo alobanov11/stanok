@@ -334,10 +334,18 @@ final class GhosttySurfaceView: NSView {
         lastHandledCloseRequestID = closeRequest
 
         let id = closeRequest
-        DispatchQueue.main.async { [weak self] in self?.onCloseHandled?(id) }
-        guard let surface else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
 
-        ghostty_surface_request_close(surface)
+            onCloseHandled?(id)
+
+            guard let surface else {
+                onCloseRequested?(false)
+                return
+            }
+
+            ghostty_surface_request_close(surface)
+        }
     }
 
     func apply(insertRequest: TerminalInsertRequest?) {
@@ -365,18 +373,19 @@ final class GhosttySurfaceView: NSView {
 
 private extension GhosttySurfaceView {
 
-    static func insertableText(
-        from event: NSEvent,
-        using keyPath: KeyPath<NSEvent, String?>
-    ) -> String? {
-        guard let characters = event[keyPath: keyPath], !characters.isEmpty else { return nil }
+    static func insertableText(from event: NSEvent) -> String? {
+        guard let characters = event.characters, !characters.isEmpty else { return nil }
 
-        for scalar in characters.unicodeScalars {
-            let isFunctionKey = (0xF700...0xF8FF).contains(scalar.value)
-            let isControl = scalar.value < 0x20 || scalar.value == 0x7F
-            if isFunctionKey || isControl { return nil }
-        }
-        return characters
+        // Почему: ghostty кодирует ctrl сам, ему нужен базовый символ, а не управляющий байт
+        let text = characters.unicodeScalars.count == 1 && characters.unicodeScalars.first!.value < 0x20
+            ? event.characters(byApplyingModifiers: event.modifierFlags.subtracting(.control))
+            : characters
+
+        guard let text, let first = text.unicodeScalars.first else { return nil }
+        guard !(0xF700...0xF8FF).contains(first.value), first.value >= 0x20, first.value != 0x7F
+        else { return nil }
+
+        return text
     }
 
     static func modifier(for keyCode: UInt16) -> ghostty_input_mods_e? {
@@ -430,8 +439,7 @@ private extension GhosttySurfaceView {
         key.composing = false
         key.unshifted_codepoint = Self.unshifted(from: event)
 
-        let text = event
-            .type == .keyDown ? (Self.insertableText(from: event, using: \.characters) ?? "") : ""
+        let text = event.type == .keyDown ? (Self.insertableText(from: event) ?? "") : ""
         if text.isEmpty {
             key.text = nil
             _ = ghostty_surface_key(surface, key)

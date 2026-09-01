@@ -282,16 +282,19 @@ private extension GhosttyRuntime {
         contents: UnsafePointer<ghostty_clipboard_content_s>?,
         count: Int
     ) {
-        guard let copies = copied(contents, count: count) else { return }
+        guard let copies = copied(contents, count: count), !isAsking else { return }
+
+        isAsking = true
 
         DispatchQueue.main.async {
             let joined = copies.map(\.data).joined()
-            guard
-                ask(
-                    message(for: GHOSTTY_CLIPBOARD_REQUEST_OSC_52_WRITE),
-                    detail: preview(of: joined)
-                )
-            else { return }
+            let allowed = ask(
+                message(for: GHOSTTY_CLIPBOARD_REQUEST_OSC_52_WRITE),
+                detail: preview(of: joined)
+            )
+            isAsking = false
+
+            guard allowed else { return }
 
             writeFlavors(copies)
         }

@@ -100,9 +100,18 @@ struct PreviewContentView: View {
             topInset: topInset,
             openLink: { openURL($0) }
         )
+        .overlay(alignment: .trailing) { marks }
         .task(id: revision) { await rebuild() }
         .onReceive(NotificationCenter.default.publisher(for: ConfigFile.changed)) { _ in
             terminalFamily = ConfigFile.value(for: "font-family") ?? ""
+        }
+    }
+
+    @ViewBuilder
+    private var marks: some View {
+        if isCode, !preview.changes.kinds.isEmpty {
+            ChangeMarksStrip(lines: document.lines, changes: preview.changes)
+                .padding(.top, topInset)
         }
     }
 

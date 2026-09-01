@@ -11,9 +11,10 @@ final class FileTreeModel {
     private var onGitChange: (() -> Void)?
     private var currentGitDirectories: [String] = []
 
-    func open(_ url: URL?, gitDirectories: [String], onGitChange: @escaping () -> Void) {
+    func open(_ requested: URL?, gitDirectories: [String], onGitChange: @escaping () -> Void) {
         self.onGitChange = onGitChange
 
+        let url = requested?.resolvingSymlinksInPath()
         guard root?.url != url else { return }
 
         watcher?.stop()

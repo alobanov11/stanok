@@ -45,6 +45,14 @@ enum IgnoredPaths {
         return containsPair(components)
     }
 
+    static func contains(path: String, underResolvedRoot root: String) -> Bool {
+        let prefix = root.hasSuffix("/") ? root : root + "/"
+        guard path.hasPrefix(prefix) else { return false }
+
+        return contains(relativePath: String(path.dropFirst(prefix.count)))
+            || isExcludedHomeChild(URL(filePath: path))
+    }
+
     static func contains(_ url: URL, under root: URL) -> Bool {
         let base = root.standardizedFileURL.resolvingSymlinksInPath()
             .path(percentEncoded: false)

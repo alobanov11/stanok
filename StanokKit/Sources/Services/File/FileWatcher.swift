@@ -57,14 +57,13 @@ public final class FileWatcher {
                     continue
                 }
 
-                let url = URL(filePath: path)
-                guard !FileWatcher.isIgnored(url, under: root) else {
+                guard !FileWatcher.isIgnored(path, under: root) else {
                     pendingIgnoredGitChange = true
                     continue
                 }
 
                 pendingGitChange = true
-                pendingDirectories.insert(url.deletingLastPathComponent())
+                pendingDirectories.insert(URL(filePath: path).deletingLastPathComponent())
             }
 
             let alreadyScheduled = deliveryScheduled
@@ -119,6 +118,7 @@ public final class FileWatcher {
         static let directories = Duration.milliseconds(150)
         static let git = Duration.milliseconds(300)
         static let gitCap: TimeInterval = 2
+        static let ignoredGit = Duration.seconds(10)
         static let ignoredGitCap: TimeInterval = 10
     }
 
@@ -147,6 +147,7 @@ public final class FileWatcher {
     private var directoriesFlush: Task<Void, Never>?
     private var gitFlush: Task<Void, Never>?
     private var gitFlushStartedAt: Date?
+    private var gitFlushCap: TimeInterval = FlushDelay.gitCap
     private var nextGeneration = 0
     private var watchedRoot: URL?
 
@@ -169,8 +170,8 @@ public final class FileWatcher {
         FSEventStreamRelease(stream)
     }
 
-    private nonisolated static func isIgnored(_ url: URL, under root: String) -> Bool {
-        IgnoredPaths.contains(url, under: URL(filePath: root))
+    private nonisolated static func isIgnored(_ path: String, under root: String) -> Bool {
+        IgnoredPaths.contains(path: path, underResolvedRoot: root)
     }
 
     private nonisolated static func isInside(_ path: String, gitDirectory: String) -> Bool {
@@ -268,6 +269,7 @@ public final class FileWatcher {
         gitFlush?.cancel()
         gitFlush = nil
         gitFlushStartedAt = nil
+        gitFlushCap = FlushDelay.gitCap
         pendingDirectories.removeAll()
         context = nil
 
@@ -302,9 +304,9 @@ private extension FileWatcher {
         }
 
         if drained.gitChanged {
-            scheduleGitFlush(cap: FlushDelay.gitCap)
+            scheduleGitFlush(ignoredOnly: false)
         } else if drained.ignoredGitChanged {
-            scheduleGitFlush(cap: FlushDelay.ignoredGitCap)
+            scheduleGitFlush(ignoredOnly: true)
         }
     }
 
@@ -318,19 +320,30 @@ private extension FileWatcher {
         }
     }
 
-    func scheduleGitFlush(cap: TimeInterval) {
-        if let gitFlushStartedAt, Date().timeIntervalSince(gitFlushStartedAt) >= cap {
-            gitFlush?.cancel()
-            gitFlush = nil
-            emitGitChange()
-            return
+    func scheduleGitFlush(ignoredOnly: Bool) {
+        let cap = ignoredOnly ? FlushDelay.ignoredGitCap : FlushDelay.gitCap
+
+        if let startedAt = gitFlushStartedAt {
+            gitFlushCap = min(gitFlushCap, cap)
+
+            if Date().timeIntervalSince(startedAt) >= gitFlushCap {
+                gitFlush?.cancel()
+                gitFlush = nil
+                emitGitChange()
+                return
+            }
+
+            // Почему: взведённый таймер настоящей правки нельзя отодвигать шумом сборки
+            if ignoredOnly, gitFlush != nil { return }
+        } else {
+            gitFlushStartedAt = Date()
+            gitFlushCap = cap
         }
 
-        if gitFlushStartedAt == nil { gitFlushStartedAt = Date() }
-
+        let delay = ignoredOnly ? FlushDelay.ignoredGit : FlushDelay.git
         gitFlush?.cancel()
         gitFlush = Task { [weak self] in
-            try? await Task.sleep(for: FlushDelay.git)
+            try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
 
             self?.emitGitChange()
@@ -345,6 +358,7 @@ private extension FileWatcher {
 
     func emitGitChange() {
         gitFlushStartedAt = nil
+        gitFlushCap = FlushDelay.gitCap
         onGitChange()
     }
 }

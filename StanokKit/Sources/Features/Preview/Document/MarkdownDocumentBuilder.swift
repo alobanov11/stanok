@@ -28,7 +28,7 @@ enum MarkdownDocumentBuilder {
             ))
         }
 
-        return PreviewDocument(text: text, revision: revision)
+        return PreviewDocument(text: text, lines: [], revision: revision)
     }
 }
 

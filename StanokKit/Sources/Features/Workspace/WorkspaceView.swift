@@ -120,6 +120,10 @@ public struct WorkspaceView<Terminal: View>: View {
         (mainWidth / 2 - WorkspaceLayout.inset).rounded()
     }
 
+    private var previewInset: CGFloat {
+        isPreviewSplit ? previewWidth + WorkspaceLayout.inset : 0
+    }
+
     private var isPreviewSplit: Bool {
         WorkspaceGeometry.isPreviewSplit(hasPreview: navigator.current != nil, width: mainWidth)
     }
@@ -272,7 +276,9 @@ public struct WorkspaceView<Terminal: View>: View {
     private var panes: some View {
         GeometryReader { proxy in
             let frames = paneFrames(in: proxy.size)
-            let resting = restingFrames(in: proxy.size)
+            let resting = restingFrames(
+                in: CGSize(width: proxy.size.width + previewInset, height: proxy.size.height)
+            )
 
             ZStack(alignment: .topLeading) {
                 ForEach(store.sessions) { session in
@@ -328,7 +334,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var mainContent: some View {
         ZStack {
             panes
-                .padding(.trailing, isPreviewSplit ? previewWidth + WorkspaceLayout.inset : 0)
+                .padding(.trailing, previewInset)
 
             if let entry = navigator.current {
                 previewLayer(
@@ -490,14 +496,14 @@ private extension WorkspaceView {
         return SplitFrames.rects(for: paneLayout, in: size, gap: WorkspaceLayout.inset)
     }
 
-    func restingFrames(in size: CGSize) -> [TerminalSession.ID: CGRect] {
+    func restingFrames(in area: CGSize) -> [TerminalSession.ID: CGRect] {
         var frames: [TerminalSession.ID: CGRect] = [:]
 
         for root in store.roots where root.id != rootSession?.id {
             let layout = root.layout ?? .leaf(root.id)
             for (id, rect) in SplitFrames.rects(
                 for: layout,
-                in: size,
+                in: area,
                 gap: WorkspaceLayout.inset
             ) {
                 frames[id] = rect
