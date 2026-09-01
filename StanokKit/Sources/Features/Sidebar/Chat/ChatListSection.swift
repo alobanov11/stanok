@@ -7,7 +7,8 @@ struct ChatListSection: View {
     }
 
     var body: some View {
-        VStack(spacing: 2) {
+        // Почему: Group вместо VStack, чтобы строки попали прямо в ленивый список сайдбара
+        Group {
             SectionHeader(title: title)
 
             content
@@ -23,6 +24,9 @@ struct ChatListSection: View {
 
     @Environment(\.agentSessionRegistry)
     private var registry
+
+    @State
+    private var days: [AgentSessionDay]?
 
     @ViewBuilder
     private var content: some View {
@@ -43,23 +47,36 @@ struct ChatListSection: View {
 
     @ViewBuilder
     private func filteredContent(_ sessions: [AgentSession]) -> some View {
-        let filtered = AgentSessionFilter.apply(filter, to: sessions)
+        Group {
+            if let days {
+                if days.isEmpty {
+                    statusRow("Ничего не найдено")
+                } else {
+                    ForEach(days) { day in
+                        ChatDayHeader(title: day.title)
 
-        if filtered.isEmpty {
-            statusRow("Ничего не найдено")
-        } else {
-            ForEach(AgentSessionGrouping.byDay(filtered)) { day in
-                ChatDayHeader(title: day.title)
-
-                ForEach(day.sessions) { session in
-                    ChatRow(session: session)
-                        .gesture(
-                            TapGesture(count: 2).onEnded { onInsert(session) }
-                                .exclusively(before: TapGesture().onEnded { onCopy(session) })
-                        )
+                        ForEach(day.sessions) { session in
+                            ChatRow(session: session)
+                                .gesture(
+                                    TapGesture(count: 2).onEnded { onInsert(session) }
+                                        .exclusively(before: TapGesture().onEnded { onCopy(session) })
+                                )
+                        }
+                    }
                 }
+            } else {
+                statusRow("Загрузка чатов…")
             }
         }
+        .task(id: Self.stamp(sessions, filter: filter)) {
+            days = AgentSessionGrouping.byDay(AgentSessionFilter.apply(filter, to: sessions))
+        }
+    }
+
+    private static func stamp(_ sessions: [AgentSession], filter: String) -> String {
+        let newest = sessions.max { $0.lastActivityAt < $1.lastActivityAt }?.lastActivityAt
+
+        return "\(sessions.count)|\(newest?.timeIntervalSince1970 ?? 0)|\(filter)"
     }
 
     private func statusRow(_ text: String) -> some View {

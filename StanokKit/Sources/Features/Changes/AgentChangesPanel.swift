@@ -61,6 +61,9 @@ struct AgentChangesPanel: View {
     @Binding
     var selected: URL?
 
+    @State
+    private var chosen: URL?
+
     let onOpen: (URL) -> Void
 
     private func row(
@@ -76,13 +79,14 @@ struct AgentChangesPanel: View {
             isExpanded: false,
             depth: 0,
             status: status,
-            isSelected: url == selected,
+            isSelected: url == chosen,
             actions: nil
         )
         .opacity(status == nil ? 0.55 : 1)
         .onTapGesture {
             guard status != .deleted else { return }
 
+            chosen = url
             selected = url
             onOpen(url)
         }

@@ -9,6 +9,10 @@ struct ReviewPanel: View {
         return "\(kind.title) — \(count) \(word)"
     }
 
+    private var stamp: String {
+        kind.rawValue + "\n" + files.map(\.path).joined(separator: "\n")
+    }
+
     @State
     private var expanded: Set<URL> = []
 
@@ -27,7 +31,7 @@ struct ReviewPanel: View {
                 collapsed = []
                 initial = nil
             }
-            .task(id: files.map(\.path).joined()) { adopt() }
+            .task(id: stamp) { adopt() }
     }
 
     private var bar: some View {
@@ -102,7 +106,13 @@ struct ReviewPanel: View {
     }
 
     private func adopt() {
-        guard initial == nil else { return }
+        if let initial, files.contains(where: { $0.url == initial }) { return }
+
+        // Почему: пока человек сам что-то раскрыл, не отбираем у него раскрытую карточку
+        guard expanded.isEmpty else {
+            initial = nil
+            return
+        }
 
         initial = files.first { $0.status != .deleted }?.url
     }

@@ -67,7 +67,10 @@ private extension AgentChangesModel {
 
         guard !Task.isCancelled else { return }
 
-        repositories = await collect(roots: roots, touched: byRoot)
+        let collected = await collect(roots: roots, touched: byRoot)
+        guard !Task.isCancelled else { return }
+
+        repositories = collected
         checkedAt = Date()
     }
 

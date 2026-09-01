@@ -44,7 +44,7 @@ struct SessionList: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 2) {
+                LazyVStack(spacing: 2) {
                     shells
 
                     chats
@@ -240,7 +240,7 @@ private extension SessionList {
     }
 
     func startEditing(_ session: TerminalSession, field: SessionEdit.Field) {
-        editText = field == .title ? session.displayName : (session.header ?? "")
+        editText = field == .title ? (session.title ?? "") : (session.header ?? "")
         edit = SessionEdit(id: session.id, field: field)
     }
 

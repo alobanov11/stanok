@@ -254,8 +254,8 @@ public struct WorkspaceView<Terminal: View>: View {
             )
         )
         .modifier(SessionPersistence(store: store))
-        .task(id: isReviewingAgents) {
-            while !Task.isCancelled, isReviewingAgents {
+        .task(id: needsAgentChanges) {
+            while !Task.isCancelled, needsAgentChanges {
                 await (agentChanges ?? ownChanges).refresh()
                 try? await Task.sleep(for: .seconds(20))
             }
@@ -374,6 +374,10 @@ public struct WorkspaceView<Terminal: View>: View {
 }
 
 private extension WorkspaceView {
+
+    var needsAgentChanges: Bool {
+        isReviewingAgents || filesMode == .agents
+    }
 
     var isReviewingAgents: Bool {
         if case .review(.agents) = navigator.current { return true }
