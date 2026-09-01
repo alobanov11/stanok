@@ -447,13 +447,15 @@ private extension WorkspaceView {
         isLeading: Bool
     ) -> some View {
         terminalContent(session, isShown: isShown, isFocused: isFocused)
-            .modifier(WorkspaceCard())
+            // Почему: под шапкой лежит живой первый ряд, а не переполнение скролла
+            .padding(.top, isLeading ? WorkspaceLayout.headerHeight : 0)
             .overlay(alignment: .top) {
                 if isLeading { header(session) }
             }
             .overlay(alignment: .topTrailing) {
                 if !isLeading { floatingMenu(session) }
             }
+            .modifier(WorkspaceCard())
     }
 
     func floatingMenu(_ session: TerminalSession) -> some View {
