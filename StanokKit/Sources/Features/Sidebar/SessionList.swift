@@ -68,6 +68,12 @@ struct SessionList: View {
 
             SidebarToolbar(filterText: $chatFilter)
         }
+        // Почему: секция чатов ленивая и может не всплыть, а грузить их надо с самого начала
+        .task(id: agentSessionRegistry.registeredProviders.map(\.id)) {
+            for provider in agentSessionRegistry.registeredProviders {
+                agentSessionRegistry.observeAllSessions(providerID: provider.id)
+            }
+        }
         .alert(edit?.title ?? "", isPresented: isEditing, presenting: edit) { pending in
             TextField(pending.prompt, text: $editText)
 

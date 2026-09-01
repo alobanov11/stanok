@@ -13,7 +13,6 @@ struct ChatListSection: View {
 
             content
         }
-        .onAppear { registry.observeAllSessions(providerID: providerID) }
     }
 
     let providerID: String
@@ -73,10 +72,17 @@ struct ChatListSection: View {
         }
     }
 
-    private static func stamp(_ sessions: [AgentSession], filter: String) -> String {
-        let newest = sessions.max { $0.lastActivityAt < $1.lastActivityAt }?.lastActivityAt
+    private static func stamp(_ sessions: [AgentSession], filter: String) -> Int {
+        var hasher = Hasher()
+        hasher.combine(filter)
+        hasher.combine(Calendar.current.startOfDay(for: Date()))
 
-        return "\(sessions.count)|\(newest?.timeIntervalSince1970 ?? 0)|\(filter)"
+        for session in sessions {
+            hasher.combine(session.id)
+            hasher.combine(session.lastActivityAt)
+        }
+
+        return hasher.finalize()
     }
 
     private func statusRow(_ text: String) -> some View {
