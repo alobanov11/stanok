@@ -28,6 +28,14 @@ public enum GitClient {
         )
     }
 
+    public static func root(for url: URL) async -> String? {
+        let path = url.path(percentEncoded: false)
+        guard let root = await run(["rev-parse", "--show-toplevel"], at: path), !root.isEmpty
+        else { return nil }
+
+        return root
+    }
+
     public static func probe(for url: URL) async -> Probe {
         let path = url.path(percentEncoded: false)
 

@@ -13,6 +13,9 @@ struct RootView: View {
     @State
     private var agents = AgentSessionRegistry()
 
+    @State
+    private var agentChanges = AgentChangesModel()
+
     var body: some View {
         content
             .onReceive(NotificationCenter.default.publisher(for: ConfigFile.changed)) { _ in
@@ -21,6 +24,7 @@ struct RootView: View {
             .task {
                 DefaultConfig.seed()
                 AgentProviders.registerAll(into: agents)
+                agentChanges.use(AgentProviders.touchesSource())
                 do {
                     runtime = try GhosttyRuntime()
                 } catch {
@@ -54,6 +58,7 @@ struct RootView: View {
                 .id(request.session.id)
             }
             .environment(\.agentSessionRegistry, agents)
+            .environment(\.agentChanges, agentChanges)
             .fontDesign(.rounded)
         } else if let failure {
             ContentUnavailableView(

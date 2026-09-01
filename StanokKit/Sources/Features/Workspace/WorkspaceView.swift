@@ -184,6 +184,9 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var processTracker = TabProcessTracker()
 
+    @Environment(\.agentChanges)
+    private var agentChanges
+
     public var body: some View {
         HStack(spacing: 0) {
             if isSidebarExpanded {
@@ -200,7 +203,9 @@ public struct WorkspaceView<Terminal: View>: View {
                 .padding(.vertical, WorkspaceLayout.inset)
                 .environment(\.openURL, OpenURLAction(handler: linkRouter.handleLink))
 
-            if let filesMode, let folder = inspectorFolder, let root = inspectorGitRoot {
+            if filesMode == .agents {
+                agentsPanel
+            } else if let filesMode, let folder = inspectorFolder, let root = inspectorGitRoot {
                 filesPanel(filesMode, folder: folder, gitRoot: root)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
             }
@@ -360,6 +365,21 @@ public struct WorkspaceView<Terminal: View>: View {
 
 private extension WorkspaceView {
 
+    var agentsPanel: some View {
+        FilePanel(
+            mode: .agents,
+            fileTreeModel: inspector.fileTree(for: inspectorFolder ?? URL(filePath: "/")),
+            changeTreeModel: inspector.changeTree(for: inspectorGitRoot ?? ""),
+            branchTreeModel: inspector.branchTree(for: inspectorGitRoot ?? ""),
+            agentChanges: agentChanges ?? AgentChangesModel(),
+            branchActions: branchActions,
+            snapshot: gitSnapshot,
+            selected: inspectorControls.selectedFile,
+            onOpen: inspectorControls.open
+        )
+        .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
+    }
+
     func pane(
         _ session: TerminalSession,
         frame: CGRect?,
@@ -472,6 +492,7 @@ private extension WorkspaceView {
             fileTreeModel: inspector.fileTree(for: folder),
             changeTreeModel: inspector.changeTree(for: gitRoot),
             branchTreeModel: inspector.branchTree(for: gitRoot),
+            agentChanges: agentChanges ?? AgentChangesModel(),
             branchActions: branchActions,
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,

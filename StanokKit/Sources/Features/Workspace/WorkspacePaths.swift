@@ -46,6 +46,7 @@ enum WorkspacePaths {
         case "all": return .all
         case "changes": return .changes
         case "branches": return .branches
+        case "agents": return .agents
         default: return nil
         }
     }
@@ -55,6 +56,7 @@ enum WorkspacePaths {
         case .all: return "all"
         case .changes: return "changes"
         case .branches: return "branches"
+        case .agents: return "agents"
         case nil: return nil
         }
     }

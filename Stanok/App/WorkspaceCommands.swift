@@ -22,6 +22,12 @@ struct WorkspaceCommands: Commands {
             }
             .keyboardShortcut("3", modifiers: .command)
             .disabled(actions == nil)
+
+            Button("Изменения агентов") {
+                actions?.toggleAgentChanges()
+            }
+            .keyboardShortcut("4", modifiers: .command)
+            .disabled(actions == nil)
         }
 
         CommandGroup(replacing: .newItem) {

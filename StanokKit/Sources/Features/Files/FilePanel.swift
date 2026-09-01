@@ -14,6 +14,7 @@ struct FilePanel: View {
         switch mode {
         case .all, .changes: "Файлы"
         case .branches: "Ветки"
+        case .agents: "Агенты"
         }
     }
 
@@ -39,6 +40,9 @@ struct FilePanel: View {
         case .changes:
             ChangeTree(model: changeTreeModel, selected: $selected, onOpen: onOpen)
 
+        case .agents:
+            AgentChangesPanel(model: agentChanges, selected: $selected, onOpen: onOpen)
+
         case .branches:
             BranchTree(
                 model: branchTreeModel,
@@ -52,6 +56,7 @@ struct FilePanel: View {
     let fileTreeModel: FileTreeModel
     let changeTreeModel: ChangeTreeModel
     let branchTreeModel: BranchTreeModel
+    let agentChanges: AgentChangesModel
     let branchActions: BranchActions
     let snapshot: GitSnapshot?
 

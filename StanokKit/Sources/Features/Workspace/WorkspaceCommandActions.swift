@@ -6,6 +6,7 @@ public struct WorkspaceCommandActions {
     public let toggleSidebar: () -> Void
     public let toggleAllFiles: () -> Void
     public let toggleChangedFiles: () -> Void
+    public let toggleAgentChanges: () -> Void
     public let newTerminalTab: (() -> Void)?
     public let closeTerminalTab: (() -> Void)?
 
@@ -13,12 +14,14 @@ public struct WorkspaceCommandActions {
         toggleSidebar: @escaping () -> Void,
         toggleAllFiles: @escaping () -> Void,
         toggleChangedFiles: @escaping () -> Void,
+        toggleAgentChanges: @escaping () -> Void,
         newTerminalTab: (() -> Void)?,
         closeTerminalTab: (() -> Void)?
     ) {
         self.toggleSidebar = toggleSidebar
         self.toggleAllFiles = toggleAllFiles
         self.toggleChangedFiles = toggleChangedFiles
+        self.toggleAgentChanges = toggleAgentChanges
         self.newTerminalTab = newTerminalTab
         self.closeTerminalTab = closeTerminalTab
     }
@@ -45,6 +48,7 @@ public struct WorkspaceCommandActions {
             toggleSidebar: toggleSidebar,
             toggleAllFiles: { selectFilesMode(.all) },
             toggleChangedFiles: { selectFilesMode(.changes) },
+            toggleAgentChanges: { selectFilesMode(.agents) },
             newTerminalTab: newTerminalTab,
             closeTerminalTab: closeTerminalTab
         )
