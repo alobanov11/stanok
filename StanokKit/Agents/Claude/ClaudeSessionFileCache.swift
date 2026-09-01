@@ -40,8 +40,8 @@ actor ClaudeSessionFileCache {
 
     private enum Limits {
 
-        static let headCap = 512 * 1024
-        static let tailCap = 256 * 1024
+        static let headCap = 128 * 1024
+        static let tailCap = 128 * 1024
     }
 
     private var entries: [String: Entry] = [:]
