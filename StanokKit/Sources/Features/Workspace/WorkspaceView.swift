@@ -261,7 +261,7 @@ public struct WorkspaceView<Terminal: View>: View {
             ZStack(alignment: .topLeading) {
                 ForEach(store.sessions) { session in
                     if live.contains(session.id) {
-                        pane(session, frame: frames[session.id])
+                        pane(session, frame: frames[session.id], container: proxy.size)
                     }
                 }
             }
@@ -322,8 +322,8 @@ public struct WorkspaceView<Terminal: View>: View {
 
 private extension WorkspaceView {
 
-    func pane(_ session: TerminalSession, frame: CGRect?) -> some View {
-        let rect = frame ?? CGRect(origin: .zero, size: WorkspaceLayout.hiddenPaneSize)
+    func pane(_ session: TerminalSession, frame: CGRect?, container: CGSize) -> some View {
+        let rect = frame ?? CGRect(origin: .zero, size: container)
         let isShown = frame != nil && !isPreviewFullScreen
         let isFocused = isShown && session.id == selection
 

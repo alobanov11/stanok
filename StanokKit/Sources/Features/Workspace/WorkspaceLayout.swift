@@ -16,7 +16,6 @@ enum WorkspaceLayout {
     static let toggleGap: CGFloat = 10
     static let headerHeight: CGFloat = 48
     static let unfocusedPaneOpacity: CGFloat = 0.7
-    static let hiddenPaneSize = CGSize(width: 1200, height: 800)
     static let toggleClearance: CGFloat = 40
     static let directorySettleDelay = Duration.milliseconds(150)
 }

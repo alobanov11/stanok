@@ -6,7 +6,7 @@ import StanokKit
 
 final class GhosttySurfaceView: NSView {
 
-    private static let resizeInterval: CFTimeInterval = 0.05
+    private static let resizeInterval: CFTimeInterval = 0.03
 
     override var acceptsFirstResponder: Bool { true }
     var handle: ghostty_surface_t? { surface }
@@ -129,6 +129,14 @@ final class GhosttySurfaceView: NSView {
 
         applyScale()
         scheduleSize(newSize)
+    }
+
+    override func viewDidEndLiveResize() {
+        super.viewDidEndLiveResize()
+
+        resizeWork?.cancel()
+        resizeWork = nil
+        applyPendingSize()
     }
 
     override func becomeFirstResponder() -> Bool {
@@ -258,8 +266,7 @@ final class GhosttySurfaceView: NSView {
         link?.isPaused = !visible
 
         if visible {
-            pendingSize = bounds.size
-            applyPendingSize()
+            scheduleSize(bounds.size)
         }
 
         if let surface {
