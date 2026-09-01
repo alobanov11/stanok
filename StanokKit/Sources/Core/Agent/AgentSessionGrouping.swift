@@ -21,8 +21,14 @@ public enum AgentSessionGrouping {
     }
 
     public static func title(for day: Date, now: Date, calendar: Calendar) -> String {
-        if calendar.isDateInToday(day) { return "Сегодня" }
-        if calendar.isDateInYesterday(day) { return "Вчера" }
+        let today = calendar.startOfDay(for: now)
+        if calendar.isDate(day, inSameDayAs: today) { return "Сегодня" }
+
+        if
+            let yesterday = calendar.date(byAdding: .day, value: -1, to: today),
+            calendar.isDate(day, inSameDayAs: yesterday) {
+            return "Вчера"
+        }
 
         if isWithinWeek(day, now: now, calendar: calendar) {
             return weekday.string(from: day).capitalized

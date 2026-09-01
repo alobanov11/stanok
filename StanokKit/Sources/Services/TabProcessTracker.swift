@@ -30,7 +30,12 @@ public final class TabProcessTracker {
     ) {
         self.monitor = monitor
         self.labels = labels
-        labels.purgeStaleLabels()
+
+        // Почему: обход pid-файлов на старте отдавал микрофриз ещё до первого кадра
+        Task { @MainActor [labels] in
+            await Task.yield()
+            labels.purgeStaleLabels()
+        }
     }
 
     public func beginTracking(_ sessionID: TerminalSession.ID) {

@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Комментарий в коде один: `// Почему: …` отдельной строкой перед тем, что объясняет."""
+"""Комментарий в коде один: `// Почему: …` отдельной строкой перед тем, что объясняет.
+
+Каждое такое объяснение печатается предупреждением: комментарий появляется там, где кодом
+проблему закрыть не вышло, и держит на себе потенциальный баг. Список предупреждений — это
+список мест, которые стоит переписать так, чтобы объяснение стало не нужно.
+"""
 
 from __future__ import annotations
 
@@ -35,9 +40,10 @@ def closes(line: str) -> bool:
     return not body or body.startswith("}") or body.startswith(")")
 
 
-def violations(path: Path) -> list[str]:
+def violations(path: Path) -> tuple[list[str], list[str]]:
     lines = path.read_text(encoding="utf-8").splitlines()
     found: list[str] = []
+    notes: list[str] = []
     previous = ""
     inside = False
 
@@ -80,20 +86,29 @@ def violations(path: Path) -> list[str]:
         elif number == len(lines) or closes(lines[number]):
             found.append(f"{path}:{number}:1: error: объяснение стоит в пустоте — "
                          f"оно пишется прямо перед тем, что объясняет")
+        else:
+            notes.append(f"{path}:{number}:1: warning: здесь комментарием закрыт "
+                         f"потенциальный баг — костыль держится на этом объяснении")
 
         previous = body
 
-    return found
+    return found, notes
 
 
 def main() -> int:
     found: list[str] = []
+    notes: list[str] = []
     for root in ROOTS:
         for path in sorted(Path(root).rglob("*.swift")):
-            found += violations(path)
+            errors, warnings = violations(path)
+            found += errors
+            notes += warnings
+
+    for line in notes:
+        print(line, file=sys.stderr)
 
     if not found:
-        print("comments ok")
+        print(f"comments ok ({len(notes)} объяснений)")
         return 0
 
     for line in found:

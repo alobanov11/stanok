@@ -33,8 +33,12 @@ public final class SessionStore {
     }
 
     @discardableResult
-    public func addSession(url: URL) -> TerminalSession {
-        let session = TerminalSession(name: "shell \(sessions.count + 1)", url: url)
+    public func addSession(url: URL, agent: String? = nil) -> TerminalSession {
+        let session = TerminalSession(
+            name: "shell \(sessions.count + 1)",
+            agent: agent,
+            url: url
+        )
         sessions.append(session)
         save()
         return session

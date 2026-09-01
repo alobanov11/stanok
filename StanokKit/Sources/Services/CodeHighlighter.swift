@@ -49,7 +49,9 @@ enum CodeHighlighter {
                 }
             }
 
-            newline()
+            // Почему: исходник, закрытый переводом строки, уже отдал последнюю строку
+            if !line.isEmpty || !text.isEmpty || lines.isEmpty { newline() }
+
             return lines
         }
 

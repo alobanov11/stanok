@@ -637,7 +637,9 @@ private extension WorkspaceView {
         try? await Task.sleep(for: WorkspaceLayout.directorySettleDelay)
         guard !Task.isCancelled else { return }
 
-        openFileTree()
+        // Почему: на старте раскрытие дерева и FSEvents дают заметный фриз впустую
+        if filesMode == .all { openFileTree() }
+
         await git.refresh(selectedSession)
         await branchStore.refresh(selectedSession)
     }

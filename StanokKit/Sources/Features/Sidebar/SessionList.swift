@@ -162,7 +162,14 @@ private extension SessionList {
     func resumeAgentChat(_ session: AgentSession) {
         guard let folder = session.folder else { return }
 
-        let target = store.addSession(url: folder).id
+        let key = session.id.sessionID
+        // Почему: повторный клик по чату переиспользует его терминал, а не плодит новые
+        if let opened = store.sessions.first(where: { $0.agent == key }) {
+            selection = opened.id
+            return
+        }
+
+        let target = store.addSession(url: folder, agent: key).id
         selection = target
         insertAgentCommand(session.resumeAction, target)
     }

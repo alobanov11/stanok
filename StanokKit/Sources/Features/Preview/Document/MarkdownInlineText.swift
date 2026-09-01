@@ -18,6 +18,10 @@ enum MarkdownInlineText {
                 .paragraphStyle: style
             ]
 
+            if intent?.contains(.code) == true {
+                attributes[.backgroundColor] = NSColor.white.withAlphaComponent(0.08)
+            }
+
             if let link = run.link {
                 attributes[.link] = link
                 attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue

@@ -24,6 +24,7 @@ final class GhosttySurfaceView: NSView {
     }
 
     private static let resizeInterval: CFTimeInterval = 0.03
+    private static let settleInterval: CFTimeInterval = 0.12
 
     override var acceptsFirstResponder: Bool {
         true
@@ -609,6 +610,21 @@ private extension GhosttySurfaceView {
     func scheduleSize(_ size: NSSize) {
         pendingSize = size
         guard visibility == .visible else { return }
+
+        // Почему: анимация сайдбара шлёт десятки размеров, а каждый — релейаут и вспышка
+        guard inLiveResize || appliedSize == (0, 0) else {
+            resizeWork?.cancel()
+
+            let settle = DispatchWorkItem { [weak self] in
+                self?.resizeWork = nil
+                self?.applyPendingSize()
+            }
+
+            resizeWork = settle
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.settleInterval, execute: settle)
+
+            return
+        }
 
         let now = CACurrentMediaTime()
         guard now - lastResizeAt < Self.resizeInterval else {

@@ -8,6 +8,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         case name
         case title
         case header
+        case agent
         case url
         case workspace
         case parentID
@@ -21,6 +22,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
     public var name: String
     public var title: String?
     public var header: String?
+    public var agent: String?
     public var url: URL
     public var workspace: WorkspaceState
     public var parentID: UUID?
@@ -35,6 +37,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         name: String,
         title: String? = nil,
         header: String? = nil,
+        agent: String? = nil,
         url: URL,
         workspace: WorkspaceState = WorkspaceState(),
         parentID: UUID? = nil,
@@ -46,6 +49,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         self.name = name
         self.title = title
         self.header = header
+        self.agent = agent
         self.url = url
         self.workspace = workspace
         self.parentID = parentID
@@ -60,6 +64,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         self.name = try container.decode(String.self, forKey: .name)
         self.title = try container.decodeIfPresent(String.self, forKey: .title)
         self.header = try container.decodeIfPresent(String.self, forKey: .header)
+        self.agent = try container.decodeIfPresent(String.self, forKey: .agent)
         self.url = try container.decode(URL.self, forKey: .url)
         self.workspace = try container.decode(WorkspaceState.self, forKey: .workspace)
         self.parentID = try container.decodeIfPresent(UUID.self, forKey: .parentID)
@@ -73,6 +78,7 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
             && lhs.name == rhs.name
             && lhs.title == rhs.title
             && lhs.header == rhs.header
+            && lhs.agent == rhs.agent
             && lhs.url == rhs.url
             && lhs.workspace == rhs.workspace
             && lhs.parentID == rhs.parentID
