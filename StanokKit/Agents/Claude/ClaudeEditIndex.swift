@@ -123,9 +123,10 @@ private extension ClaudeEditIndex {
         let consumed = Self.collect(chunk, skipsHead: start > entry.scanned, into: &entry)
         budget -= chunk.count
         entry.identity = identity
-        // Почему: строку длиннее окна пропускаем, но недописанную в конце файла ждём
+        // Почему: перепрыгиваем окно, только если его урезал не бюджет, а сама длина строки
         let reachedEnd = start + chunk.count >= identity.size
-        let progress = consumed > 0 || reachedEnd ? consumed : chunk.count
+        let cutByBudget = length < identity.size - start && chunk.count < Limit.firstChunk
+        let progress = consumed > 0 || reachedEnd || cutByBudget ? consumed : chunk.count
         entry.scanned = start + progress
         entries[path] = entry
         return entry

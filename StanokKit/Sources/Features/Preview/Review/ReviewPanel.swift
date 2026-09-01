@@ -15,6 +15,9 @@ struct ReviewPanel: View {
     @State
     private var collapsed: Set<URL> = []
 
+    @State
+    private var initial: URL?
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -22,7 +25,9 @@ struct ReviewPanel: View {
             .onChange(of: kind) { _, _ in
                 expanded = []
                 collapsed = []
+                initial = nil
             }
+            .task(id: files.map(\.path).joined()) { adopt() }
     }
 
     private var bar: some View {
@@ -61,7 +66,7 @@ struct ReviewPanel: View {
                             SectionHeader(title: name)
                         }
 
-                        ReviewFileCard(file: file, isExpanded: expansion(for: file, at: index))
+                        ReviewFileCard(file: file, isExpanded: expansion(for: file))
                     }
                 }
                 .padding(.horizontal, 12)
@@ -77,12 +82,12 @@ struct ReviewPanel: View {
     let previousName: String?
     let onBack: () -> Void
 
-    private func expansion(for file: ReviewFile, at index: Int) -> Binding<Bool> {
+    private func expansion(for file: ReviewFile) -> Binding<Bool> {
         Binding(
             get: {
                 if collapsed.contains(file.url) { return false }
 
-                return expanded.contains(file.url) || (index == 0 && file.status != .deleted)
+                return expanded.contains(file.url) || file.url == initial
             },
             set: { isOpen in
                 if isOpen {
@@ -94,6 +99,12 @@ struct ReviewPanel: View {
                 }
             }
         )
+    }
+
+    private func adopt() {
+        guard initial == nil else { return }
+
+        initial = files.first { $0.status != .deleted }?.url
     }
 
     private func groupName(at index: Int) -> String? {

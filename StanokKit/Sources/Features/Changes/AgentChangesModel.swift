@@ -25,6 +25,9 @@ public final class AgentChangesModel {
     }
 
     public func refresh() async {
+        // Почему: панель и цикл ревью просыпаются вместе, второй проход только дублировал бы работу
+        guard !isLoading else { return }
+
         isLoading = true
         await reload()
     }
@@ -43,10 +46,11 @@ private extension AgentChangesModel {
         var roots: [String: Date] = [:]
         var byRoot: [String: [AgentTouchedFile]] = [:]
         var knownRoots: [String: String?] = [:]
+        var discovered: Set<String> = []
 
         for directory in touched.directories.sorted() {
             guard !Task.isCancelled else { return }
-            guard let root = await root(of: directory, known: &knownRoots) else { continue }
+            guard let root = await root(of: directory, known: &knownRoots, found: &discovered) else { continue }
 
             roots[root] = roots[root] ?? .distantPast
         }
@@ -55,7 +59,7 @@ private extension AgentChangesModel {
             guard !Task.isCancelled else { return }
 
             let directory = file.url.deletingLastPathComponent().path(percentEncoded: false)
-            guard let root = await root(of: directory, known: &knownRoots) else { continue }
+            guard let root = await root(of: directory, known: &knownRoots, found: &discovered) else { continue }
 
             byRoot[root, default: []].append(file)
             roots[root] = max(roots[root] ?? .distantPast, file.touchedAt)
@@ -67,16 +71,22 @@ private extension AgentChangesModel {
         checkedAt = Date()
     }
 
-    func root(of directory: String, known: inout [String: String?]) async -> String? {
+    func root(
+        of directory: String,
+        known: inout [String: String?],
+        found: inout Set<String>
+    ) async -> String? {
         if let cached = known[directory] { return cached }
 
-        if let inherited = GitRootResolver.inherited(for: directory, from: Set(known.values.compactMap(\.self))) {
+        if let inherited = GitRootResolver.inherited(for: directory, from: found) {
             known[directory] = inherited
             return inherited
         }
 
         let root = await GitClient.root(for: URL(filePath: directory))
         known[directory] = root
+        if let root { found.insert(root) }
+
         return root
     }
 
@@ -106,7 +116,9 @@ private extension AgentChangesModel {
             ))
         }
 
-        return found.sorted { ($0.touchedAt, $1.root) > ($1.touchedAt, $0.root) }
+        return found.sorted {
+            $0.touchedAt == $1.touchedAt ? $0.root < $1.root : $0.touchedAt > $1.touchedAt
+        }
     }
 
     static func resolved(_ url: URL) -> String {

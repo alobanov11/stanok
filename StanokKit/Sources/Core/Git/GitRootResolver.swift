@@ -13,7 +13,8 @@ public enum GitRootResolver {
         let target = normalized(directory)
         let candidates = roots
             .map(normalized)
-            .filter { target == $0 || target.hasPrefix($0 + "/") }
+            .filter { !$0.isEmpty }
+            .filter { target == $0 || target.hasPrefix($0 == "/" ? "/" : $0 + "/") }
             .sorted { $0.count > $1.count }
 
         // Почему: между каталогом и корнем может лежать сабмодуль со своим .git
@@ -28,6 +29,7 @@ public enum GitRootResolver {
         var current = normalized(directory)
         let top = normalized(root)
         let manager = FileManager.default
+        guard !top.isEmpty else { return false }
 
         while current != top, current.count > top.count {
             if manager.fileExists(atPath: current + "/.git") { return true }

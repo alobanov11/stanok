@@ -105,6 +105,10 @@ struct ReviewFileCard: View {
                 .strokeBorder(.white.opacity(isHovering ? 0.16 : 0.08), lineWidth: 1)
         }
         .onHover { isHovering = $0 }
+        .onChange(of: isExpanded) { _, isOpen in
+            // Почему: свёрнутая карточка не должна держать документ целого файла
+            if !isOpen { preview = nil }
+        }
         .task(id: revision) { await load() }
     }
 
@@ -130,9 +134,6 @@ struct ReviewFileCard: View {
 
     private func toggle() {
         withAnimation(.smooth(duration: 0.18)) { isExpanded.toggle() }
-
-        // Почему: свёрнутая карточка не должна держать документ целого файла
-        if !isExpanded { preview = nil }
     }
 
     private func load() async {

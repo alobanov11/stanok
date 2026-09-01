@@ -25,6 +25,7 @@ struct PreviewTextView: NSViewRepresentable {
             NotificationCenter.default.removeObserver(observer)
         }
 
+        @MainActor
         func observe(_ scroll: NSScrollView) {
             observer = NotificationCenter.default.addObserver(
                 forName: NSView.boundsDidChangeNotification,
@@ -62,7 +63,11 @@ struct PreviewTextView: NSViewRepresentable {
             let first = layout.textLayoutFragment(for: layout.documentRange.location)
         else { return nil }
 
-        let height = first.layoutFragmentFrame.height
+        // Почему: без раскладки самого фрагмента его высота ещё нулевая
+        layout.ensureLayout(for: first.rangeInElement)
+
+        let height = layout.textLayoutFragment(for: layout.documentRange.location)?
+            .layoutFragmentFrame.height ?? 0
 
         return height > 0 ? height : nil
     }
@@ -153,14 +158,17 @@ struct PreviewTextView: NSViewRepresentable {
         nsView: NSScrollView,
         context: Context
     ) -> CGSize? {
-        let width = proposal.width ?? nsView.frame.width
+        let proposed = proposal.width ?? nsView.frame.width
+        let width = proposed.isFinite ? proposed : nsView.frame.width
         guard !scrolls else { return CGSize(width: width, height: proposal.height ?? 0) }
 
         if let contentLines, let line = Self.lineHeight(of: nsView) {
-            return CGSize(width: width, height: CGFloat(contentLines) * line + 28)
+            let inset = (nsView.documentView as? NSTextView)?.textContainerInset.height ?? 0
+
+            return CGSize(width: width, height: CGFloat(contentLines) * line + inset * 2)
         }
 
-        let key = document.revision + "@\(Int(width.isFinite ? width : 0))"
+        let key = document.revision + "@\(Int(width))"
         if context.coordinator.measuredKey == key, let measured = context.coordinator.measured {
             return CGSize(width: width, height: measured)
         }
