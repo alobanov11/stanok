@@ -97,6 +97,7 @@ struct ReviewFileCard: View {
             }
         }
         .background(.white.opacity(0.04), in: .rect(cornerRadius: Metric.radius))
+        .clipShape(.rect(cornerRadius: Metric.radius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Metric.radius, style: .continuous)
                 .strokeBorder(.white.opacity(isHovering ? 0.16 : 0.08), lineWidth: 1)
@@ -107,7 +108,7 @@ struct ReviewFileCard: View {
 
     let file: ReviewFile
 
-    @State
+    @Binding
     var isExpanded: Bool
 
     @State

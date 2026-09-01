@@ -106,7 +106,7 @@ private extension AgentChangesModel {
             ))
         }
 
-        return found.sorted { $0.touchedAt > $1.touchedAt }
+        return found.sorted { ($0.touchedAt, $1.root) > ($1.touchedAt, $0.root) }
     }
 
     static func resolved(_ url: URL) -> String {

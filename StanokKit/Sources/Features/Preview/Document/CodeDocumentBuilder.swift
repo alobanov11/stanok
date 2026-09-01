@@ -15,11 +15,12 @@ enum CodeDocumentBuilder {
         let text = NSMutableAttributedString()
         var rendered: [Int] = []
 
-        func appendRemoved(_ gone: [String]) {
-            for line in gone {
+        func appendRemoved(_ gone: [String], closing: Bool = false) {
+            for (position, line) in gone.enumerated() {
+                let last = closing && position == gone.count - 1
                 rendered.append(-1)
                 text.append(NSAttributedString(
-                    string: line + "\n",
+                    string: last ? line : line + "\n",
                     attributes: [
                         .font: font,
                         .foregroundColor: NSColor.secondaryLabelColor,
@@ -69,11 +70,12 @@ enum CodeDocumentBuilder {
             text.append(paragraph)
 
             if let gone, follows {
-                if position == visible.count - 1 {
+                let closing = position == visible.count - 1
+                if closing {
                     text.append(NSAttributedString(string: "\n", attributes: [.font: font]))
                 }
 
-                appendRemoved(gone)
+                appendRemoved(gone, closing: closing)
             }
         }
 

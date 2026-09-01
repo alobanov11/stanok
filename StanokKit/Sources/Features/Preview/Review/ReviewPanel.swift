@@ -9,6 +9,12 @@ struct ReviewPanel: View {
         return "\(kind.title) — \(count) \(word)"
     }
 
+    @State
+    private var expanded: Set<URL> = []
+
+    @State
+    private var collapsed: Set<URL> = []
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -51,7 +57,7 @@ struct ReviewPanel: View {
                             SectionHeader(title: name)
                         }
 
-                        ReviewFileCard(file: file, isExpanded: index == 0)
+                        ReviewFileCard(file: file, isExpanded: expansion(for: file, at: index))
                     }
                 }
                 .padding(.horizontal, 12)
@@ -66,6 +72,25 @@ struct ReviewPanel: View {
     let leadingInset: CGFloat
     let previousName: String?
     let onBack: () -> Void
+
+    private func expansion(for file: ReviewFile, at index: Int) -> Binding<Bool> {
+        Binding(
+            get: {
+                if collapsed.contains(file.url) { return false }
+
+                return expanded.contains(file.url) || (index == 0 && file.status != .deleted)
+            },
+            set: { isOpen in
+                if isOpen {
+                    expanded.insert(file.url)
+                    collapsed.remove(file.url)
+                } else {
+                    expanded.remove(file.url)
+                    collapsed.insert(file.url)
+                }
+            }
+        )
+    }
 
     private func groupName(at index: Int) -> String? {
         guard let name = files[index].groupName else { return nil }

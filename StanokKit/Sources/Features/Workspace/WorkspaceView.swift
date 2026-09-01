@@ -254,6 +254,12 @@ public struct WorkspaceView<Terminal: View>: View {
             )
         )
         .modifier(SessionPersistence(store: store))
+        .task(id: isReviewingAgents) {
+            while !Task.isCancelled, isReviewingAgents {
+                await (agentChanges ?? ownChanges).refresh()
+                try? await Task.sleep(for: .seconds(20))
+            }
+        }
         .task {
             while !Task.isCancelled {
                 await store.refreshReachability()
@@ -368,6 +374,12 @@ public struct WorkspaceView<Terminal: View>: View {
 }
 
 private extension WorkspaceView {
+
+    var isReviewingAgents: Bool {
+        if case .review(.agents) = navigator.current { return true }
+
+        return false
+    }
 
     var hasGitReview: Bool {
         !(gitSnapshot?.changes.isEmpty ?? true)

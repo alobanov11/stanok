@@ -31,7 +31,7 @@ struct PreviewTextView: NSViewRepresentable {
                 object: scroll.contentView,
                 queue: .main
             ) { [weak scroll] _ in
-                scroll?.verticalRulerView?.needsDisplay = true
+                MainActor.assumeIsolated { scroll?.verticalRulerView?.needsDisplay = true }
             }
         }
 
@@ -53,7 +53,19 @@ struct PreviewTextView: NSViewRepresentable {
     let openLink: (URL) -> Void
 
     var scrolls = true
-    var contentHeight: CGFloat?
+    var contentLines: Int?
+
+    static func lineHeight(of scroll: NSScrollView) -> CGFloat? {
+        guard
+            let text = scroll.documentView as? NSTextView,
+            let layout = text.textLayoutManager,
+            let first = layout.textLayoutFragment(for: layout.documentRange.location)
+        else { return nil }
+
+        let height = first.layoutFragmentFrame.height
+
+        return height > 0 ? height : nil
+    }
 
     static func height(of scroll: NSScrollView, width: CGFloat, mode: Mode) -> CGFloat {
         guard
@@ -103,7 +115,6 @@ struct PreviewTextView: NSViewRepresentable {
         if !scrolls {
             scroll.verticalScrollElasticity = .none
             scroll.horizontalScrollElasticity = .none
-            scroll.hasHorizontalScroller = false
         }
 
         scroll.contentView.postsBoundsChangedNotifications = true
@@ -145,9 +156,11 @@ struct PreviewTextView: NSViewRepresentable {
         let width = proposal.width ?? nsView.frame.width
         guard !scrolls else { return CGSize(width: width, height: proposal.height ?? 0) }
 
-        if let contentHeight { return CGSize(width: width, height: contentHeight) }
+        if let contentLines, let line = Self.lineHeight(of: nsView) {
+            return CGSize(width: width, height: CGFloat(contentLines) * line + 28)
+        }
 
-        let key = document.revision + "@\(Int(width))"
+        let key = document.revision + "@\(Int(width.isFinite ? width : 0))"
         if context.coordinator.measuredKey == key, let measured = context.coordinator.measured {
             return CGSize(width: width, height: measured)
         }
@@ -179,7 +192,7 @@ struct PreviewTextView: NSViewRepresentable {
                 width: CGFloat.greatestFiniteMagnitude,
                 height: CGFloat.greatestFiniteMagnitude
             )
-            scroll.hasHorizontalScroller = true
+            scroll.hasHorizontalScroller = scrolls
         }
 
         applyRuler(scroll, text: text)

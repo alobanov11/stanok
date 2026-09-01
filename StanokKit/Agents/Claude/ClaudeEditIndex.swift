@@ -121,9 +121,10 @@ private extension ClaudeEditIndex {
         guard let chunk = Self.read(path, from: start, length: length) else { return entry }
 
         let consumed = Self.collect(chunk, skipsHead: start > entry.scanned, into: &entry)
-        budget -= max(consumed, 1)
+        budget -= chunk.count
         entry.identity = identity
-        entry.scanned = start + consumed
+        // Почему: строка длиннее окна чтения иначе перечитывалась бы вечно
+        entry.scanned = start + (consumed > 0 ? consumed : chunk.count)
         entries[path] = entry
         return entry
     }
