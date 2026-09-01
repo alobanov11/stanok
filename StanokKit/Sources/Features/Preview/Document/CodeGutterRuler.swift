@@ -30,6 +30,7 @@ final class CodeGutterRuler: NSRulerView {
     }
 
     private var hovered: Int?
+    private var tracking: NSTrackingArea?
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let source, let text = clientView as? NSTextView else { return }
@@ -75,12 +76,15 @@ final class CodeGutterRuler: NSRulerView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
 
-        trackingAreas.forEach(removeTrackingArea)
-        addTrackingArea(NSTrackingArea(
+        if let tracking { removeTrackingArea(tracking) }
+
+        let area = NSTrackingArea(
             rect: bounds,
             options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
             owner: self
-        ))
+        )
+        addTrackingArea(area)
+        tracking = area
     }
 
     override func mouseDown(with event: NSEvent) {

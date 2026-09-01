@@ -19,7 +19,7 @@ extension BranchActions {
         isOperating: Bool,
         session: @escaping () -> TerminalSession?,
         branchStore: GitBranchStore,
-        afterSwitch: @escaping () async -> Void,
+        afterSwitch: @escaping (TerminalSession.ID) async -> Void,
         fetch: @escaping () -> Void,
         pull: @escaping () -> Void
     ) -> BranchActions {
@@ -64,7 +64,8 @@ extension BranchActions {
                         )
                     }
                 }
-                await afterSwitch()
+                if outcome.succeeded { await afterSwitch(session.id) }
+
                 return outcome
             },
             delete: { name in

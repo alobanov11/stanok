@@ -34,9 +34,19 @@ struct PreviewContentView: View {
         return false
     }
 
-    private var revision: String {
+    private var fileRevision: String {
         [
             preview.url.path(percentEncoded: false),
+            "\(preview.size)",
+            "\(preview.modified?.timeIntervalSince1970 ?? 0)",
+            "\(preview.changes.kinds.count)",
+            "\(preview.changes.removed.count)"
+        ].joined(separator: "|")
+    }
+
+    private var revision: String {
+        [
+            fileRevision,
             "\(markdownSize)", markdownFamily, "\(markdownSpacing)",
             "\(codeSize)", resolvedCodeFamily,
             folded.sorted().map(String.init).joined(separator: ","),
@@ -64,6 +74,9 @@ struct PreviewContentView: View {
 
     @State
     private var document = PreviewDocument.empty
+
+    @State
+    private var builtFor = ""
 
     @State
     private var folds = CodeFoldMap.empty
@@ -99,6 +112,13 @@ struct PreviewContentView: View {
 private extension PreviewContentView {
 
     func rebuild() {
+        if builtFor != fileRevision {
+            builtFor = fileRevision
+            folds = .empty
+            folded = []
+            expanded = []
+        }
+
         switch preview.content {
         case let .markdown(blocks):
             document = MarkdownDocumentBuilder.document(
@@ -107,11 +127,12 @@ private extension PreviewContentView {
                 family: markdownFamily,
                 lineSpacing: markdownSpacing,
                 codeSize: codeSize,
-                codeFamily: resolvedCodeFamily
+                codeFamily: resolvedCodeFamily,
+                revision: revision
             )
 
         case let .code(lines):
-            if folds.isEmpty, folded.isEmpty {
+            if folds.isEmpty {
                 folds = CodeFoldMap(folds: CodeFolding.folds(for: lines))
             }
 
@@ -121,7 +142,8 @@ private extension PreviewContentView {
                 folded: folded,
                 removed: preview.changes.removed,
                 expanded: expanded,
-                font: codeFont
+                font: codeFont,
+                revision: revision
             )
 
         default:

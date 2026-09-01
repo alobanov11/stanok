@@ -6,6 +6,7 @@ struct WebContentView: NSViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate {
 
         var canGoBack = Binding<Bool>.constant(false)
+        var loaded: URL?
         var lastRequestedBack = 0
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation?) {
@@ -43,6 +44,7 @@ struct WebContentView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let webView = WKWebView(frame: .zero)
         webView.navigationDelegate = context.coordinator
+        context.coordinator.loaded = url
         webView.load(URLRequest(url: url))
         return webView
     }
@@ -56,7 +58,9 @@ struct WebContentView: NSViewRepresentable {
             return
         }
 
-        guard webView.url != url else { return }
+        guard context.coordinator.loaded != url else { return }
+
+        context.coordinator.loaded = url
         webView.load(URLRequest(url: url))
     }
 }

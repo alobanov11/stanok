@@ -23,17 +23,11 @@ final class PreviewNavigator {
     private var loadTask: Task<FilePreview, Never>?
 
     func openFile(_ url: URL) async {
-        let generation = UUID()
-        token = generation
-        loadTask?.cancel()
+        await load(url, replacing: false)
+    }
 
-        let task = Task { await FilePreviewLoader.load(url) }
-        loadTask = task
-
-        let loaded = await task.value
-        guard token == generation else { return }
-
-        push(.file(loaded))
+    func reloadFile(_ url: URL) async {
+        await load(url, replacing: true)
     }
 
     func openWeb(_ url: URL) {
@@ -61,6 +55,24 @@ final class PreviewNavigator {
         guard !stack.isEmpty else { return }
 
         withAnimation(.smooth(duration: Self.transitionDuration)) { stack = [] }
+    }
+
+    private func load(_ url: URL, replacing: Bool) async {
+        let generation = UUID()
+        token = generation
+        loadTask?.cancel()
+
+        let task = Task { await FilePreviewLoader.load(url) }
+        loadTask = task
+
+        let loaded = await task.value
+        guard token == generation else { return }
+
+        if replacing, !stack.isEmpty {
+            stack[stack.count - 1] = .file(loaded)
+        } else {
+            push(.file(loaded))
+        }
     }
 
     private func push(_ entry: PreviewEntry) {

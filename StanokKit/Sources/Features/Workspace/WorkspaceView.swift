@@ -545,8 +545,8 @@ private extension WorkspaceView {
         await settleWorkingTree(target)
     }
 
-    func afterBranchSwitch() async {
-        await settleWorkingTree(selectedSession)
+    func afterBranchSwitch(_ sessionID: TerminalSession.ID) async {
+        await settleWorkingTree(store.session(for: sessionID))
     }
 
     func settleWorkingTree(_ session: TerminalSession?) async {
@@ -556,8 +556,9 @@ private extension WorkspaceView {
         await branchStore.refresh(session)
         inspector.fileTree(for: session.url).reloadAll()
 
-        if case let .file(preview) = navigator.current {
-            await navigator.openFile(preview.url)
+        let target = navigators.navigator(for: store.root(of: session.id)?.id)
+        if case let .file(preview) = target.current {
+            await target.reloadFile(preview.url)
         }
     }
 

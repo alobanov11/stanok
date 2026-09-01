@@ -17,7 +17,10 @@ enum PreviewTypographyFonts {
 
         guard weight != .regular else { return font }
 
-        let descriptor = font.fontDescriptor.withSymbolicTraits(.bold)
+        let descriptor = font.fontDescriptor.addingAttributes([
+            .traits: [NSFontDescriptor.TraitKey.weight: weight]
+        ])
+
         return NSFont(descriptor: descriptor, size: size) ?? font
     }
 }

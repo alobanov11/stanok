@@ -8,7 +8,8 @@ enum MarkdownDocumentBuilder {
         family: String,
         lineSpacing: Double,
         codeSize: Double,
-        codeFamily: String
+        codeFamily: String,
+        revision: String = ""
     ) -> PreviewDocument {
         let text = NSMutableAttributedString()
 
@@ -27,7 +28,7 @@ enum MarkdownDocumentBuilder {
             ))
         }
 
-        return PreviewDocument(text: text, lines: [], folds: .empty)
+        return PreviewDocument(text: text, revision: revision)
     }
 }
 

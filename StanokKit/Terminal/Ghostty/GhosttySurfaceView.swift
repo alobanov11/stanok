@@ -254,9 +254,9 @@ final class GhosttySurfaceView: NSView {
     }
 
     func scroll(rows: Int) {
-        guard let surface, rows != 0 else { return }
+        guard rows != 0 else { return }
 
-        ghostty_surface_mouse_scroll(surface, 0, Double(-rows), 0)
+        performBindingAction("scroll_page_lines:\(rows)")
     }
 
     func updateScrollbar(_ scrollbar: TerminalScrollbar) {

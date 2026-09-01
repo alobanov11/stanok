@@ -12,6 +12,7 @@ struct PreviewTextView: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
 
         var openLink: ((URL) -> Void)?
+        var revision: String?
 
         private var observer: NSObjectProtocol?
 
@@ -58,7 +59,6 @@ struct PreviewTextView: NSViewRepresentable {
         text.drawsBackground = false
         text.usesFindBar = true
         text.isIncrementalSearchingEnabled = true
-        text.textContainerInset = NSSize(width: mode == .code ? 0 : 18, height: 14)
         text.delegate = context.coordinator
         text.isVerticallyResizable = true
         text.linkTextAttributes = [
@@ -69,41 +69,13 @@ struct PreviewTextView: NSViewRepresentable {
         let scroll = NSScrollView()
         scroll.drawsBackground = false
         scroll.automaticallyAdjustsContentInsets = false
-        scroll.contentInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
-        scroll.scrollerInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
         scroll.hasVerticalScroller = true
         scroll.documentView = text
         scroll.autohidesScrollers = true
 
-        switch mode {
-        case .reading:
-            text.isHorizontallyResizable = false
-            text.autoresizingMask = [.width]
-            text.textContainer?.widthTracksTextView = true
-
-        case .code:
-            text.isHorizontallyResizable = true
-            text.textContainer?.widthTracksTextView = false
-            text.textContainer?.size = NSSize(
-                width: CGFloat.greatestFiniteMagnitude,
-                height: CGFloat.greatestFiniteMagnitude
-            )
-            scroll.hasHorizontalScroller = true
-        }
-
-        if let gutter {
-            scroll.hasVerticalRuler = true
-            let ruler = CodeGutterRuler(scrollView: scroll, orientation: .verticalRuler)
-            ruler.reservedThicknessForMarkers = 0
-            ruler.reservedThicknessForAccessoryView = 0
-            ruler.clientView = text
-            ruler.source = gutter
-            scroll.verticalRulerView = ruler
-            scroll.rulersVisible = true
-
-            scroll.contentView.postsBoundsChangedNotifications = true
-            context.coordinator.observe(scroll)
-        }
+        scroll.contentView.postsBoundsChangedNotifications = true
+        context.coordinator.observe(scroll)
+        configure(scroll, text: text)
 
         return scroll
     }
@@ -112,18 +84,65 @@ struct PreviewTextView: NSViewRepresentable {
         context.coordinator.openLink = openLink
 
         guard let text = scroll.documentView as? NSTextView else { return }
-        guard text.textStorage?.isEqual(to: document.text) != true else { return }
 
+        configure(scroll, text: text)
+
+        guard context.coordinator.revision != document.revision else { return }
+
+        context.coordinator.revision = document.revision
         text.textStorage?.setAttributedString(document.text)
-
-        guard let ruler = scroll.verticalRulerView as? CodeGutterRuler else { return }
-
-        ruler.source = gutter
         scroll.tile()
-        ruler.needsDisplay = true
+        scroll.verticalRulerView?.needsDisplay = true
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
         CGSize(width: proposal.width ?? 0, height: proposal.height ?? 0)
+    }
+
+    private func configure(_ scroll: NSScrollView, text: NSTextView) {
+        text.textContainerInset = NSSize(width: mode == .code ? 0 : 18, height: 14)
+        scroll.contentInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
+        scroll.scrollerInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
+
+        switch mode {
+        case .reading:
+            text.isHorizontallyResizable = false
+            text.autoresizingMask = [.width]
+            text.textContainer?.widthTracksTextView = true
+            scroll.hasHorizontalScroller = false
+
+        case .code:
+            text.isHorizontallyResizable = true
+            text.autoresizingMask = []
+            text.textContainer?.widthTracksTextView = false
+            text.textContainer?.size = NSSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+            scroll.hasHorizontalScroller = true
+        }
+
+        applyRuler(scroll, text: text)
+    }
+
+    private func applyRuler(_ scroll: NSScrollView, text: NSTextView) {
+        guard let gutter else {
+            scroll.rulersVisible = false
+            scroll.verticalRulerView = nil
+            scroll.hasVerticalRuler = false
+            return
+        }
+
+        scroll.hasVerticalRuler = true
+
+        let ruler = scroll.verticalRulerView as? CodeGutterRuler
+            ?? CodeGutterRuler(scrollView: scroll, orientation: .verticalRuler)
+        ruler.reservedThicknessForMarkers = 0
+        ruler.reservedThicknessForAccessoryView = 0
+        ruler.clientView = text
+        ruler.source = gutter
+        scroll.verticalRulerView = ruler
+        scroll.rulersVisible = true
+        ruler.needsDisplay = true
     }
 }

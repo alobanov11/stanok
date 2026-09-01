@@ -8,7 +8,8 @@ enum CodeDocumentBuilder {
         folded: Set<Int>,
         removed: [Int: [String]] = [:],
         expanded: Set<Int> = [],
-        font: NSFont
+        font: NSFont,
+        revision: String = ""
     ) -> PreviewDocument {
         let visible = folds.visibleLines(count: lines.count, folded: folded)
         let text = NSMutableAttributedString()
@@ -58,6 +59,6 @@ enum CodeDocumentBuilder {
             text.append(paragraph)
         }
 
-        return PreviewDocument(text: text, lines: visible, folds: folds)
+        return PreviewDocument(text: text, revision: revision)
     }
 }

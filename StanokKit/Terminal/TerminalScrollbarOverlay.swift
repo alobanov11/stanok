@@ -36,6 +36,9 @@ struct TerminalScrollbarOverlay: View {
     @State
     private var target: Int?
 
+    @State
+    private var dragPosition: Double?
+
     var body: some View {
         GeometryReader { proxy in
             track(in: proxy.size.height)
@@ -62,7 +65,7 @@ struct TerminalScrollbarOverlay: View {
                     Capsule()
                         .fill(.white.opacity(isHovering || grab != nil ? 0.5 : 0.32))
                         .frame(width: Metric.width, height: thumb)
-                        .offset(y: travel * scrollbar.position)
+                        .offset(y: travel * (dragPosition ?? scrollbar.position))
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .padding(.trailing, Metric.inset)
                         .opacity(isVisible ? 1 : 0)
@@ -98,6 +101,7 @@ private extension TerminalScrollbarOverlay {
             .onEnded { _ in
                 grab = nil
                 target = nil
+                dragPosition = nil
             }
     }
 
@@ -108,8 +112,11 @@ private extension TerminalScrollbarOverlay {
     }
 
     func scrollTo(position: Double, _ scrollbar: TerminalScrollbar) {
-        let span = Double(scrollbar.total - scrollbar.length)
-        let next = Int((min(max(position, 0), 1) * span).rounded())
+        let clamped = min(max(position, 0), 1)
+        dragPosition = clamped
+
+        let span = Double(scrollbar.total > scrollbar.length ? scrollbar.total - scrollbar.length : 0)
+        let next = Int((clamped * span).rounded())
         let current = target ?? Int(scrollbar.offset)
         guard next != current else { return }
 

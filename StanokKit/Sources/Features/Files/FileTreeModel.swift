@@ -75,6 +75,7 @@ private extension FileTreeModel {
 
     func startWatcher(at url: URL, gitDirectory: String?) {
         currentGitDirectory = gitDirectory
+        watcher?.stop()
 
         let watcher = FileWatcher(
             onDirectoriesChanged: { [weak self] directories in self?.apply(directories) },
