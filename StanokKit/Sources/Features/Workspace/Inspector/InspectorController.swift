@@ -77,6 +77,13 @@ struct InspectorController {
         withAnimation(animation) { rawMode.wrappedValue = "all" }
     }
 
+    // Почему: закрытая панель не должна держать FSEvents и обновлять невидимое дерево
+    func closeTree() {
+        guard let session = session() else { return }
+
+        state.fileTree(for: session.url).close()
+    }
+
     func openTree(gitDirectories: [String], onGitChange: @escaping () -> Void) {
         guard let session = session() else { return }
 

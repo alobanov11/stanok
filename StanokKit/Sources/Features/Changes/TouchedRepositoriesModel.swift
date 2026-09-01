@@ -38,7 +38,6 @@ public final class TouchedRepositoriesModel {
 
         // Почему: область поиска сменилась, идущий проход собирает уже не тот репозиторий
         focused = root
-        repositories = []
         stop()
     }
 

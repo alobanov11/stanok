@@ -36,6 +36,7 @@ public final class AgentSessionRegistry {
     private var pendingRefresh: Set<TrackingKey> = []
     private var observedProjects: Set<URL> = []
     private var globalStates: [String: AgentSessionsLoadState] = [:]
+    private var globalRevisions: [String: Int] = [:]
     private var globalInFlight: Set<String> = []
     private var globalPendingRefresh: Set<String> = []
     private var observedGlobalProviders: Set<String> = []
@@ -113,6 +114,11 @@ public final class AgentSessionRegistry {
 
     public func allSessions(providerID: String) -> AgentSessionsLoadState {
         globalStates[providerID] ?? .loading
+    }
+
+    // Почему: версия дешевле, чем хеш пяти тысяч чатов на каждый пересчёт списка
+    public func revision(providerID: String) -> Int {
+        globalRevisions[providerID] ?? 0
     }
 
     public func observe(_ projectURL: URL) {
@@ -228,7 +234,10 @@ public final class AgentSessionRegistry {
         repeat {
             globalPendingRefresh.remove(providerID)
             let result = await provider.loadAllSessions()
-            globalStates[providerID] = result
+            if globalStates[providerID] != result {
+                globalStates[providerID] = result
+                globalRevisions[providerID, default: 0] += 1
+            }
         } while globalPendingRefresh.contains(providerID)
 
         globalInFlight.remove(providerID)

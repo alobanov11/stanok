@@ -2,6 +2,10 @@ import SwiftUI
 
 struct ChatListSection: View {
 
+    private static var day: Int {
+        Int(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)
+    }
+
     private var state: AgentSessionsLoadState {
         registry.allSessions(providerID: providerID)
     }
@@ -67,22 +71,9 @@ struct ChatListSection: View {
                 statusRow("Загрузка чатов…")
             }
         }
-        .task(id: Self.stamp(sessions, filter: filter)) {
+        .task(id: "\(registry.revision(providerID: providerID))|\(filter)|\(Self.day)") {
             days = AgentSessionGrouping.byDay(AgentSessionFilter.apply(filter, to: sessions))
         }
-    }
-
-    private static func stamp(_ sessions: [AgentSession], filter: String) -> Int {
-        var hasher = Hasher()
-        hasher.combine(filter)
-        hasher.combine(Calendar.current.startOfDay(for: Date()))
-
-        for session in sessions {
-            hasher.combine(session.id)
-            hasher.combine(session.lastActivityAt)
-        }
-
-        return hasher.finalize()
     }
 
     private func statusRow(_ text: String) -> some View {

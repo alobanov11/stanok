@@ -58,11 +58,13 @@ struct LiveSessionController {
         let wasSelected = selection.wrappedValue == session.id
         let fallback = neighbour(of: session)
 
-        live.wrappedValue.removeAll { $0 == session.id }
         processTracker.endTracking(session.id)
         dispatcher.forget(session.id)
 
+        // Почему: поверхность и раскладка должны исчезать одним движением, а не в два кадра
         withAnimation(.smooth(duration: 0.22)) {
+            live.wrappedValue.removeAll { $0 == session.id }
+
             if let heir = store.removeSession(session.id) {
                 navigators.inherit(heir, from: session.id)
             }

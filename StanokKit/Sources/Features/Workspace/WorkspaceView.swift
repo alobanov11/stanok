@@ -229,7 +229,11 @@ public struct WorkspaceView<Terminal: View>: View {
             liveSessions.reconcile(known)
             navigators.prune(roots: Set(store.roots.map(\.id)))
         }
-        .onChange(of: filesMode) { _, mode in refreshBranches(for: mode) }
+        .onChange(of: filesMode) { _, mode in
+            refreshBranches(for: mode)
+
+            if mode == .all { openFileTree() } else { inspectorControls.closeTree() }
+        }
         .modifier(
             InspectorSync(
                 state: inspector,
@@ -250,7 +254,7 @@ public struct WorkspaceView<Terminal: View>: View {
             Task { await navigator.refreshChanges() }
         }
         .task(id: agentChangesKey) { await pollAgentChanges() }
-        .task(id: gitSnapshot) { await pollCommits() }
+        .task(id: gitSnapshot?.root) { await pollCommits() }
         .task { await pollReachability() }
     }
 

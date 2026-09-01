@@ -75,22 +75,31 @@ private extension ProcessTreeMonitor {
         let current = await reader.snapshot()
         guard generation == started, observedRoots == roots else { return }
 
-        var next: [Int32: ProcessTreeUsage] = [:]
         let elapsed = previousCapturedAt.map { now.timeIntervalSince($0) } ?? 0
+        let previous = previousSnapshot
 
-        var nextNames: [Int32: Set<String>] = [:]
-        for root in roots {
-            next[root] = ProcessTreeAggregator.usage(
-                forSubtreeRoot: root,
-                current: current,
-                previous: previousSnapshot,
-                elapsed: elapsed
-            )
-            nextNames[root] = ProcessTreeAggregator.subtreeProcessNames(ofRoot: root, in: current)
-        }
+        // Почему: агрегация по каждому терминалу заново строила таблицу процессов на главном потоке
+        let computed = await Task.detached(priority: .utility) {
+            var usage: [Int32: ProcessTreeUsage] = [:]
+            var names: [Int32: Set<String>] = [:]
 
-        usage = next
-        processNames = nextNames
+            for root in roots {
+                usage[root] = ProcessTreeAggregator.usage(
+                    forSubtreeRoot: root,
+                    current: current,
+                    previous: previous,
+                    elapsed: elapsed
+                )
+                names[root] = ProcessTreeAggregator.subtreeProcessNames(ofRoot: root, in: current)
+            }
+
+            return (usage, names)
+        }.value
+
+        guard generation == started, observedRoots == roots else { return }
+
+        usage = computed.0
+        processNames = computed.1
         previousSnapshot = current
         previousCapturedAt = now
     }
