@@ -37,4 +37,10 @@ struct IgnoredPathsTests {
     func exclusionsStayWithinTheFSEventsLimitOfEight() {
         #expect(IgnoredPaths.homeExclusions.count <= 8)
     }
+
+    @Test
+    func bundlerDependenciesAreIgnoredAsAPairOfComponents() {
+        #expect(IgnoredPaths.contains(URL(filePath: "/a/vendor/bundle/gems/x")))
+        #expect(!IgnoredPaths.contains(URL(filePath: "/a/vendor/assets/x")))
+    }
 }

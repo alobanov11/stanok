@@ -28,4 +28,19 @@ struct ClaudeProjectDirectoryResolverTests {
 
         #expect(ClaudeProjectDirectoryResolver.resolve(projectURL: projectURL, root: root) == nil)
     }
+
+    @Test
+    func encodesDotsAndUnderscoresTheSameWayClaudeDoes() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let expected = "-Users-tom-Projects--archive--IOS-ARCHIVE--relix-ios"
+        let directory = root.appending(path: expected)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        let projectURL = URL(fileURLWithPath: "/Users/tom/Projects/_archive/_IOS_ARCHIVE_/relix.ios")
+        let resolved = ClaudeProjectDirectoryResolver.resolve(projectURL: projectURL, root: root)
+
+        #expect(resolved?.lastPathComponent == expected)
+    }
 }

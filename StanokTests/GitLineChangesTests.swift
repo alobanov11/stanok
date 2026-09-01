@@ -65,4 +65,25 @@ struct GitLineChangesTests {
 
         #expect(GitLineChanges.parse(diff).removed == [13: ["было раз", "было два"]])
     }
+
+    @Test
+    func aDeletedLineStartingWithDashesKeepsItsText() {
+        let changes = GitLineChanges.parse("@@ -12,1 +11,0 @@\n---flag")
+
+        #expect(changes.removed == [11: ["--flag"]])
+    }
+
+    @Test
+    func aSecondFileInTheDiffDoesNotInheritTheAnchor() {
+        let diff = """
+        @@ -12,1 +11,0 @@
+        -gone
+        diff --git a/other.swift b/other.swift
+        --- a/other.swift
+        +++ b/other.swift
+        """
+        let changes = GitLineChanges.parse(diff)
+
+        #expect(changes.removed == [11: ["gone"]])
+    }
 }
