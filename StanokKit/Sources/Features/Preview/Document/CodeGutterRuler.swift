@@ -19,13 +19,15 @@ final class CodeGutterRuler: NSRulerView {
         static let ribbon: CGFloat = 5
         static let ribbonGap: CGFloat = 7
         static let gap: CGFloat = 8
+        static let foldGap: CGFloat = 10
         static let chevron: CGFloat = 9
     }
 
     var source: Source? {
         didSet {
             ruleThickness = source.map {
-                $0.width + Metric.ribbon + Metric.ribbonGap + Metric.chevron + Metric.gap * 2
+                $0.width + Metric.gap + Metric.foldGap + Metric.chevron
+                    + Metric.gap + Metric.ribbon + Metric.ribbonGap
             } ?? 0
         }
     }
@@ -119,10 +121,14 @@ final class CodeGutterRuler: NSRulerView {
 
 private extension CodeGutterRuler {
 
+    func foldColumn(_ source: Source) -> CGFloat {
+        source.width + Metric.gap + Metric.foldGap
+    }
+
     func isInFoldColumn(_ x: CGFloat) -> Bool {
         guard let source else { return false }
 
-        return x > source.width + Metric.gap && x < source.width + Metric.gap + Metric.chevron
+        return x > foldColumn(source) && x < foldColumn(source) + Metric.chevron
     }
 
     func drawFoldRibbon(for line: Int, top: CGFloat, height: CGFloat, source: Source) {
@@ -130,7 +136,7 @@ private extension CodeGutterRuler {
         guard let fold else { return }
 
         let lit = hovered == fold.header || source.folded.contains(fold.header)
-        let x = source.width + Metric.gap + (Metric.chevron - Metric.ribbon) / 2
+        let x = foldColumn(source) + (Metric.chevron - Metric.ribbon) / 2
         let rect = NSRect(x: x, y: top, width: Metric.ribbon, height: height)
 
         NSColor.white.withAlphaComponent(lit ? 0.32 : 0.14).setFill()
