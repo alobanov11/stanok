@@ -26,6 +26,14 @@ enum CodeDocumentBuilder {
             if follows { appendTrailing(gone, position: position) }
         }
 
+        mutating func appendGap() {
+            rendered.append(-1)
+            text.append(NSAttributedString(
+                string: "⋯\n",
+                attributes: [.font: font, .foregroundColor: NSColor.tertiaryLabelColor]
+            ))
+        }
+
         mutating func appendTrailing(_ gone: [String]?, position: Int) {
             guard let gone, !gone.isEmpty else { return }
 
@@ -96,9 +104,11 @@ enum CodeDocumentBuilder {
         changes: GitFileChanges = .none,
         expanded: Set<Int> = [],
         font: NSFont,
-        revision: String = ""
+        revision: String = "",
+        onlyChanges: Bool = false
     ) -> PreviewDocument {
-        let visible = folds.visibleLines(count: lines.count, folded: folded)
+        let shown = folds.visibleLines(count: lines.count, folded: folded)
+        let visible = onlyChanges ? Self.aroundChanges(shown, changes: changes) : shown
         var builder = Builder(
             font: font,
             changes: changes,
@@ -107,10 +117,28 @@ enum CodeDocumentBuilder {
             visible: visible
         )
 
+        var previous: Int?
         for (position, index) in visible.enumerated() {
+            if let previous, index > previous + 1 { builder.appendGap() }
+
             builder.append(lines[index], index: index, position: position)
+            previous = index
         }
 
         return PreviewDocument(text: builder.text, lines: builder.rendered, revision: revision)
+    }
+
+    // Почему: в ревью читают правку, а не файл, поэтому оставляем куски вокруг изменений
+    static func aroundChanges(
+        _ shown: [Int],
+        changes: GitFileChanges,
+        context: Int = 3
+    ) -> [Int] {
+        let touched = Set(changes.kinds.keys).union(changes.removed.keys).map { $0 - 1 }
+        guard !touched.isEmpty else { return shown }
+
+        let windows = touched.map { ($0 - context)...($0 + context) }
+
+        return shown.filter { index in windows.contains { $0.contains(index) } }
     }
 }

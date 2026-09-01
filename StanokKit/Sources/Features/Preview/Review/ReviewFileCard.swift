@@ -72,7 +72,7 @@ struct ReviewFileCard: View {
         } else if let preview {
             switch preview.content {
             case .code, .markdown:
-                PreviewContentView(preview: preview, scrolls: false)
+                PreviewContentView(preview: preview, onlyChanges: true, scrolls: false)
 
             case .tooLarge:
                 notice("файл больше 2 МБ")

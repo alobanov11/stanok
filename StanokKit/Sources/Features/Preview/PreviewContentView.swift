@@ -129,6 +129,7 @@ struct PreviewContentView: View {
 
     let preview: FilePreview
 
+    var onlyChanges = false
     var topInset: CGFloat = 0
     var scrolls = true
 }
@@ -215,7 +216,8 @@ private extension PreviewContentView {
                     changes: changes,
                     expanded: expanded,
                     font: PreviewTypographyFonts.code(size: size, family: family),
-                    revision: revision
+                    revision: revision,
+                    onlyChanges: onlyChanges
                 )
 
                 return (document, folds)
