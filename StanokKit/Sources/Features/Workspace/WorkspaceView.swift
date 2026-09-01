@@ -236,6 +236,9 @@ public struct WorkspaceView<Terminal: View>: View {
             )
         )
         .modifier(SessionPersistence(store: store))
+        .onChange(of: inspectorGitRoot, initial: true) { _, root in
+            (agentChanges ?? ownChanges).focus(on: root)
+        }
         .onChange(of: gitSnapshot) { _, _ in
             // Почему: коммит из терминала не трогает файл, но рибоны в превью уже не о том дереве
             Task { await navigator.refreshChanges() }
@@ -560,9 +563,7 @@ private extension WorkspaceView {
             }
 
         case .agents:
-            let ordered = (agentChanges ?? ownChanges).repositories.sorted { $0.root < $1.root }
-
-            return ordered.flatMap { repository in
+            return (agentChanges ?? ownChanges).repositories.flatMap { repository in
                 repository.changes.map {
                     ReviewFile(
                         url: URL(filePath: repository.root).appending(path: $0.path),

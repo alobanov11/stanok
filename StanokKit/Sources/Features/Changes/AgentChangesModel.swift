@@ -21,10 +21,20 @@ public final class AgentChangesModel {
     @ObservationIgnored
     private var running: Task<Void, Never>?
 
+    @ObservationIgnored
+    private var focused: String?
+
     public nonisolated init() {}
 
     public func use(_ source: any AgentTouchesSource) {
         self.source = source
+    }
+
+    public func focus(on root: String?) {
+        guard focused != root else { return }
+
+        focused = root
+        repositories = Self.ordered(repositories, focused: root)
     }
 
     public func refresh() async {
@@ -128,8 +138,19 @@ private extension AgentChangesModel {
             ))
         }
 
-        return found.sorted {
-            $0.touchedAt == $1.touchedAt ? $0.root < $1.root : $0.touchedAt > $1.touchedAt
+        return Self.ordered(found, focused: focused)
+    }
+
+    // Почему: репозиторий открытого терминала читают первым, остальные идут ровным списком
+    static func ordered(
+        _ items: [AgentRepositoryChanges],
+        focused: String?
+    ) -> [AgentRepositoryChanges] {
+        items.sorted {
+            let left = $0.root == focused ? 0 : 1
+            let right = $1.root == focused ? 0 : 1
+
+            return left == right ? $0.root < $1.root : left < right
         }
     }
 
