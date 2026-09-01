@@ -166,6 +166,9 @@ public struct WorkspaceView<Terminal: View>: View {
     private var branchRequest = UUID()
 
     @State
+    private var branchRevalidation = UUID()
+
+    @State
     private var mainWidth: CGFloat = 0
 
     @State
@@ -455,16 +458,25 @@ private extension WorkspaceView {
         // Почему: после checkout прежняя ветка перестала быть текущей, её дерево уже чужое
         let isCurrent = gitSnapshot?.branch.map { ref == "refs/heads/" + $0 } ?? false
         let navigation = navigator.generation
+        let generation = UUID()
+        branchRevalidation = generation
 
         Task {
             let ready = await branchReviews.load(root: root, branch: ref, isCurrent: isCurrent)
 
-            guard ready, isCurrent != was, navigator.generation == navigation else { return }
+            guard ready, isCurrent != was, branchRevalidation == generation else { return }
+            guard navigator.generation == navigation, shows(root: root, ref: ref) else { return }
 
             navigator.retitleReview(
                 .branch(root: root, ref: ref, name: name, isCurrent: isCurrent)
             )
         }
+    }
+
+    func shows(root: String, ref: String) -> Bool {
+        guard case let .review(.branch(open, live, _, _)) = navigator.current else { return false }
+
+        return open == root && live == ref
     }
 
     // Почему: ревью ветки открывается уже с данными, иначе панель мигает пустотой

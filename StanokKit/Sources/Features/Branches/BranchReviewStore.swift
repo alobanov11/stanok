@@ -50,7 +50,7 @@ final class BranchReviewStore {
     func load(root: String, branch: String, isCurrent: Bool) async -> Bool {
         let key = Self.key(root, branch, isCurrent)
 
-        let started = generations[key, default: 0]
+        let started = token(for: key)
 
         guard needsLoad(key) else { return true }
 
@@ -65,7 +65,7 @@ final class BranchReviewStore {
                 was: started
             )
 
-            return entries[key] != nil
+            return isFresh(key)
         }
 
         let task = Task { [weak self] in
@@ -96,7 +96,7 @@ final class BranchReviewStore {
         // Почему: пока грузились, состояние могли объявить устаревшим — идём ещё раз
         await repeatIfStale(key: key, root: root, branch: branch, isCurrent: isCurrent, was: started)
 
-        return entries[key] != nil
+        return isFresh(key)
     }
 
     // Почему: показанное ревью держится до успешной замены, иначе панель мигает пустотой
@@ -115,6 +115,20 @@ final class BranchReviewStore {
         revisions[Self.key(root, branch, isCurrent)] ?? 0
     }
 
+    // Почему: устаревшая запись — не результат загрузки, ключ ревью по ней менять нельзя
+    private func isFresh(_ key: String) -> Bool {
+        entries[key].map { !$0.isStale } ?? false
+    }
+
+    private func token(for key: String) -> Int {
+        if let known = generations[key] { return known }
+
+        counter += 1
+        generations[key] = counter
+
+        return counter
+    }
+
     private func repeatIfStale(
         key: String,
         root: String,
@@ -122,7 +136,7 @@ final class BranchReviewStore {
         isCurrent: Bool,
         was started: Int
     ) async {
-        guard generations[key, default: 0] != started else { return }
+        guard generations[key] != started else { return }
 
         await load(root: root, branch: branch, isCurrent: isCurrent)
     }
@@ -134,7 +148,7 @@ final class BranchReviewStore {
     }
 
     private func store(_ review: Review, at key: String, generation started: Int) {
-        guard generations[key, default: 0] == started else { return }
+        guard generations[key] == started else { return }
 
         entries[key] = review
         revisions[key, default: 0] += 1
@@ -144,15 +158,18 @@ final class BranchReviewStore {
     // Почему: поколение ключа переживает вытеснение, иначе поздняя задача воскресит запись
     private func trim() {
         let free = entries.keys.filter { loading[$0] == nil }
-        guard entries.count > Limit.cached, !free.isEmpty else { return }
 
-        let stale = free
-            .sorted { entries[$0]?.loadedAt ?? .distantPast < entries[$1]?.loadedAt ?? .distantPast }
-            .prefix(entries.count - Limit.cached)
+        if entries.count > Limit.cached, !free.isEmpty {
+            let stale = free
+                .sorted {
+                    entries[$0]?.loadedAt ?? .distantPast < entries[$1]?.loadedAt ?? .distantPast
+                }
+                .prefix(entries.count - Limit.cached)
 
-        for key in stale {
-            entries.removeValue(forKey: key)
-            revisions.removeValue(forKey: key)
+            for key in stale {
+                entries.removeValue(forKey: key)
+                revisions.removeValue(forKey: key)
+            }
         }
 
         generations = generations.filter { entries[$0.key] != nil || loading[$0.key] != nil }

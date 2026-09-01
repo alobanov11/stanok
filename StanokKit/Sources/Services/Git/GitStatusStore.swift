@@ -8,6 +8,7 @@ public final class GitStatusStore {
     private var scans: [String: Int] = [:]
     private var generations: [String: Int] = [:]
     private var counter = 0
+    private var live: Set<String> = []
     private var rootByPath: [String: String] = [:]
     private var inFlight: Set<String> = []
     private var pending: Set<String> = []
@@ -33,9 +34,12 @@ public final class GitStatusStore {
 
     // Почему: незавершённый скан живой сессии — не мусор, инвалидируем только ушедшие пути
     public func prune(paths: Set<String>, roots: Set<String>) {
+        live = paths
+
         for path in Set(rootByPath.keys).union(inFlight) where !paths.contains(path) {
             counter += 1
             generations[path] = counter
+            pending.remove(path)
         }
 
         cache = cache.filter { roots.contains($0.key) }
@@ -66,6 +70,9 @@ public final class GitStatusStore {
 
         repeat {
             pending.remove(path)
+            // Почему: путь могли закрыть, пока шёл предыдущий проход — второй уже не нужен
+            guard live.isEmpty || live.contains(path) else { return }
+
             let started = generations[path, default: 0]
             await store(GitClient.probe(for: session.url), at: path, generation: started)
         } while pending.contains(path)
