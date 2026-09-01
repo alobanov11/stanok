@@ -6,6 +6,13 @@ import StanokKit
 
 final class GhosttySurfaceView: NSView {
 
+    private enum Visibility {
+
+        case unset
+        case hidden
+        case visible
+    }
+
     private enum DeviceMask {
 
         static let byKeyCode: [UInt16: UInt] = [
@@ -46,8 +53,7 @@ final class GhosttySurfaceView: NSView {
     private var tracking: NSTrackingArea?
     private var desiredCursor = NSCursor.iBeam
     private var surface: ghostty_surface_t?
-    private var isVisible = false
-    private var visibilityApplied = false
+    private var visibility = Visibility.unset
     private var isFocused = false
     private var pendingSize = NSSize.zero
     private var appliedSize: (width: UInt32, height: UInt32) = (0, 0)
@@ -270,11 +276,11 @@ final class GhosttySurfaceView: NSView {
         onScrollbarChanged?(scrollbar)
     }
 
-    func setVisible(_ visible: Bool) {
-        guard !visibilityApplied || isVisible != visible else { return }
+    func setVisible(to visible: Bool) {
+        let next: Visibility = visible ? .visible : .hidden
+        guard visibility != next else { return }
 
-        visibilityApplied = true
-        isVisible = visible
+        visibility = next
         isHidden = !visible
 
         if visible {
@@ -287,27 +293,29 @@ final class GhosttySurfaceView: NSView {
         }
     }
 
-    func setFocused(_ focused: Bool) {
+    func setFocused(to focused: Bool) {
         guard isFocused != focused else { return }
 
         isFocused = focused
 
-        if focused {
-            DispatchQueue.main.async { [weak self] in
-                guard let self, isFocused else { return }
-                guard let window, window.firstResponder !== self else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.applyFocus(to: focused)
+        }
+    }
 
-                window.makeFirstResponder(self)
-            }
+    func applyFocus(to focused: Bool) {
+        guard isFocused == focused, let window else { return }
+
+        guard focused else {
+            guard window.firstResponder === self else { return }
+
+            window.makeFirstResponder(window.contentView)
             return
         }
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self, !isFocused else { return }
-            guard let window, window.firstResponder === self else { return }
+        guard window.firstResponder !== self else { return }
 
-            window.makeFirstResponder(window.contentView)
-        }
+        window.makeFirstResponder(self)
     }
 
     func setCursorShape(_ shape: ghostty_action_mouse_shape_e) {
@@ -374,18 +382,26 @@ final class GhosttySurfaceView: NSView {
 private extension GhosttySurfaceView {
 
     static func insertableText(from event: NSEvent) -> String? {
-        guard let characters = event.characters, !characters.isEmpty else { return nil }
-
-        // Почему: ghostty кодирует ctrl сам, ему нужен базовый символ, а не управляющий байт
-        let text = characters.unicodeScalars.count == 1 && characters.unicodeScalars.first!.value < 0x20
-            ? event.characters(byApplyingModifiers: event.modifierFlags.subtracting(.control))
-            : characters
-
-        guard let text, let first = text.unicodeScalars.first else { return nil }
-        guard !(0xF700...0xF8FF).contains(first.value), first.value >= 0x20, first.value != 0x7F
+        guard
+            let text = baseCharacters(from: event),
+            let first = text.unicodeScalars.first,
+            first.isInsertable
         else { return nil }
 
         return text
+    }
+
+    static func baseCharacters(from event: NSEvent) -> String? {
+        guard let characters = event.characters, !characters.isEmpty else { return nil }
+
+        // Почему: ghostty кодирует ctrl сам, ему нужен базовый символ, а не управляющий байт
+        guard
+            characters.unicodeScalars.count == 1,
+            let scalar = characters.unicodeScalars.first,
+            scalar.value < 0x20
+        else { return characters }
+
+        return event.characters(byApplyingModifiers: event.modifierFlags.subtracting(.control))
     }
 
     static func modifier(for keyCode: UInt16) -> ghostty_input_mods_e? {
@@ -471,12 +487,19 @@ private extension GhosttySurfaceView {
         guard let surface else { return }
 
         let point = convert(event.locationInWindow, from: nil)
-        ghostty_surface_mouse_pos(
-            surface,
-            point.x,
-            bounds.height - point.y,
-            Self.mods(from: event.modifierFlags)
-        )
+        ghostty_surface_mouse_pos(surface, point.x, bounds.height - point.y, hoverMods(for: event))
+    }
+
+    func hoverMods(for event: NSEvent) -> ghostty_input_mods_e {
+        let mods = Self.mods(from: event.modifierFlags)
+        guard
+            let surface,
+            NSEvent.pressedMouseButtons == 0,
+            !ghostty_surface_mouse_captured(surface)
+        else { return mods }
+
+        // Почему: ghostty ждёт ⌘ над ссылкой, а у нас её открывают обычным кликом
+        return ghostty_input_mods_e(mods.rawValue | GHOSTTY_MODS_SUPER.rawValue)
     }
 
     func showContextMenu(with event: NSEvent) {
@@ -567,7 +590,7 @@ private extension GhosttySurfaceView {
 
     func scheduleSize(_ size: NSSize) {
         pendingSize = size
-        guard isVisible else { return }
+        guard visibility == .visible else { return }
 
         let now = CACurrentMediaTime()
         guard now - lastResizeAt < Self.resizeInterval else {
@@ -612,5 +635,12 @@ private extension GhosttySurfaceView {
             label.centerXAnchor.constraint(equalTo: centerXAnchor),
             label.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
+    }
+}
+
+private extension Unicode.Scalar {
+
+    var isInsertable: Bool {
+        value >= 0x20 && value != 0x7F && !(0xF700...0xF8FF).contains(value)
     }
 }
