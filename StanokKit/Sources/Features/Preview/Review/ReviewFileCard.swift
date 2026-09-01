@@ -7,19 +7,33 @@ struct ReviewFileCard: View {
 
         static let header: CGFloat = 30
         static let radius: CGFloat = 10
+        static let notice: CGFloat = 40
     }
 
-    private var chevron: some View {
-        Image(systemName: "chevron.right")
-            .font(.system(size: 9, weight: .semibold))
-            .foregroundStyle(.tertiary)
-            .rotationEffect(.degrees(isExpanded ? 90 : 0))
-            .frame(width: 12)
+    private var revision: String {
+        guard isExpanded else { return "" }
+
+        let values = try? file.url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+
+        return [
+            file.url.path(percentEncoded: false),
+            "\(values?.fileSize ?? 0)",
+            "\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"
+        ].joined(separator: "|")
+    }
+
+    private var isReadable: Bool {
+        file.status != .deleted
     }
 
     private var header: some View {
         HStack(spacing: 6) {
-            chevron
+            Image(systemName: "chevron.right")
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                .frame(width: 12)
+                .opacity(isReadable ? 1 : 0)
 
             Image(nsImage: FileIcons.icon(for: file.url, isDirectory: false))
                 .resizable()
@@ -46,8 +60,29 @@ struct ReviewFileCard: View {
         .padding(.horizontal, 10)
         .frame(height: Metric.header)
         .contentShape(.rect)
-        .onTapGesture {
-            withAnimation(.smooth(duration: 0.18)) { isExpanded.toggle() }
+        .onTapGesture { toggle() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if !isReadable {
+            notice("файл удалён")
+        } else if let preview {
+            switch preview.content {
+            case .code, .markdown:
+                PreviewContentView(preview: preview, scrolls: false)
+
+            case .tooLarge:
+                notice("файл больше 2 МБ")
+
+            case .unreadable:
+                notice("двоичный файл")
+
+            case let .failed(reason):
+                notice(reason)
+            }
+        } else {
+            notice("Загружаю")
         }
     }
 
@@ -70,27 +105,6 @@ struct ReviewFileCard: View {
         .task(id: revision) { await load() }
     }
 
-    @ViewBuilder
-    private var content: some View {
-        if let preview {
-            switch preview.content {
-            case .code, .markdown:
-                PreviewContentView(preview: preview, scrolls: false)
-
-            case .tooLarge:
-                notice("файл больше 2 МБ")
-
-            case .unreadable:
-                notice("двоичный файл")
-
-            case let .failed(reason):
-                notice(reason)
-            }
-        } else {
-            notice("Загружаю")
-        }
-    }
-
     let file: ReviewFile
 
     @State
@@ -102,21 +116,26 @@ struct ReviewFileCard: View {
     @State
     private var isHovering = false
 
-    private var revision: String {
-        isExpanded ? file.url.path(percentEncoded: false) : ""
-    }
-
     private func notice(_ text: String) -> some View {
         Text(text)
             .font(Typography.caption)
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
-            .frame(height: 40)
+            .frame(height: Metric.notice)
+    }
+
+    private func toggle() {
+        guard isReadable else { return }
+
+        withAnimation(.smooth(duration: 0.18)) { isExpanded.toggle() }
+
+        // Почему: свёрнутая карточка не должна держать документ целого файла
+        if !isExpanded { preview = nil }
     }
 
     private func load() async {
-        guard isExpanded, preview == nil, file.status != .deleted else { return }
+        guard isExpanded, isReadable, !revision.isEmpty else { return }
 
         let loaded = await FilePreviewLoader.load(file.url)
         guard !Task.isCancelled else { return }

@@ -2,6 +2,13 @@ import SwiftUI
 
 struct ReviewPanel: View {
 
+    private var title: String {
+        let count = files.count
+        let word = PluralForm.of(count, "файл", "файла", "файлов")
+
+        return "\(kind.title) — \(count) \(word)"
+    }
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -14,7 +21,7 @@ struct ReviewPanel: View {
                 PreviewBackIndicator(name: previousName, action: onBack)
             }
 
-            Text(set.name)
+            Text(title)
                 .font(Typography.heading)
                 .tracking(Typography.headingTracking)
                 .foregroundStyle(.secondary)
@@ -31,7 +38,7 @@ struct ReviewPanel: View {
 
     @ViewBuilder
     private var content: some View {
-        if set.files.isEmpty {
+        if files.isEmpty {
             Text("Изменений нет")
                 .font(Typography.caption)
                 .foregroundStyle(.tertiary)
@@ -39,11 +46,9 @@ struct ReviewPanel: View {
         } else {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(set.files.enumerated()), id: \.element.id) { index, file in
-                        if
-                            let group = file.group, group != set.files[max(index - 1, 0)].group
-                            || index == 0 {
-                            SectionHeader(title: group)
+                    ForEach(Array(files.enumerated()), id: \.element.id) { index, file in
+                        if let name = groupName(at: index) {
+                            SectionHeader(title: name)
                         }
 
                         ReviewFileCard(file: file, isExpanded: index == 0)
@@ -56,8 +61,16 @@ struct ReviewPanel: View {
         }
     }
 
-    let set: ReviewSet
+    let kind: ReviewKind
+    let files: [ReviewFile]
     let leadingInset: CGFloat
     let previousName: String?
     let onBack: () -> Void
+
+    private func groupName(at index: Int) -> String? {
+        guard let name = files[index].groupName else { return nil }
+        guard index > 0 else { return name }
+
+        return files[index - 1].root == files[index].root ? nil : name
+    }
 }

@@ -14,6 +14,8 @@ struct PreviewTextView: NSViewRepresentable {
         var openLink: ((URL) -> Void)?
         var revision: String?
         var fileKey: String?
+        var measuredKey: String?
+        var measured: CGFloat?
 
         private var observer: NSObjectProtocol?
 
@@ -51,12 +53,22 @@ struct PreviewTextView: NSViewRepresentable {
     let openLink: (URL) -> Void
 
     var scrolls = true
+    var contentHeight: CGFloat?
 
-    static func height(of scroll: NSScrollView) -> CGFloat {
+    static func height(of scroll: NSScrollView, width: CGFloat, mode: Mode) -> CGFloat {
         guard
             let text = scroll.documentView as? NSTextView,
             let layout = text.textLayoutManager
         else { return 0 }
+
+        // Почему: в режиме чтения перенос зависит от ширины, мерить надо по предложенной
+        if mode == .reading, width > 0 {
+            text.setFrameSize(NSSize(width: width, height: text.frame.height))
+            text.textContainer?.size = NSSize(
+                width: width - text.textContainerInset.width * 2,
+                height: .greatestFiniteMagnitude
+            )
+        }
 
         layout.ensureLayout(for: layout.documentRange)
 
@@ -72,8 +84,8 @@ struct PreviewTextView: NSViewRepresentable {
         text.isEditable = false
         text.isSelectable = true
         text.drawsBackground = false
-        text.usesFindBar = true
-        text.isIncrementalSearchingEnabled = true
+        text.usesFindBar = scrolls
+        text.isIncrementalSearchingEnabled = scrolls
         text.delegate = context.coordinator
         text.isVerticallyResizable = true
         text.linkTextAttributes = [
@@ -81,7 +93,7 @@ struct PreviewTextView: NSViewRepresentable {
             .cursor: NSCursor.pointingHand
         ]
 
-        let scroll = NSScrollView()
+        let scroll = scrolls ? NSScrollView() : PassingScrollView()
         scroll.drawsBackground = false
         scroll.automaticallyAdjustsContentInsets = false
         scroll.hasVerticalScroller = scrolls
@@ -91,6 +103,7 @@ struct PreviewTextView: NSViewRepresentable {
         if !scrolls {
             scroll.verticalScrollElasticity = .none
             scroll.horizontalScrollElasticity = .none
+            scroll.hasHorizontalScroller = false
         }
 
         scroll.contentView.postsBoundsChangedNotifications = true
@@ -129,10 +142,21 @@ struct PreviewTextView: NSViewRepresentable {
         nsView: NSScrollView,
         context: Context
     ) -> CGSize? {
-        let width = proposal.width ?? 0
+        let width = proposal.width ?? nsView.frame.width
         guard !scrolls else { return CGSize(width: width, height: proposal.height ?? 0) }
 
-        return CGSize(width: width, height: Self.height(of: nsView))
+        if let contentHeight { return CGSize(width: width, height: contentHeight) }
+
+        let key = document.revision + "@\(Int(width))"
+        if context.coordinator.measuredKey == key, let measured = context.coordinator.measured {
+            return CGSize(width: width, height: measured)
+        }
+
+        let height = Self.height(of: nsView, width: width, mode: mode)
+        context.coordinator.measuredKey = key
+        context.coordinator.measured = height
+
+        return CGSize(width: width, height: height)
     }
 
     private func configure(_ scroll: NSScrollView, text: NSTextView) {

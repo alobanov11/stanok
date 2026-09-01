@@ -369,34 +369,12 @@ public struct WorkspaceView<Terminal: View>: View {
 
 private extension WorkspaceView {
 
-    var gitReview: ReviewSet {
-        guard let snapshot = gitSnapshot else { return ReviewSet(title: "Изменения", files: []) }
-
-        let root = URL(filePath: snapshot.root)
-        let files = snapshot.changes.map {
-            ReviewFile(
-                url: root.appending(path: $0.path),
-                path: $0.path,
-                status: $0.status
-            )
-        }
-
-        return ReviewSet(title: "Изменения", files: files)
+    var hasGitReview: Bool {
+        !(gitSnapshot?.changes.isEmpty ?? true)
     }
 
-    var agentReview: ReviewSet {
-        let files = (agentChanges ?? ownChanges).repositories.flatMap { repository in
-            repository.changes.map {
-                ReviewFile(
-                    url: URL(filePath: repository.root).appending(path: $0.path),
-                    path: $0.path,
-                    status: $0.status,
-                    group: repository.name
-                )
-            }
-        }
-
-        return ReviewSet(title: "Изменения агентов", files: files)
+    var hasAgentReview: Bool {
+        (agentChanges ?? ownChanges).repositories.contains { !$0.changes.isEmpty }
     }
 
     var agentsPanel: some View {
@@ -410,8 +388,8 @@ private extension WorkspaceView {
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
             onOpen: inspectorControls.open,
-            hasReview: !agentReview.files.isEmpty,
-            onReview: { navigator.openReview(agentReview) }
+            hasReview: hasAgentReview,
+            onReview: { navigator.openReview(.agents) }
         )
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
     }
@@ -533,15 +511,47 @@ private extension WorkspaceView {
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
             onOpen: inspectorControls.open,
-            hasReview: !gitReview.files.isEmpty,
-            onReview: { navigator.openReview(gitReview) }
+            hasReview: hasGitReview,
+            onReview: { navigator.openReview(.git) }
         )
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
+    }
+
+    func reviewFiles(_ kind: ReviewKind) -> [ReviewFile] {
+        switch kind {
+        case .git:
+            guard let snapshot = gitSnapshot else { return [] }
+
+            let root = URL(filePath: snapshot.root)
+
+            return snapshot.changes.map {
+                ReviewFile(
+                    url: root.appending(path: $0.path),
+                    path: $0.path,
+                    status: $0.status,
+                    root: snapshot.root
+                )
+            }
+
+        case .agents:
+            return (agentChanges ?? ownChanges).repositories.flatMap { repository in
+                repository.changes.map {
+                    ReviewFile(
+                        url: URL(filePath: repository.root).appending(path: $0.path),
+                        path: $0.path,
+                        status: $0.status,
+                        root: repository.root,
+                        groupName: repository.name
+                    )
+                }
+            }
+        }
     }
 
     func previewLayer(_ entry: PreviewEntry, leadingInset: CGFloat) -> some View {
         PreviewLayer(
             entry: entry,
+            reviewFiles: reviewFiles,
             leadingInset: leadingInset,
             previousName: navigator.previousName,
             onBack: stepBack,

@@ -20,9 +20,10 @@ struct PreviewLayer: View {
                 onBack: onBack
             )
 
-        case let .review(set):
+        case let .review(kind):
             ReviewPanel(
-                set: set,
+                kind: kind,
+                files: reviewFiles(kind),
                 leadingInset: leadingInset,
                 previousName: previousName,
                 onBack: onBack
@@ -45,6 +46,7 @@ struct PreviewLayer: View {
     }
 
     let entry: PreviewEntry
+    let reviewFiles: (ReviewKind) -> [ReviewFile]
     let leadingInset: CGFloat
     let previousName: String?
     let onBack: () -> Void

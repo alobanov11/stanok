@@ -30,17 +30,19 @@ final class PreviewNavigator {
         await load(url, replacing: true)
     }
 
-    func openReview(_ set: ReviewSet) {
+    func openReview(_ kind: ReviewKind) {
         token = UUID()
         loadTask?.cancel()
         loadTask = nil
 
         if case .review = stack.last {
-            stack[stack.count - 1] = .review(set)
+            withAnimation(.smooth(duration: Self.transitionDuration)) {
+                stack[stack.count - 1] = .review(kind)
+            }
             return
         }
 
-        push(.review(set))
+        push(.review(kind))
     }
 
     func openWeb(_ url: URL) {

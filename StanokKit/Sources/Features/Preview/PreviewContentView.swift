@@ -28,6 +28,12 @@ struct PreviewContentView: View {
         )
     }
 
+    private var contentHeight: CGFloat? {
+        guard !scrolls, isCode, !document.lines.isEmpty else { return nil }
+
+        return CGFloat(document.lines.count) * NSLayoutManager().defaultLineHeight(for: codeFont) + 28
+    }
+
     private var isCode: Bool {
         if case .code = preview.content { return true }
 
@@ -99,7 +105,8 @@ struct PreviewContentView: View {
             gutter: gutter,
             topInset: topInset,
             openLink: { openURL($0) },
-            scrolls: scrolls
+            scrolls: scrolls,
+            contentHeight: contentHeight
         )
         .overlay(alignment: .trailing) { marks }
         .task(id: revision) { await rebuild() }
