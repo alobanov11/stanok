@@ -148,6 +148,9 @@ public struct WorkspaceView<Terminal: View>: View {
     private var live: [TerminalSession.ID] = []
 
     @State
+    private var filled: Set<TerminalSession.ID> = []
+
+    @State
     private var git = GitStatusStore()
 
     @State
@@ -447,8 +450,6 @@ private extension WorkspaceView {
         isLeading: Bool
     ) -> some View {
         terminalContent(session, isShown: isShown, isFocused: isFocused)
-            // Почему: под шапкой лежит живой первый ряд, а не переполнение скролла
-            .padding(.top, isLeading ? WorkspaceLayout.headerHeight : 0)
             .overlay(alignment: .top) {
                 if isLeading { header(session) }
             }
@@ -470,10 +471,20 @@ private extension WorkspaceView {
         .padding(.trailing, 8)
     }
 
+    func markFilled(_ id: TerminalSession.ID, by scrollbar: TerminalScrollbar) {
+        let isFilled = scrollbar.isScrollable
+        guard isFilled != filled.contains(id) else { return }
+
+        withAnimation(.smooth(duration: 0.2)) {
+            if isFilled { filled.insert(id) } else { filled.remove(id) }
+        }
+    }
+
     func header(_ session: TerminalSession) -> some View {
         TerminalHeader(
             session: session,
             status: git.status(for: session),
+            hasContentBehind: filled.contains(session.id),
             leadingInset: WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded),
             filesMode: filesMode,
             isBusy: branchStore.isOperating(session) || isWorkingTreeBusy,
@@ -517,7 +528,8 @@ private extension WorkspaceView {
                 onInsertHandled: { dispatcher.markInserted(session.id, request: $0) },
                 closeRequest: dispatcher.closeRequest(for: session.id),
                 onCloseHandled: { dispatcher.markCloseHandled(session.id, request: $0) },
-                onFocused: { selection = session.id }
+                onFocused: { selection = session.id },
+                onScrollbar: { markFilled(session.id, by: $0) }
             )
         )
     }

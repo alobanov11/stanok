@@ -27,7 +27,10 @@ struct TerminalHeader: View {
         .padding(.leading, leadingInset)
         .padding(.trailing, 48)
         .frame(height: WorkspaceLayout.headerHeight)
-        .background(alignment: .top) { PanelHeaderBackground() }
+        .background(alignment: .top) {
+            // Почему: затемнять нечего, пока текст не доходит до верхнего ряда
+            if hasContentBehind { PanelHeaderBackground() }
+        }
         .overlay(alignment: .trailing) {
             actionsMenu
                 .padding(.trailing, 12)
@@ -40,6 +43,7 @@ struct TerminalHeader: View {
 
     let session: TerminalSession
     let status: GitStatus?
+    let hasContentBehind: Bool
     let leadingInset: CGFloat
     let filesMode: FilePanelMode?
     let isBusy: Bool
