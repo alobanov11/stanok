@@ -135,14 +135,18 @@ struct PreviewTextView: NSViewRepresentable {
 
         scroll.hasVerticalRuler = true
 
-        let ruler = scroll.verticalRulerView as? CodeGutterRuler
-            ?? CodeGutterRuler(scrollView: scroll, orientation: .verticalRuler)
+        if let ruler = scroll.verticalRulerView as? CodeGutterRuler {
+            ruler.source = gutter
+            ruler.needsDisplay = true
+            return
+        }
+
+        let ruler = CodeGutterRuler(scrollView: scroll, orientation: .verticalRuler)
         ruler.reservedThicknessForMarkers = 0
         ruler.reservedThicknessForAccessoryView = 0
         ruler.clientView = text
         ruler.source = gutter
         scroll.verticalRulerView = ruler
         scroll.rulersVisible = true
-        ruler.needsDisplay = true
     }
 }
