@@ -36,11 +36,11 @@ final class GhosttySurfaceView: NSView {
     private var link: CADisplayLink?
     private var isVisible = false
     private var visibilityApplied = false
+    private var isFocused = false
     private var pendingSize = NSSize.zero
     private var appliedSize: (width: UInt32, height: UInt32) = (0, 0)
     private var resizeWork: DispatchWorkItem?
     private var lastResizeAt: CFTimeInterval = 0
-    private var isFocused = false
     private var heldModifierKeys: [UInt16: ghostty_input_mods_e] = [:]
     private var lastHandledInsertRequestID: UUID?
 

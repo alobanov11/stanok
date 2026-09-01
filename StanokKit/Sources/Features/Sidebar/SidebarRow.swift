@@ -55,8 +55,8 @@ struct SidebarRow: View {
     let isSelected: Bool
     let isMuted: Bool
     let isLive: Bool
-    let indent: CGFloat
     let isDropTarget: Bool
+    let indent: CGFloat
     let close: () -> Void
 
     init(
