@@ -33,6 +33,7 @@ private extension DarwinProcessTableReader {
         guard requiredCount > 0 else { return [] }
 
         var pids = [Int32](repeating: 0, count: Int(requiredCount) * 2)
+        // Почему: proc_listallpids отдаёт число pid, а не байт
         let writtenCount = pids.withUnsafeMutableBytes { buffer in
             proc_listallpids(buffer.baseAddress, Int32(buffer.count))
         }

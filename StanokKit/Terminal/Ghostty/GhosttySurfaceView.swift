@@ -256,6 +256,7 @@ final class GhosttySurfaceView: NSView {
     func scroll(rows: Int) {
         guard rows != 0 else { return }
 
+        // Почему: колесо ghostty умножает на cell_size и множитель, строки — нет
         performBindingAction("scroll_page_lines:\(rows)")
     }
 

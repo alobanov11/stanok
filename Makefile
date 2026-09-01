@@ -32,6 +32,7 @@ lint:
 	@$(SWIFTLINT) lint --quiet
 	@./scripts/check-layout.py
 	@./scripts/check-declaration-order.py
+	@./scripts/check-comments.py
 
 install:
 	xcodebuild -project Stanok.xcodeproj -scheme Stanok -configuration Release \

@@ -143,9 +143,9 @@ custom_rules:
 
   no_code_comments:
     name: "No code comments"
-    regex: '(//|/\*)(?!\s*swiftlint:)'
+    regex: '(//(?!\s*(swiftlint:|Почему:))|/\*)'
     match_kinds:
       - comment
       - doccomment
-    message: "Make the code say it — comments go stale."
+    message: "Код говорит сам за себя; остаётся только `// Почему: …` для неочевидного."
     severity: error

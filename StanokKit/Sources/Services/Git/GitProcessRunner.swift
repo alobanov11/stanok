@@ -30,6 +30,7 @@ enum GitProcessRunner {
                 do {
                     try process.run()
 
+                    // Почему: git встаёт навсегда, если stderr не читать вместе с stdout
                     let errors = Buffer()
                     let group = DispatchGroup()
                     DispatchQueue.global(qos: .utility).async(group: group) {
