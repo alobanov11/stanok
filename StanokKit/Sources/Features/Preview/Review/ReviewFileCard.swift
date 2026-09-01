@@ -155,12 +155,17 @@ struct ReviewFileCard: View {
     private func load() async {
         guard isExpanded, file.isReadable else { return }
 
-        // Почему: атрибуты файла читаем вне главного потока и одной операцией с загрузкой
-        let url = file.url
-        let stamp = await Task.detached(priority: .userInitiated) { Self.stamp(of: url) }.value
-        guard !Task.isCancelled else { return }
+        // Почему: содержимое коммита неизменно, ключ не должен зависеть от рабочей копии
+        let key: String
+        if case .commit = file.source {
+            key = file.id
+        } else {
+            let url = file.url
+            let stamp = await Task.detached(priority: .userInitiated) { Self.stamp(of: url) }.value
+            guard !Task.isCancelled else { return }
 
-        let key = [file.id, file.status?.letter ?? "-", stamp, revision].joined(separator: "|")
+            key = [file.id, file.status?.letter ?? "-", stamp, revision].joined(separator: "|")
+        }
 
         if let cached = cache.preview(for: key) {
             preview = cached
@@ -176,7 +181,12 @@ struct ReviewFileCard: View {
                 rendering: .plain
             )
         } else {
-            await FilePreviewLoader.load(file.url, source: file.source, rendering: .plain)
+            await FilePreviewLoader.load(
+                file.url,
+                source: file.source,
+                rendering: .plain,
+                root: file.root
+            )
         }
         guard !Task.isCancelled else { return }
 

@@ -25,14 +25,16 @@ enum FilePreviewLoader {
     static func load(
         _ url: URL,
         source: ReviewSource = .worktree,
-        rendering: Rendering = .rich
+        rendering: Rendering = .rich,
+        root: String? = nil
     ) async -> FilePreview {
         var preview = await Task.detached(priority: .userInitiated) {
             read(url, rendering: rendering)
         }.value
         guard !Task.isCancelled, case .code = preview.content else { return preview }
 
-        preview.changes = await GitLineChanges.load(for: url, source: source)
+        preview.changes = await GitLineChanges.load(for: url, source: source, root: root)
+
         return preview
     }
 
@@ -77,7 +79,7 @@ enum FilePreviewLoader {
 
         guard !Task.isCancelled, case .code = preview.content else { return preview }
 
-        preview.changes = await GitLineChanges.load(for: url, source: .commit(sha))
+        preview.changes = await GitLineChanges.load(for: url, source: .commit(sha), root: root)
 
         return preview
     }

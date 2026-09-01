@@ -262,6 +262,7 @@ public struct WorkspaceView<Terminal: View>: View {
             Task {
                 await commits.refresh(
                     root: snapshot?.root,
+                    branch: snapshot?.branch,
                     isClean: snapshot?.changes.isEmpty == true
                 )
             }
@@ -434,6 +435,7 @@ private extension WorkspaceView {
         while !Task.isCancelled {
             await commits.refresh(
                 root: gitSnapshot?.root,
+                branch: gitSnapshot?.branch,
                 isClean: gitSnapshot?.changes.isEmpty == true
             )
 
@@ -450,10 +452,10 @@ private extension WorkspaceView {
 
     // Почему: открытое ревью ветки должно пережить инвалидацию, а не остаться пустым
     func revalidateBranchReview(_ root: String) {
-        branchReviews.forget(root: root)
-
         guard case let .review(.branch(open, ref, name, was)) = navigator.current, open == root
         else { return }
+
+        branchReviews.forget(root: root)
 
         // Почему: после checkout прежняя ветка перестала быть текущей, её дерево уже чужое
         let isCurrent = gitSnapshot?.branch.map { ref == "refs/heads/" + $0 } ?? false

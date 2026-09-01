@@ -5,6 +5,7 @@ actor ReviewBaselines {
     private struct Entry {
 
         var base: String
+        var branch: String?
         var cleanSince: Date?
     }
 
@@ -23,12 +24,13 @@ actor ReviewBaselines {
         for root: String,
         head: String,
         parent: String?,
+        branch: String?,
         isClean: Bool,
         now: Date = Date()
     ) -> String {
         // Почему: репозиторий может быть чистым с самого начала, и тогда читают последний коммит
         let start = isClean ? parent ?? head : head
-        var entry = entries[root] ?? Entry(base: start, cleanSince: isClean ? now : nil)
+        var entry = kept(root, branch: branch, start: start, isClean: isClean, now: now)
 
         if !isClean {
             entry.cleanSince = nil
@@ -36,7 +38,7 @@ actor ReviewBaselines {
             entry.cleanSince = now
         } else if let since = entry.cleanSince {
             if now.timeIntervalSince(since) > Limit.expiry {
-                entry = Entry(base: parent ?? head, cleanSince: now)
+                entry = Entry(base: parent ?? head, branch: branch, cleanSince: now)
             }
         } else {
             entry.cleanSince = now
@@ -55,5 +57,19 @@ actor ReviewBaselines {
         }
 
         return entry.base
+    }
+
+    // Почему: после checkout прежняя точка отсчёта указывает на чужую линию истории
+    private func kept(
+        _ root: String,
+        branch: String?,
+        start: String,
+        isClean: Bool,
+        now: Date
+    ) -> Entry {
+        let fresh = Entry(base: start, branch: branch, cleanSince: isClean ? now : nil)
+        guard let known = entries[root], known.branch == branch else { return fresh }
+
+        return known
     }
 }

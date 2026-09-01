@@ -47,7 +47,7 @@ final class BranchReviewStore {
     }
 
     @discardableResult
-    func load(root: String, branch: String, isCurrent: Bool) async -> Bool {
+    func load(root: String, branch: String, isCurrent: Bool, retries: Int = 1) async -> Bool {
         let key = Self.key(root, branch, isCurrent)
 
         let started = token(for: key)
@@ -62,10 +62,11 @@ final class BranchReviewStore {
                 root: root,
                 branch: branch,
                 isCurrent: isCurrent,
-                was: started
+                was: started,
+                retries: retries
             )
 
-            return isFresh(key)
+            return entries[key] != nil
         }
 
         let task = Task { [weak self] in
@@ -94,9 +95,17 @@ final class BranchReviewStore {
         }
 
         // Почему: пока грузились, состояние могли объявить устаревшим — идём ещё раз
-        await repeatIfStale(key: key, root: root, branch: branch, isCurrent: isCurrent, was: started)
+        await repeatIfStale(
+            key: key,
+            root: root,
+            branch: branch,
+            isCurrent: isCurrent,
+            was: started,
+            retries: retries
+        )
 
-        return isFresh(key)
+        // Почему: данные есть, пусть и не самые свежие — панель откроется и догонит следующим кругом
+        return entries[key] != nil
     }
 
     // Почему: показанное ревью держится до успешной замены, иначе панель мигает пустотой
@@ -134,11 +143,12 @@ final class BranchReviewStore {
         root: String,
         branch: String,
         isCurrent: Bool,
-        was started: Int
+        was started: Int,
+        retries: Int
     ) async {
-        guard generations[key] != started else { return }
+        guard retries > 0, generations[key] != started else { return }
 
-        await load(root: root, branch: branch, isCurrent: isCurrent)
+        await load(root: root, branch: branch, isCurrent: isCurrent, retries: retries - 1)
     }
 
     private func needsLoad(_ key: String) -> Bool {

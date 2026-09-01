@@ -16,7 +16,7 @@ final class ReviewCommitStore {
     private var running: Task<Void, Never>?
 
     @ObservationIgnored
-    private var pending: (root: String, isClean: Bool)?
+    private var pending: (root: String, branch: String?, isClean: Bool)?
 
     // Почему: пока не пересчитали, история другого репозитория — не наша правда
     func commits(for root: String?) -> [GitCommitChanges] {
@@ -26,11 +26,11 @@ final class ReviewCommitStore {
     }
 
     // Почему: повторный вызов ждёт идущий проход, иначе очередь git забивается дублями
-    func refresh(root: String?, isClean: Bool) async {
+    func refresh(root: String?, branch: String?, isClean: Bool) async {
         guard let root else { return }
 
         if let running {
-            pending = (root, isClean)
+            pending = (root, branch, isClean)
             await running.value
             return
         }
@@ -38,7 +38,7 @@ final class ReviewCommitStore {
         let task = Task { [weak self] in
             guard let self else { return }
 
-            await reload(root: root, isClean: isClean)
+            await reload(root: root, branch: branch, isClean: isClean)
         }
         running = task
         await task.value
@@ -47,7 +47,7 @@ final class ReviewCommitStore {
         // Почему: пока шёл проход, состояние могло смениться — доводим до актуального
         if let next = pending {
             pending = nil
-            await refresh(root: next.root, isClean: next.isClean)
+            await refresh(root: next.root, branch: next.branch, isClean: next.isClean)
         }
     }
 
@@ -61,7 +61,7 @@ final class ReviewCommitStore {
         commits = [root: found]
     }
 
-    private func reload(root: String, isClean: Bool) async {
+    private func reload(root: String, branch: String?, isClean: Bool) async {
         let url = URL(filePath: root)
         guard let head = await GitClient.head(at: url) else { return }
 
@@ -77,6 +77,7 @@ final class ReviewCommitStore {
             for: root,
             head: head,
             parent: parent,
+            branch: branch,
             isClean: isClean
         )
 

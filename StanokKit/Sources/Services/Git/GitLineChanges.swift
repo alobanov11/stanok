@@ -2,8 +2,13 @@ import Foundation
 
 enum GitLineChanges {
 
-    static func load(for url: URL, source: ReviewSource = .worktree) async -> GitFileChanges {
-        let directory = url.deletingLastPathComponent().path(percentEncoded: false)
+    static func load(
+        for url: URL,
+        source: ReviewSource = .worktree,
+        root: String? = nil
+    ) async -> GitFileChanges {
+        // Почему: каталога файла может уже не быть, а корень репозитория на месте всегда
+        let directory = root ?? url.deletingLastPathComponent().path(percentEncoded: false)
         let path = url.path(percentEncoded: false)
         let arguments = if case let .commit(sha) = source {
             [
