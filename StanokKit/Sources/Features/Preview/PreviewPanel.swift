@@ -3,12 +3,9 @@ import SwiftUI
 struct PreviewPanel: View {
 
     var body: some View {
-        VStack(spacing: 0) {
-            bar
-            Divider().opacity(0.4)
-            content
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .top) { bar }
     }
 
     private var bar: some View {
@@ -34,14 +31,16 @@ struct PreviewPanel: View {
         }
         .padding(.leading, leadingInset)
         .padding(.trailing, WorkspaceLayout.toggleHeight + WorkspaceLayout.toggleGap * 2)
-        .frame(height: WorkspaceLayout.headerHeight)
+        .frame(height: WorkspaceLayout.headerHeight, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(alignment: .top) { PanelHeaderBackground() }
     }
 
     @ViewBuilder
     private var content: some View {
         switch preview.content {
         case .markdown, .code:
-            PreviewContentView(preview: preview)
+            PreviewContentView(preview: preview, topInset: WorkspaceLayout.headerHeight)
 
         default:
             FileInfoView(preview: preview)

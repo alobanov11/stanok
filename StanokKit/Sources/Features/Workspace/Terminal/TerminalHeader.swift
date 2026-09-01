@@ -27,6 +27,7 @@ struct TerminalHeader: View {
         .padding(.leading, leadingInset)
         .padding(.trailing, 48)
         .frame(height: WorkspaceLayout.headerHeight)
+        .background(alignment: .top) { PanelHeaderBackground() }
         .overlay(alignment: .trailing) {
             actionsMenu
                 .padding(.trailing, 12)

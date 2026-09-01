@@ -44,6 +44,7 @@ struct PreviewTextView: NSViewRepresentable {
     let document: PreviewDocument
     let mode: Mode
     let gutter: CodeGutterRuler.Source?
+    let topInset: CGFloat
     let openLink: (URL) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -67,6 +68,9 @@ struct PreviewTextView: NSViewRepresentable {
 
         let scroll = NSScrollView()
         scroll.drawsBackground = false
+        scroll.automaticallyAdjustsContentInsets = false
+        scroll.contentInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
+        scroll.scrollerInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
         scroll.hasVerticalScroller = true
         scroll.documentView = text
         scroll.autohidesScrollers = true

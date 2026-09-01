@@ -82,6 +82,7 @@ struct PreviewContentView: View {
             document: document,
             mode: isCode ? .code : .reading,
             gutter: gutter,
+            topInset: topInset,
             openLink: { openURL($0) }
         )
         .task(id: revision) { rebuild() }
@@ -91,6 +92,8 @@ struct PreviewContentView: View {
     }
 
     let preview: FilePreview
+
+    var topInset: CGFloat = 0
 }
 
 private extension PreviewContentView {
