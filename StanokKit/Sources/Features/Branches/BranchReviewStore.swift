@@ -9,6 +9,8 @@ final class BranchReviewStore {
         let changes: [GitChange]
         let commits: [GitCommitChanges]
         let loadedAt: Date
+
+        var isStale = false
     }
 
     private enum Limit {
@@ -23,7 +25,10 @@ final class BranchReviewStore {
     private var entries: [String: Review] = [:]
 
     @ObservationIgnored
-    private var generation = 0
+    private var generations: [String: Int] = [:]
+
+    @ObservationIgnored
+    private var running: [String: Int] = [:]
 
     @ObservationIgnored
     private var loading: [String: Task<Void, Never>] = [:]
@@ -39,21 +44,23 @@ final class BranchReviewStore {
     func load(root: String, branch: String, isCurrent: Bool) async {
         let key = Self.key(root, branch, isCurrent)
 
-        if let entry = entries[key], Date().timeIntervalSince(entry.loadedAt) < Limit.freshness {
+        let started = generations[key, default: 0]
+
+        guard needsLoad(key) else { return }
+
+        // Почему: ждать имеет смысл только загрузку своего поколения, старую — нет
+        if let task = loading[key], running[key] == started {
+            await task.value
             return
         }
 
-        if let running = loading[key] {
-            await running.value
-            return
-        }
-
-        let started = generation
         let task = Task { [weak self] in
             let url = URL(filePath: root)
             // Почему: незакоммиченное есть только у текущей ветки, у остальных читаем историю
-            let changes = isCurrent ? await GitClient.changes(at: url) : []
+            let changes = isCurrent ? await GitClient.workingChanges(at: url) : []
             let commits = await GitClient.history(of: branch, at: url, limit: Limit.commits)
+
+            guard let changes, let commits else { return }
 
             self?.store(
                 Review(changes: changes, commits: commits, loadedAt: Date()),
@@ -63,18 +70,31 @@ final class BranchReviewStore {
         }
 
         loading[key] = task
+        running[key] = started
         await task.value
-        loading[key] = nil
+
+        if running[key] == started {
+            loading[key] = nil
+            running[key] = nil
+        }
     }
 
-    // Почему: после инвалидации поздняя загрузка не должна вернуть забытое обратно
+    // Почему: показанное ревью держится до успешной замены, иначе панель мигает пустотой
     func forget(root: String) {
-        generation += 1
-        entries = entries.filter { !$0.key.hasPrefix(root + "\n") }
+        for key in entries.keys where key.hasPrefix(root + "\n") {
+            generations[key, default: 0] += 1
+            entries[key]?.isStale = true
+        }
+    }
+
+    private func needsLoad(_ key: String) -> Bool {
+        guard let entry = entries[key], !entry.isStale else { return true }
+
+        return Date().timeIntervalSince(entry.loadedAt) >= Limit.freshness
     }
 
     private func store(_ review: Review, at key: String, generation started: Int) {
-        guard generation == started else { return }
+        guard generations[key, default: 0] == started else { return }
 
         entries[key] = review
 

@@ -12,6 +12,7 @@ struct InspectorSync: ViewModifier {
     let folder: URL?
     let gitRoot: String?
     let snapshot: GitSnapshot?
+    let status: GitStatusStore
     let branchSnapshot: GitBranchSnapshot?
     let folders: Set<URL>
     let gitRoots: Set<String>
@@ -35,9 +36,12 @@ struct InspectorSync: ViewModifier {
             }
             .onChange(of: folders, initial: true) { _, folders in
                 state.prune(folders: folders, gitRoots: gitRoots)
+                status.prune(roots: gitRoots)
             }
             .onChange(of: gitRoots) { _, gitRoots in
                 state.prune(folders: folders, gitRoots: gitRoots)
+                // Почему: снимки закрытых репозиториев иначе живут до конца сессии
+                status.prune(roots: gitRoots)
             }
     }
 }

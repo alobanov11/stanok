@@ -25,12 +25,14 @@ public final class GitStatusStore {
     }
 
     // Почему: одинаковые счётчики не значат одинаковое дерево, ревью нужна честная ревизия
-    public func revision(for session: TerminalSession?) -> Int {
-        guard let session else { return 0 }
+    public func revision(forRoot root: String?) -> Int {
+        root.flatMap { scans[$0] } ?? 0
+    }
 
-        let root = rootByPath[session.url.path(percentEncoded: false)]
-
-        return root.flatMap { scans[$0] } ?? 0
+    public func prune(roots: Set<String>) {
+        cache = cache.filter { roots.contains($0.key) }
+        scans = scans.filter { roots.contains($0.key) }
+        rootByPath = rootByPath.filter { roots.contains($0.value) }
     }
 
     public func snapshot(for session: TerminalSession?) -> GitSnapshot? {

@@ -243,6 +243,7 @@ public struct WorkspaceView<Terminal: View>: View {
                 folder: inspectorFolder,
                 gitRoot: inspectorGitRoot,
                 snapshot: gitSnapshot,
+                status: git,
                 branchSnapshot: branchStore.snapshot(for: selectedSession),
                 folders: sessionFolders,
                 gitRoots: sessionGitRoots
@@ -394,9 +395,12 @@ private extension WorkspaceView {
         filesMode == .git
     }
 
-    // Почему: карточки должны перечитать файлы, когда рабочее дерево пересканировали
-    var reviewRevision: String {
-        "\(git.revision(for: selectedSession))"
+    // Почему: карточки перечитывают файлы того репозитория, чьё ревью открыто
+    func reviewRevision(_ kind: ReviewKind) -> String {
+        switch kind {
+        case .git: "\(git.revision(forRoot: inspectorGitRoot))"
+        case let .branch(root, _, _, _): "\(git.revision(forRoot: root))"
+        }
     }
 
     func activate(_ session: TerminalSession.ID?) {

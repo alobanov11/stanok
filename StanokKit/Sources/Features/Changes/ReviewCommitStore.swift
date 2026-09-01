@@ -10,13 +10,19 @@ final class ReviewCommitStore {
     private var loaded: String?
 
     @ObservationIgnored
+    private var loadedRoot: String?
+
+    @ObservationIgnored
     private var running: Task<Void, Never>?
 
     @ObservationIgnored
     private var pending: (root: String, isClean: Bool)?
 
+    // Почему: пока не пересчитали, история другого репозитория — не наша правда
     func commits(for root: String?) -> [GitCommitChanges] {
-        root.flatMap { commits[$0] } ?? []
+        guard let root, root == loadedRoot else { return [] }
+
+        return commits[root] ?? []
     }
 
     // Почему: повторный вызов ждёт идущий проход, иначе очередь git забивается дублями
@@ -68,6 +74,7 @@ final class ReviewCommitStore {
         else { return }
 
         loaded = stamp
+        loadedRoot = root
         commits = [root: found]
     }
 }

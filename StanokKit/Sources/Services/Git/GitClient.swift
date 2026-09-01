@@ -38,9 +38,14 @@ public enum GitClient {
     }
 
     public static func changes(at url: URL) async -> [GitChange] {
+        await workingChanges(at: url) ?? []
+    }
+
+    // Почему: сбой git — не «изменений нет», такой ответ нельзя показывать и кэшировать
+    public static func workingChanges(at url: URL) async -> [GitChange]? {
         let path = url.path(percentEncoded: false)
         guard let data = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
-        else { return [] }
+        else { return nil }
 
         return GitStatusParser.parse(data)
     }
@@ -65,8 +70,8 @@ public enum GitClient {
         of ref: String,
         at url: URL,
         limit: Int
-    ) async -> [GitCommitChanges] {
-        await log(range: ref, at: url, limit: limit) ?? []
+    ) async -> [GitCommitChanges]? {
+        await log(range: ref, at: url, limit: limit)
     }
 
     public static func commits(

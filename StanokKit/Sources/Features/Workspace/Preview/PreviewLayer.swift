@@ -27,7 +27,7 @@ struct PreviewLayer: View {
                 leadingInset: leadingInset,
                 previousName: previousName,
                 onBack: onBack,
-                revision: revision,
+                revision: revision(kind),
                 onOpen: onOpen
             )
 
@@ -52,7 +52,7 @@ struct PreviewLayer: View {
     let leadingInset: CGFloat
     let previousName: String?
     let onBack: () -> Void
-    let revision: String
+    let revision: (ReviewKind) -> String
     let onOpen: (URL) -> Void
     let onClose: () -> Void
 }
