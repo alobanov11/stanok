@@ -3,6 +3,12 @@ import SwiftUI
 
 struct SessionList: View {
 
+    private enum Fade {
+
+        static let top: CGFloat = 24
+        static let bottom: CGFloat = 28
+    }
+
     private static let paneIndent: CGFloat = 20
 
     let store: SessionStore
@@ -26,6 +32,12 @@ struct SessionList: View {
     @State
     private var editText = ""
 
+    @State
+    private var above: CGFloat = 0
+
+    @State
+    private var below: CGFloat = Fade.bottom
+
     @Environment(\.agentSessionRegistry)
     private var agentSessionRegistry
 
@@ -38,6 +50,19 @@ struct SessionList: View {
                     chats
                 }
                 .padding(.horizontal, 8)
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top
+            } action: { _, offset in
+                above = min(max(offset, 0), Fade.top)
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentSize.height
+                    - geometry.contentOffset.y
+                    - geometry.containerSize.height
+                    + geometry.contentInsets.bottom
+            } action: { _, offset in
+                below = min(max(offset, 0), Fade.bottom)
             }
             .mask { listMask }
 
@@ -63,7 +88,7 @@ struct SessionList: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 24)
+            .frame(height: above)
 
             Color.black
 
@@ -72,7 +97,7 @@ struct SessionList: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 28)
+            .frame(height: below)
         }
     }
 
