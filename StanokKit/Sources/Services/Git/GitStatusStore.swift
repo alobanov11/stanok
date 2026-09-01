@@ -7,6 +7,7 @@ public final class GitStatusStore {
     private var cache: [String: GitSnapshot] = [:]
     private var scans: [String: Int] = [:]
     private var generations: [String: Int] = [:]
+    private var counter = 0
     private var rootByPath: [String: String] = [:]
     private var inFlight: Set<String> = []
     private var pending: Set<String> = []
@@ -32,13 +33,17 @@ public final class GitStatusStore {
 
     // Почему: незавершённый скан не должен вернуть вычищенный репозиторий обратно
     public func prune(roots: Set<String>) {
-        for (path, root) in rootByPath where !roots.contains(root) {
-            generations[path, default: 0] += 1
+        let dropped = rootByPath.filter { !roots.contains($0.value) }.map(\.key)
+
+        for path in Set(dropped).union(inFlight) where rootByPath[path].map(roots.contains) != true {
+            counter += 1
+            generations[path] = counter
         }
 
         cache = cache.filter { roots.contains($0.key) }
         scans = scans.filter { roots.contains($0.key) }
         rootByPath = rootByPath.filter { roots.contains($0.value) }
+        generations = generations.filter { inFlight.contains($0.key) }
     }
 
     public func snapshot(for session: TerminalSession?) -> GitSnapshot? {

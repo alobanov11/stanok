@@ -399,7 +399,9 @@ private extension WorkspaceView {
     func reviewRevision(_ kind: ReviewKind) -> String {
         switch kind {
         case .git: "\(git.revision(forRoot: inspectorGitRoot))"
-        case let .branch(root, _, _, _): "\(git.revision(forRoot: root))"
+        case let .branch(root, ref, _, isCurrent):
+            "\(git.revision(forRoot: root))|" +
+                "\(branchReviews.revision(root: root, branch: ref, isCurrent: isCurrent))"
         }
     }
 
@@ -447,8 +449,11 @@ private extension WorkspaceView {
     func revalidateBranchReview(_ root: String) {
         branchReviews.forget(root: root)
 
-        guard case let .review(.branch(open, ref, _, isCurrent)) = navigator.current, open == root
+        guard case let .review(.branch(open, ref, _, _)) = navigator.current, open == root
         else { return }
+
+        // Почему: после checkout прежняя ветка перестала быть текущей, её дерево уже чужое
+        let isCurrent = gitSnapshot?.branch.map { ref.hasSuffix("refs/heads/" + $0) } ?? false
 
         Task { await branchReviews.load(root: root, branch: ref, isCurrent: isCurrent) }
     }

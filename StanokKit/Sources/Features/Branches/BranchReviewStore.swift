@@ -28,6 +28,9 @@ final class BranchReviewStore {
     private var generations: [String: Int] = [:]
 
     @ObservationIgnored
+    private var counter = 0
+
+    @ObservationIgnored
     private var running: [String: Int] = [:]
 
     private var revisions: [String: Int] = [:]
@@ -54,6 +57,13 @@ final class BranchReviewStore {
         // Почему: ждать имеет смысл только загрузку своего поколения, старую — нет
         if let task = loading[key], running[key] == started {
             await task.value
+            await repeatIfStale(
+                key: key,
+                root: root,
+                branch: branch,
+                isCurrent: isCurrent,
+                was: started
+            )
 
             return entries[key] != nil
         }
@@ -92,8 +102,10 @@ final class BranchReviewStore {
     func forget(root: String) {
         let keys = Set(entries.keys).union(loading.keys)
 
+        // Почему: монотонный токен исключает совпадение поколений после вытеснения
         for key in keys where key.hasPrefix(root + "\n") {
-            generations[key, default: 0] += 1
+            counter += 1
+            generations[key] = counter
             entries[key]?.isStale = true
         }
     }
@@ -132,9 +144,9 @@ final class BranchReviewStore {
             .prefix(entries.count - Limit.cached)
             .map(\.key)
 
-        for key in stale {
+        // Почему: поколение ключа переживает вытеснение, иначе поздняя задача воскресит запись
+        for key in stale where loading[key] == nil {
             entries.removeValue(forKey: key)
-            generations.removeValue(forKey: key)
             revisions.removeValue(forKey: key)
         }
     }
