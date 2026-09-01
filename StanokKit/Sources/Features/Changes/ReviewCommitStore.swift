@@ -51,12 +51,28 @@ final class ReviewCommitStore {
         }
     }
 
+    private func loadRoot(root: String, head: String, isClean: Bool, url: URL) async {
+        let stamp = [root, head, "root", "\(isClean)"].joined(separator: "|")
+        guard stamp != loaded, let found = await GitClient.history(of: head, at: url, limit: 1)
+        else { return }
+
+        loaded = stamp
+        loadedRoot = root
+        commits = [root: found]
+    }
+
     private func reload(root: String, isClean: Bool) async {
         let url = URL(filePath: root)
         guard let head = await GitClient.head(at: url) else { return }
 
         // Почему: сбой git не должен сдвинуть точку отсчёта на текущий коммит
         guard let parent = await GitClient.parent(at: url) else { return }
+
+        // Почему: у корневого коммита нет предка, но читать его всё равно нужно
+        guard parent != nil else {
+            await loadRoot(root: root, head: head, isClean: isClean, url: url)
+            return
+        }
         let base = await ReviewBaselines.shared.base(
             for: root,
             head: head,

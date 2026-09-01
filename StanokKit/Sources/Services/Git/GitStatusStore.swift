@@ -31,18 +31,16 @@ public final class GitStatusStore {
         root.flatMap { scans[$0] } ?? 0
     }
 
-    // Почему: незавершённый скан не должен вернуть вычищенный репозиторий обратно
-    public func prune(roots: Set<String>) {
-        let dropped = rootByPath.filter { !roots.contains($0.value) }.map(\.key)
-
-        for path in Set(dropped).union(inFlight) where rootByPath[path].map(roots.contains) != true {
+    // Почему: незавершённый скан живой сессии — не мусор, инвалидируем только ушедшие пути
+    public func prune(paths: Set<String>, roots: Set<String>) {
+        for path in Set(rootByPath.keys).union(inFlight) where !paths.contains(path) {
             counter += 1
             generations[path] = counter
         }
 
         cache = cache.filter { roots.contains($0.key) }
         scans = scans.filter { roots.contains($0.key) }
-        rootByPath = rootByPath.filter { roots.contains($0.value) }
+        rootByPath = rootByPath.filter { paths.contains($0.key) }
         generations = generations.filter { inFlight.contains($0.key) }
     }
 

@@ -8,6 +8,10 @@ struct InspectorSync: ViewModifier {
         return Array(Set([snapshot.gitDirectory, snapshot.commonDirectory])).sorted()
     }
 
+    private var paths: Set<String> {
+        Set(folders.map { $0.path(percentEncoded: false) })
+    }
+
     let state: InspectorState
     let folder: URL?
     let gitRoot: String?
@@ -36,12 +40,12 @@ struct InspectorSync: ViewModifier {
             }
             .onChange(of: folders, initial: true) { _, folders in
                 state.prune(folders: folders, gitRoots: gitRoots)
-                status.prune(roots: gitRoots)
+                status.prune(paths: paths, roots: gitRoots)
             }
             .onChange(of: gitRoots) { _, gitRoots in
                 state.prune(folders: folders, gitRoots: gitRoots)
                 // Почему: снимки закрытых репозиториев иначе живут до конца сессии
-                status.prune(roots: gitRoots)
+                status.prune(paths: paths, roots: gitRoots)
             }
     }
 }

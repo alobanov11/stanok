@@ -90,6 +90,7 @@ final class BranchReviewStore {
         if running[key] == started {
             loading[key] = nil
             running[key] = nil
+            trim()
         }
 
         // Почему: пока грузились, состояние могли объявить устаревшим — идём ещё раз
@@ -137,17 +138,23 @@ final class BranchReviewStore {
 
         entries[key] = review
         revisions[key, default: 0] += 1
+        trim()
+    }
 
-        guard entries.count > Limit.cached else { return }
+    // Почему: поколение ключа переживает вытеснение, иначе поздняя задача воскресит запись
+    private func trim() {
+        let free = entries.keys.filter { loading[$0] == nil }
+        guard entries.count > Limit.cached, !free.isEmpty else { return }
 
-        let stale = entries.sorted { $0.value.loadedAt < $1.value.loadedAt }
+        let stale = free
+            .sorted { entries[$0]?.loadedAt ?? .distantPast < entries[$1]?.loadedAt ?? .distantPast }
             .prefix(entries.count - Limit.cached)
-            .map(\.key)
 
-        // Почему: поколение ключа переживает вытеснение, иначе поздняя задача воскресит запись
-        for key in stale where loading[key] == nil {
+        for key in stale {
             entries.removeValue(forKey: key)
             revisions.removeValue(forKey: key)
         }
+
+        generations = generations.filter { entries[$0.key] != nil || loading[$0.key] != nil }
     }
 }

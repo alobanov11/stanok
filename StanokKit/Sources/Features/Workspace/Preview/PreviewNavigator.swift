@@ -61,6 +61,13 @@ final class PreviewNavigator {
         }
     }
 
+    // Почему: сменился признак текущей ветки — ключ ревью должен догнать данные
+    func retitleReview(_ kind: ReviewKind) {
+        guard case .review = stack.last else { return }
+
+        stack[stack.count - 1] = .review(kind)
+    }
+
     func openReview(_ kind: ReviewKind) {
         cancel()
 

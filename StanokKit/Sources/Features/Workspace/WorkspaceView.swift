@@ -449,13 +449,22 @@ private extension WorkspaceView {
     func revalidateBranchReview(_ root: String) {
         branchReviews.forget(root: root)
 
-        guard case let .review(.branch(open, ref, _, _)) = navigator.current, open == root
+        guard case let .review(.branch(open, ref, name, was)) = navigator.current, open == root
         else { return }
 
         // Почему: после checkout прежняя ветка перестала быть текущей, её дерево уже чужое
-        let isCurrent = gitSnapshot?.branch.map { ref.hasSuffix("refs/heads/" + $0) } ?? false
+        let isCurrent = gitSnapshot?.branch.map { ref == "refs/heads/" + $0 } ?? false
+        let navigation = navigator.generation
 
-        Task { await branchReviews.load(root: root, branch: ref, isCurrent: isCurrent) }
+        Task {
+            let ready = await branchReviews.load(root: root, branch: ref, isCurrent: isCurrent)
+
+            guard ready, isCurrent != was, navigator.generation == navigation else { return }
+
+            navigator.retitleReview(
+                .branch(root: root, ref: ref, name: name, isCurrent: isCurrent)
+            )
+        }
     }
 
     // Почему: ревью ветки открывается уже с данными, иначе панель мигает пустотой
