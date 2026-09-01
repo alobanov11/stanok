@@ -195,7 +195,7 @@ struct PreviewTextView: NSViewRepresentable {
     }
 
     private func configure(_ scroll: NSScrollView, text: NSTextView) {
-        text.textContainerInset = NSSize(width: mode == .code ? 0 : 18, height: 14)
+        text.textContainerInset = NSSize(width: mode == .code ? 10 : 18, height: 14)
         scroll.contentInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
         scroll.scrollerInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
 

@@ -16,7 +16,8 @@ final class CodeGutterRuler: NSRulerView {
 
     private enum Metric {
 
-        static let ribbon: CGFloat = 3
+        static let ribbon: CGFloat = 5
+        static let ribbonGap: CGFloat = 7
         static let gap: CGFloat = 8
         static let chevron: CGFloat = 9
     }
@@ -24,7 +25,7 @@ final class CodeGutterRuler: NSRulerView {
     var source: Source? {
         didSet {
             ruleThickness = source.map {
-                $0.width + Metric.ribbon + Metric.chevron + Metric.gap * 2
+                $0.width + Metric.ribbon + Metric.ribbonGap + Metric.chevron + Metric.gap * 2
             } ?? 0
         }
     }
@@ -144,12 +145,18 @@ private extension CodeGutterRuler {
         guard let change = source.changes.kinds[line + 1] else { return }
 
         let expanded = source.expanded.contains(line + 1)
-        NSColor.controlAccentColor.withAlphaComponent(expanded ? 1 : 0.75).setFill()
-        NSRect(
-            x: ruleThickness - Metric.ribbon - 2,
+        let box = NSRect(
+            x: ruleThickness - Metric.ribbon - Metric.ribbonGap,
             y: top,
             width: Metric.ribbon,
-            height: change == .removed ? 2 : height
+            height: change == .removed ? 3 : height
+        )
+
+        NSColor.controlAccentColor.withAlphaComponent(expanded ? 1 : 0.75).setFill()
+        NSBezierPath(
+            roundedRect: box,
+            xRadius: Metric.ribbon / 2,
+            yRadius: Metric.ribbon / 2
         ).fill()
     }
 

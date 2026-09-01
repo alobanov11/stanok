@@ -5,6 +5,7 @@ struct PreviewPanel: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .mask(alignment: .top) { PanelHeaderFade() }
             .overlay(alignment: .top) { bar }
     }
 
@@ -33,7 +34,6 @@ struct PreviewPanel: View {
         .padding(.trailing, WorkspaceLayout.toggleHeight + WorkspaceLayout.toggleGap * 2)
         .frame(height: WorkspaceLayout.headerHeight, alignment: .center)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(alignment: .top) { PanelHeaderBackground() }
     }
 
     @ViewBuilder
