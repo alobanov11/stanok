@@ -345,15 +345,14 @@ private extension WorkspaceView {
         isFocused: Bool,
         isLeading: Bool
     ) -> some View {
-        VStack(spacing: 0) {
-            if isLeading { header(session) }
-
-            terminalContent(session, isShown: isShown, isFocused: isFocused)
-        }
-        .modifier(WorkspaceCard())
-        .overlay(alignment: .topTrailing) {
-            if !isLeading { floatingMenu(session) }
-        }
+        terminalContent(session, isShown: isShown, isFocused: isFocused)
+            .modifier(WorkspaceCard())
+            .overlay(alignment: .top) {
+                if isLeading { header(session) }
+            }
+            .overlay(alignment: .topTrailing) {
+                if !isLeading { floatingMenu(session) }
+            }
     }
 
     func floatingMenu(_ session: TerminalSession) -> some View {
