@@ -142,7 +142,7 @@ struct ReviewFileCard: View {
     private func load() async {
         guard isExpanded, file.isReadable, !revision.isEmpty else { return }
 
-        let loaded = await FilePreviewLoader.load(file.url)
+        let loaded = await FilePreviewLoader.load(file.url, source: file.source)
         guard !Task.isCancelled else { return }
 
         preview = loaded

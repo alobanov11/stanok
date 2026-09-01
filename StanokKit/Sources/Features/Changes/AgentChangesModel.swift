@@ -164,11 +164,17 @@ private extension AgentChangesModel {
 
             guard !changes.isEmpty || !untouched.isEmpty else { continue }
 
+            // Почему: агент закоммитил — читать всё равно есть что, это его последний коммит
+            let commit = changes.isEmpty
+                ? await GitClient.lastCommit(at: URL(filePath: root))
+                : nil
+
             found.append(AgentRepositoryChanges(
                 root: root,
                 changes: changes,
                 touchedOnly: Array(untouched),
-                touchedAt: touchedAt
+                touchedAt: touchedAt,
+                commit: commit
             ))
         }
 

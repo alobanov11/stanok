@@ -16,11 +16,11 @@ enum FilePreviewLoader {
 
     private static let markdownExtensions: Set<String> = ["md", "markdown", "mdown", "mkd"]
 
-    static func load(_ url: URL) async -> FilePreview {
+    static func load(_ url: URL, source: ReviewSource = .worktree) async -> FilePreview {
         var preview = await Task.detached(priority: .userInitiated) { read(url) }.value
         guard !Task.isCancelled, case .code = preview.content else { return preview }
 
-        preview.changes = await GitLineChanges.load(for: url)
+        preview.changes = await GitLineChanges.load(for: url, source: source)
         return preview
     }
 

@@ -44,6 +44,29 @@ public enum GitClient {
         return GitStatusParser.parse(data)
     }
 
+    // Почему: когда дерево чистое, ревью показывает последний коммит, а не пустоту
+    public static func lastCommit(at url: URL) async -> GitCommitChanges? {
+        let path = url.path(percentEncoded: false)
+        guard
+            let head = await run(["log", "-1", "--format=%h%n%s"], at: path),
+            !head.isEmpty
+        else { return nil }
+
+        let parts = head.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+        guard let sha = parts.first.map(String.init) else { return nil }
+
+        let files = await runRaw(
+            ["diff-tree", "--no-commit-id", "--name-status", "-r", "--root", "-z", "HEAD"],
+            at: path
+        )
+
+        return GitCommitChanges(
+            sha: sha,
+            subject: parts.count > 1 ? String(parts[1]) : "",
+            changes: files.map(GitCommitParser.parse) ?? []
+        )
+    }
+
     public static func probe(for url: URL) async -> Probe {
         let path = url.path(percentEncoded: false)
 

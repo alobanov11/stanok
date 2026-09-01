@@ -2,13 +2,16 @@ import Foundation
 
 enum GitLineChanges {
 
-    static func load(for url: URL) async -> GitFileChanges {
+    static func load(for url: URL, source: ReviewSource = .worktree) async -> GitFileChanges {
         let directory = url.deletingLastPathComponent().path(percentEncoded: false)
         let path = url.path(percentEncoded: false)
+        let arguments = source == .commit
+            ? ["show", "--format=", "-U0", "--no-color", "HEAD", "--", path]
+            : ["diff", "HEAD", "-U0", "--no-color", "--", path]
 
-        let diff = await GitProcessRunner.run([
-            "--no-optional-locks", "-C", directory, "diff", "HEAD", "-U0", "--no-color", "--", path
-        ])
+        let diff = await GitProcessRunner.run(
+            ["--no-optional-locks", "-C", directory] + arguments
+        )
 
         if diff.exitCode == 0, !diff.standardOutput.isEmpty {
             return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
