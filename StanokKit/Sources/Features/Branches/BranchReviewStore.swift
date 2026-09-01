@@ -2,7 +2,14 @@ import Foundation
 
 @MainActor
 @Observable
-final class BranchCommitStore {
+final class BranchReviewStore {
+
+    struct Review: Sendable {
+
+        let changes: [GitChange]
+        let commits: [GitCommitChanges]
+        let loadedAt: Date
+    }
 
     private enum Limit {
 
@@ -13,13 +20,7 @@ final class BranchCommitStore {
         static let cached = 24
     }
 
-    private struct Entry {
-
-        let commits: [GitCommitChanges]
-        let loadedAt: Date
-    }
-
-    private var entries: [String: Entry] = [:]
+    private var entries: [String: Review] = [:]
 
     @ObservationIgnored
     private var loading: [String: Task<Void, Never>] = [:]
@@ -28,39 +29,29 @@ final class BranchCommitStore {
         root + "\n" + branch
     }
 
-    func commits(root: String, branch: String) -> [GitCommitChanges] {
-        entries[Self.key(root, branch)]?.commits ?? []
+    func review(root: String, branch: String) -> Review? {
+        entries[Self.key(root, branch)]
     }
 
-    func commit(root: String, sha: String) -> GitCommitChanges? {
-        for (key, entry) in entries where key.hasPrefix(root + "\n") {
-            if let found = entry.commits.first(where: { $0.sha == sha }) { return found }
-        }
-
-        return nil
-    }
-
-    func load(root: String, branch: String) async {
+    func load(root: String, branch: String, isCurrent: Bool) async {
         let key = Self.key(root, branch)
 
         if let entry = entries[key], Date().timeIntervalSince(entry.loadedAt) < Limit.freshness {
             return
         }
 
-        // Почему: повторное раскрытие ждёт уже идущую загрузку, а не запускает вторую
         if let running = loading[key] {
             await running.value
             return
         }
 
         let task = Task { [weak self] in
-            let found = await GitClient.history(
-                of: branch,
-                at: URL(filePath: root),
-                limit: Limit.commits
-            )
+            let url = URL(filePath: root)
+            // Почему: незакоммиченное есть только у текущей ветки, у остальных читаем историю
+            let changes = isCurrent ? await GitClient.changes(at: url) : []
+            let commits = await GitClient.history(of: branch, at: url, limit: Limit.commits)
 
-            self?.store(found, at: key)
+            self?.store(Review(changes: changes, commits: commits, loadedAt: Date()), at: key)
         }
 
         loading[key] = task
@@ -72,10 +63,9 @@ final class BranchCommitStore {
         entries = entries.filter { !$0.key.hasPrefix(root + "\n") }
     }
 
-    private func store(_ commits: [GitCommitChanges], at key: String) {
-        entries[key] = Entry(commits: commits, loadedAt: Date())
+    private func store(_ review: Review, at key: String) {
+        entries[key] = review
 
-        // Почему: полсотни коммитов на ветку — это мегабайты, если их копить весь день
         guard entries.count > Limit.cached else { return }
 
         let stale = entries.sorted { $0.value.loadedAt < $1.value.loadedAt }

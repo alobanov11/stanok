@@ -73,8 +73,8 @@ struct BranchTree: View {
     let actions: BranchActions?
     let tracking: GitTracking
     let root: String?
-    let commits: BranchCommitStore
-    let onReviewCommit: (String, GitCommitChanges) -> Void
+    let counters: String?
+    let onOpenBranch: (String, GitBranchRef) -> Void
 
     @State
     private var isPromptingNewBranch = false
@@ -96,9 +96,6 @@ struct BranchTree: View {
 
     @State
     private var errorMessage: String?
-
-    @State
-    private var opened: Set<String> = []
 }
 
 private extension BranchTree {
@@ -146,62 +143,37 @@ private extension BranchTree {
         .onTapGesture { withAnimation(.smooth(duration: 0.2)) { node.toggle() } }
     }
 
-    @ViewBuilder
     func leafRow(_ node: BranchNode, ref: GitBranchRef) -> some View {
-        let key = (root ?? "") + "\n" + ref.fullName
-        let isOpen = opened.contains(key)
-
         FileRow(
             name: node.name,
-            isDirectory: true,
-            isExpanded: isOpen,
+            isDirectory: false,
+            isExpanded: false,
             depth: node.depth,
             status: nil,
             isSelected: ref.isCurrent,
             actions: leafActions(ref),
-            trailing: divergence(for: ref),
+            trailing: trailing(for: ref),
             icon: leafIcon(for: ref)
         )
         .opacity(ref.occupyingWorktreePath != nil ? 0.5 : 1)
         .help(helpText(for: ref))
-        .onTapGesture(count: 2) { Task { await handleTap(ref) } }
-        .onTapGesture { toggle(ref) }
-        .task(id: isOpen ? key : "") { await loadCommits(ref, isOpen: isOpen) }
-
-        if isOpen {
-            ForEach(commits.commits(root: root ?? "", branch: ref.fullName), id: \.sha) { commit in
-                commitRow(commit, depth: node.depth + 1)
-            }
-        }
+        .onTapGesture(count: 2) { openReview(ref) }
+        .onTapGesture { Task { await handleTap(ref) } }
     }
 
-    func commitRow(_ commit: GitCommitChanges, depth: Int) -> some View {
-        FileRow(
-            name: commit.title,
-            isDirectory: false,
-            isExpanded: false,
-            depth: depth,
-            status: nil,
-            isSelected: false,
-            actions: nil,
-            icon: Image(systemName: "point.3.connected.trianglepath.dotted")
-        )
-        .help("Двойной клик — ревью коммита")
-        .onTapGesture(count: 2) { onReviewCommit(root ?? "", commit) }
+    // Почему: у текущей ветки показываем правки рабочего дерева, у остальных — расхождение
+    func trailing(for ref: GitBranchRef) -> String? {
+        guard ref.isCurrent else { return nil }
+
+        if let counters { return counters }
+
+        return divergence(for: ref)
     }
 
-    func toggle(_ ref: GitBranchRef) {
-        let key = (root ?? "") + "\n" + ref.fullName
+    func openReview(_ ref: GitBranchRef) {
+        guard let root else { return }
 
-        withAnimation(.smooth(duration: 0.2)) {
-            if opened.contains(key) { opened.remove(key) } else { opened.insert(key) }
-        }
-    }
-
-    func loadCommits(_ ref: GitBranchRef, isOpen: Bool) async {
-        guard isOpen, let root else { return }
-
-        await commits.load(root: root, branch: ref.fullName)
+        onOpenBranch(root, ref)
     }
 
     func divergence(for ref: GitBranchRef) -> String? {

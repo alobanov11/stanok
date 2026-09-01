@@ -14,6 +14,12 @@ struct FilePanel: View {
         mode == .all ? "Файлы" : "Git"
     }
 
+    private var counters: String? {
+        guard let snapshot, !snapshot.changes.isEmpty else { return nil }
+
+        return "+\(snapshot.added) −\(snapshot.removed)"
+    }
+
     private var header: some View {
         HStack(spacing: 0) {
             Text(title)
@@ -46,8 +52,8 @@ struct FilePanel: View {
                     actions: branchActions,
                     tracking: snapshot?.tracking ?? .none,
                     root: snapshot?.root,
-                    commits: branchCommits,
-                    onReviewCommit: { onReview(.commit(root: $0, sha: $1.sha, subject: $1.subject)) }
+                    counters: counters,
+                    onOpenBranch: onOpenBranch
                 )
 
                 ChangeTree(
@@ -61,9 +67,8 @@ struct FilePanel: View {
                     model: touchedRepositories,
                     inspector: inspector,
                     branches: branches,
-                    commits: branchCommits,
                     active: snapshot?.root,
-                    onReviewCommit: { onReview(.commit(root: $0, sha: $1.sha, subject: $1.subject)) }
+                    onOpenBranch: onOpenBranch
                 )
             }
             .padding(.horizontal, 8)
@@ -78,7 +83,7 @@ struct FilePanel: View {
     let branchTreeModel: BranchTreeModel
     let touchedRepositories: TouchedRepositoriesModel
     let branchActions: BranchActions
-    let branchCommits: BranchCommitStore
+    let onOpenBranch: (String, GitBranchRef) -> Void
     let inspector: InspectorState
     let branches: GitBranchStore
     let snapshot: GitSnapshot?

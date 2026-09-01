@@ -16,8 +16,8 @@ struct OtherRepositoriesTree: View {
                         actions: nil,
                         tracking: .none,
                         root: repository.root,
-                        commits: commits,
-                        onReviewCommit: onReviewCommit
+                        counters: counters(repository),
+                        onOpenBranch: onOpenBranch
                     )
                     .task(id: repository.root) { await load(repository.root) }
                 }
@@ -32,9 +32,8 @@ struct OtherRepositoriesTree: View {
     let model: TouchedRepositoriesModel
     let inspector: InspectorState
     let branches: GitBranchStore
-    let commits: BranchCommitStore
     let active: String?
-    let onReviewCommit: (String, GitCommitChanges) -> Void
+    let onOpenBranch: (String, GitBranchRef) -> Void
 
     @State
     private var opened: Set<String> = []
@@ -42,6 +41,13 @@ struct OtherRepositoriesTree: View {
     // Почему: репозиторий активного терминала уже показан секцией веток выше
     private var others: [TouchedRepository] {
         model.repositories.filter { $0.root != active }
+    }
+
+    private func counters(_ repository: TouchedRepository) -> String? {
+        let count = repository.changes.count
+        guard count > 0 else { return nil }
+
+        return "\(count) \(PluralForm.of(count, "файл", "файла", "файлов"))"
     }
 
     private func row(_ repository: TouchedRepository) -> some View {

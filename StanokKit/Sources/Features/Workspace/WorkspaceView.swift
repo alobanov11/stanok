@@ -160,7 +160,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var commits = ReviewCommitStore()
 
     @State
-    private var branchCommits = BranchCommitStore()
+    private var branchReviews = BranchReviewStore()
 
     @State
     private var mainWidth: CGFloat = 0
@@ -429,6 +429,15 @@ private extension WorkspaceView {
         }
     }
 
+    // Почему: ревью ветки открывается уже с данными, иначе панель мигает пустотой
+    func openBranchReview(_ root: String, _ ref: GitBranchRef) {
+        Task {
+            await branchReviews.load(root: root, branch: ref.fullName, isCurrent: ref.isCurrent)
+
+            navigator.openReview(.branch(root: root, ref: ref.fullName, name: ref.displayName))
+        }
+    }
+
     func hasReview(_ kind: ReviewKind) -> Bool {
         !reviewFiles(kind).isEmpty
     }
@@ -548,7 +557,7 @@ private extension WorkspaceView {
             branchTreeModel: inspector.branchTree(for: gitRoot),
             touchedRepositories: touchedRepositories ?? ownRepositories,
             branchActions: branchActions,
-            branchCommits: branchCommits,
+            onOpenBranch: openBranchReview,
             inspector: inspector,
             branches: branchStore,
             snapshot: gitSnapshot,
@@ -572,10 +581,15 @@ private extension WorkspaceView {
                 repository: nil
             )
 
-        case let .commit(root, sha, _):
-            guard let commit = branchCommits.commit(root: root, sha: sha) else { return [] }
+        case let .branch(root, ref, _):
+            guard let review = branchReviews.review(root: root, branch: ref) else { return [] }
 
-            return ReviewFiles.build(root: root, changes: [], commits: [commit], repository: nil)
+            return ReviewFiles.build(
+                root: root,
+                changes: review.changes,
+                commits: review.commits,
+                repository: nil
+            )
         }
     }
 
