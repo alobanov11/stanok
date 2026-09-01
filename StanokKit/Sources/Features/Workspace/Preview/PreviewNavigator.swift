@@ -30,6 +30,24 @@ final class PreviewNavigator {
         await load(url, replacing: true)
     }
 
+    func refreshChanges() async {
+        guard case let .file(preview) = stack.last else { return }
+
+        let generation = token
+        let changes = await GitLineChanges.load(for: preview.url)
+
+        guard
+            token == generation,
+            case let .file(latest) = stack.last,
+            latest.url == preview.url,
+            latest.changes != changes
+        else { return }
+
+        var updated = latest
+        updated.changes = changes
+        stack[stack.count - 1] = .file(updated)
+    }
+
     func openReview(_ kind: ReviewKind) {
         token = UUID()
         loadTask?.cancel()

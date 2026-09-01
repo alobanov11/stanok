@@ -17,6 +17,7 @@ struct ReviewFileCard: View {
 
         return [
             file.url.path(percentEncoded: false),
+            file.status?.letter ?? "-",
             "\(values?.fileSize ?? 0)",
             "\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"
         ].joined(separator: "|")

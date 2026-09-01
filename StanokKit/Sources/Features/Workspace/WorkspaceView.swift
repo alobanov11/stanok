@@ -254,6 +254,10 @@ public struct WorkspaceView<Terminal: View>: View {
             )
         )
         .modifier(SessionPersistence(store: store))
+        .onChange(of: gitSnapshot) { _, _ in
+            // Почему: коммит из терминала не трогает файл, но рибоны в превью уже не о том дереве
+            Task { await navigator.refreshChanges() }
+        }
         .task(id: needsAgentChanges) {
             while !Task.isCancelled, needsAgentChanges {
                 await (agentChanges ?? ownChanges).refresh()
