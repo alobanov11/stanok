@@ -44,7 +44,7 @@ struct ClaudeEditIndexTests {
         let line = Self.record("/Users/tom/Projects/app/main.swift", at: "2026-09-01T10:00:00.000Z")
         try (line + "\n").write(to: log, atomically: true, encoding: .utf8)
 
-        let found = await ClaudeEditIndex().touched(under: root)
+        let found = await ClaudeEditIndex().touched(under: root, scope: nil)
 
         #expect(found.1 == ["/Users/tom/Projects/app"])
         #expect(found.0.map(\.url.lastPathComponent) == ["main.swift"])
@@ -64,12 +64,12 @@ struct ClaudeEditIndexTests {
         )
 
         let index = ClaudeEditIndex()
-        let partial = await index.touched(under: root)
+        let partial = await index.touched(under: root, scope: nil)
         #expect(partial.0.map(\.url.lastPathComponent) == ["one.swift"])
 
         try Self.append(String(second.dropFirst(40)) + "\n", to: log)
 
-        let complete = await index.touched(under: root)
+        let complete = await index.touched(under: root, scope: nil)
         #expect(Set(complete.0.map(\.url.lastPathComponent)) == ["one.swift", "two.swift"])
     }
 
@@ -83,13 +83,13 @@ struct ClaudeEditIndexTests {
         try (old + "\n").write(to: log, atomically: true, encoding: .utf8)
 
         let index = ClaudeEditIndex()
-        _ = await index.touched(under: root)
+        _ = await index.touched(under: root, scope: nil)
 
         let fresh = Self.record("/Users/tom/Projects/app/new.swift", at: "2026-09-01T12:00:00.000Z")
         try Self.truncate(log, to: 0)
         try Self.append(fresh + "\n", to: log)
 
-        let found = await index.touched(under: root)
+        let found = await index.touched(under: root, scope: nil)
 
         #expect(found.0.map(\.url.lastPathComponent) == ["new.swift"])
     }

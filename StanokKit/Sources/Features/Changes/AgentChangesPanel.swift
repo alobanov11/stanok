@@ -53,10 +53,14 @@ struct AgentChangesPanel: View {
     @State
     private var chosen: URL?
 
-    @State
-    private var collapsed: Set<String> = []
+    @AppStorage("agentChanges.expandedFolders")
+    private var expandedRaw = ""
 
     let onOpen: (URL) -> Void
+
+    private var expanded: Set<String> {
+        Set(expandedRaw.split(separator: "\n").map(String.init))
+    }
 
     private func visible(_ repository: AgentRepositoryChanges) -> [GitTreeNode] {
         var rows: [GitTreeNode] = []
@@ -78,7 +82,7 @@ struct AgentChangesPanel: View {
     }
 
     private func isExpanded(_ repository: AgentRepositoryChanges, _ node: GitTreeNode) -> Bool {
-        !collapsed.contains(key(repository, node))
+        expanded.contains(key(repository, node))
     }
 
     private func key(_ repository: AgentRepositoryChanges, _ node: GitTreeNode) -> String {
@@ -102,8 +106,10 @@ struct AgentChangesPanel: View {
 
     private func select(_ repository: AgentRepositoryChanges, node: GitTreeNode) {
         guard !node.isDirectory else {
+            var folders = expanded
             let key = key(repository, node)
-            if collapsed.contains(key) { collapsed.remove(key) } else { collapsed.insert(key) }
+            if folders.contains(key) { folders.remove(key) } else { folders.insert(key) }
+            expandedRaw = folders.sorted().joined(separator: "\n")
             return
         }
 
