@@ -249,6 +249,14 @@ public struct WorkspaceView<Terminal: View>: View {
         .onChange(of: inspectorGitRoot, initial: true) { _, root in
             (touchedRepositories ?? ownRepositories).focus(on: root)
         }
+        .onChange(of: gitSnapshot) { _, snapshot in
+            Task {
+                await commits.refresh(
+                    root: snapshot?.root,
+                    isClean: snapshot?.changes.isEmpty == true
+                )
+            }
+        }
         .onChange(of: gitSnapshot) { _, _ in
             // Почему: коммит из терминала не трогает файл, но рибоны в превью уже не о том дереве
             Task { await navigator.refreshChanges() }

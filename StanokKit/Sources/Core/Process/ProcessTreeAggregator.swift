@@ -70,13 +70,53 @@ public enum ProcessTreeAggregator {
         return entry.cpuTimeNanoseconds - previousEntry.cpuTimeNanoseconds
     }
 
+    // Почему: таблица процессов строилась заново на каждый терминал и на каждую метрику
+    public static func summary(
+        roots: [Int32],
+        current: ProcessTableSnapshot,
+        previous: ProcessTableSnapshot?,
+        elapsed: TimeInterval
+    ) -> (usage: [Int32: ProcessTreeUsage], names: [Int32: Set<String>]) {
+        var usage: [Int32: ProcessTreeUsage] = [:]
+        var names: [Int32: Set<String>] = [:]
+
+        for root in roots {
+            let pids = subtreePIDs(ofRoot: root, in: current)
+
+            usage[root] = self.usage(
+                pids: pids,
+                current: current,
+                previous: previous,
+                elapsed: elapsed
+            )
+            names[root] = Set(
+                pids.compactMap { current.entries[$0]?.name }.filter { !$0.isEmpty }
+            )
+        }
+
+        return (usage, names)
+    }
+
     public static func usage(
         forSubtreeRoot root: Int32,
         current: ProcessTableSnapshot,
         previous: ProcessTableSnapshot?,
         elapsed: TimeInterval
     ) -> ProcessTreeUsage {
-        let pids = subtreePIDs(ofRoot: root, in: current)
+        usage(
+            pids: subtreePIDs(ofRoot: root, in: current),
+            current: current,
+            previous: previous,
+            elapsed: elapsed
+        )
+    }
+
+    static func usage(
+        pids: Set<Int32>,
+        current: ProcessTableSnapshot,
+        previous: ProcessTableSnapshot?,
+        elapsed: TimeInterval
+    ) -> ProcessTreeUsage {
         let memoryBytes = pids.reduce(UInt64(0)) {
             $0 + (current.entries[$1]?.residentMemoryBytes ?? 0)
         }

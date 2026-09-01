@@ -44,9 +44,10 @@ final class GitBranchStore {
             return
         }
 
+        let started = generation[root, default: 0]
         let task = Task { [weak self] in
             let snapshot = await GitBranchClient.listBranches(for: URL(filePath: root))
-            self?.store(snapshot, at: root, generation: self?.generation[root, default: 0] ?? 0)
+            self?.store(snapshot, at: root, generation: started)
         }
 
         loadingRoots[root] = task

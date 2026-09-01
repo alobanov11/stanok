@@ -10,6 +10,7 @@ final class BranchCommitStore {
         static let commits = 50
 
         static let freshness: TimeInterval = 60
+        static let cached = 24
     }
 
     private struct Entry {
@@ -73,5 +74,16 @@ final class BranchCommitStore {
 
     private func store(_ commits: [GitCommitChanges], at key: String) {
         entries[key] = Entry(commits: commits, loadedAt: Date())
+
+        // Почему: полсотни коммитов на ветку — это мегабайты, если их копить весь день
+        guard entries.count > Limit.cached else { return }
+
+        let stale = entries.sorted { $0.value.loadedAt < $1.value.loadedAt }
+            .prefix(entries.count - Limit.cached)
+            .map(\.key)
+
+        for key in stale {
+            entries.removeValue(forKey: key)
+        }
     }
 }

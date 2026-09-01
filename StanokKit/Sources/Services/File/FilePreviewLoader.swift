@@ -26,6 +26,17 @@ enum FilePreviewLoader {
 
     // Почему: текст коммита и его дифф должны быть одной ревизией, иначе номера строк врут
     static func load(_ url: URL, in root: String, path: String, sha: String) async -> FilePreview {
+        let measure = await GitProcessRunner.run([
+            "--no-optional-locks", "-C", root, "cat-file", "-s", "\(sha):\(path)"
+        ])
+        let size = String(data: measure.standardOutput, encoding: .utf8)
+            .flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) } ?? 0
+
+        // Почему: мегабайтный blob незачем поднимать в память ради превью
+        guard size <= Limit.size else {
+            return await load(url, source: .commit(sha))
+        }
+
         let blob = await GitProcessRunner.run([
             "--no-optional-locks", "-C", root, "show", "\(sha):\(path)"
         ])

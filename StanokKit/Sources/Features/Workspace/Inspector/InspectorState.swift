@@ -49,6 +49,13 @@ final class InspectorState {
         selectedFiles[Self.key(for: folder)] = url
     }
 
+    // Почему: невидимое дерево продолжало держать FSEvents и обновляться впустую
+    func closeTrees() {
+        for model in fileTrees.values {
+            model.close()
+        }
+    }
+
     func prune(folders: Set<URL>, gitRoots: Set<String>) {
         let keys = Set(folders.map { Self.key(for: $0) })
 
