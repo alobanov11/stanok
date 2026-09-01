@@ -35,7 +35,7 @@ enum CodeDocumentBuilder {
             let gone = expanded.contains(number) ? changes.removed[number] : nil
             let follows = changes.kinds[number] == .removed
 
-            if let gone, !follows { appendRemoved(gone) }
+            if let gone, !gone.isEmpty, !follows { appendRemoved(gone) }
 
             rendered.append(index)
 
@@ -69,7 +69,7 @@ enum CodeDocumentBuilder {
             )
             text.append(paragraph)
 
-            if let gone, follows {
+            if let gone, !gone.isEmpty, follows {
                 let closing = position == visible.count - 1
                 if closing {
                     text.append(NSAttributedString(string: "\n", attributes: [.font: font]))

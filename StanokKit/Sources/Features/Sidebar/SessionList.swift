@@ -36,7 +36,7 @@ struct SessionList: View {
     private var above: CGFloat = 0
 
     @State
-    private var below: CGFloat = Fade.bottom
+    private var below: CGFloat = 0
 
     @Environment(\.agentSessionRegistry)
     private var agentSessionRegistry

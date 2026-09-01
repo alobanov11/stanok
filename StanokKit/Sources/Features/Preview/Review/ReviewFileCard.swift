@@ -33,7 +33,6 @@ struct ReviewFileCard: View {
                 .foregroundStyle(.tertiary)
                 .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 .frame(width: 12)
-                .opacity(isReadable ? 1 : 0)
 
             Image(nsImage: FileIcons.icon(for: file.url, isDirectory: false))
                 .resizable()
@@ -96,7 +95,10 @@ struct ReviewFileCard: View {
                 content
             }
         }
-        .background(.white.opacity(0.04), in: .rect(cornerRadius: Metric.radius))
+        .background(
+            .white.opacity(0.04),
+            in: .rect(cornerRadius: Metric.radius, style: .continuous)
+        )
         .clipShape(.rect(cornerRadius: Metric.radius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Metric.radius, style: .continuous)
@@ -127,8 +129,6 @@ struct ReviewFileCard: View {
     }
 
     private func toggle() {
-        guard isReadable else { return }
-
         withAnimation(.smooth(duration: 0.18)) { isExpanded.toggle() }
 
         // Почему: свёрнутая карточка не должна держать документ целого файла

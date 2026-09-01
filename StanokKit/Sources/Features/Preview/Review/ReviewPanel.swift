@@ -19,6 +19,10 @@ struct ReviewPanel: View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay(alignment: .top) { bar }
+            .onChange(of: kind) { _, _ in
+                expanded = []
+                collapsed = []
+            }
     }
 
     private var bar: some View {
