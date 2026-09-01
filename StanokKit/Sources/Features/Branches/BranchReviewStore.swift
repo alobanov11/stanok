@@ -117,7 +117,7 @@ final class BranchReviewStore {
 
     // Почему: устаревшая запись — не результат загрузки, ключ ревью по ней менять нельзя
     private func isFresh(_ key: String) -> Bool {
-        entries[key].map { !$0.isStale } ?? false
+        entries[key] != nil && !needsLoad(key)
     }
 
     private func token(for key: String) -> Int {

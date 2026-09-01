@@ -8,7 +8,7 @@ public final class GitStatusStore {
     private var scans: [String: Int] = [:]
     private var generations: [String: Int] = [:]
     private var counter = 0
-    private var live: Set<String> = []
+    private var live: Set<String>?
     private var rootByPath: [String: String] = [:]
     private var inFlight: Set<String> = []
     private var pending: Set<String> = []
@@ -66,12 +66,16 @@ public final class GitStatusStore {
         }
 
         inFlight.insert(path)
-        defer { inFlight.remove(path) }
+        defer {
+            inFlight.remove(path)
+            // Почему: закрытый путь не должен оставлять за собой поколение навсегда
+            if live?.contains(path) == false { generations.removeValue(forKey: path) }
+        }
 
         repeat {
             pending.remove(path)
             // Почему: путь могли закрыть, пока шёл предыдущий проход — второй уже не нужен
-            guard live.isEmpty || live.contains(path) else { return }
+            guard live?.contains(path) != false else { return }
 
             let started = generations[path, default: 0]
             await store(GitClient.probe(for: session.url), at: path, generation: started)

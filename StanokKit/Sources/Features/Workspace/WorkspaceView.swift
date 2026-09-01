@@ -457,7 +457,9 @@ private extension WorkspaceView {
 
         // Почему: после checkout прежняя ветка перестала быть текущей, её дерево уже чужое
         let isCurrent = gitSnapshot?.branch.map { ref == "refs/heads/" + $0 } ?? false
-        let navigation = navigator.generation
+        // Почему: пока грузим, рабочая группа может смениться — правим тот же навигатор
+        let target = navigator
+        let navigation = target.generation
         let generation = UUID()
         branchRevalidation = generation
 
@@ -465,16 +467,16 @@ private extension WorkspaceView {
             let ready = await branchReviews.load(root: root, branch: ref, isCurrent: isCurrent)
 
             guard ready, isCurrent != was, branchRevalidation == generation else { return }
-            guard navigator.generation == navigation, shows(root: root, ref: ref) else { return }
+            guard target.generation == navigation, shows(target, root: root, ref: ref) else { return }
 
-            navigator.retitleReview(
+            target.retitleReview(
                 .branch(root: root, ref: ref, name: name, isCurrent: isCurrent)
             )
         }
     }
 
-    func shows(root: String, ref: String) -> Bool {
-        guard case let .review(.branch(open, live, _, _)) = navigator.current else { return false }
+    func shows(_ target: PreviewNavigator, root: String, ref: String) -> Bool {
+        guard case let .review(.branch(open, live, _, _)) = target.current else { return false }
 
         return open == root && live == ref
     }
@@ -485,7 +487,8 @@ private extension WorkspaceView {
         branchRequest = generation
 
         // Почему: пока грузились данные, человек мог уйти на файл или закрыть превью
-        let navigation = navigator.generation
+        let target = navigator
+        let navigation = target.generation
 
         Task {
             let ready = await branchReviews.load(
@@ -494,10 +497,10 @@ private extension WorkspaceView {
                 isCurrent: ref.isCurrent
             )
 
-            guard ready, branchRequest == generation, navigator.generation == navigation
+            guard ready, branchRequest == generation, target.generation == navigation
             else { return }
 
-            navigator.openReview(.branch(
+            target.openReview(.branch(
                 root: root,
                 ref: ref.fullName,
                 name: ref.displayName,
