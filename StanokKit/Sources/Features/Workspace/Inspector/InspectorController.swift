@@ -77,12 +77,12 @@ struct InspectorController {
         withAnimation(animation) { rawMode.wrappedValue = "all" }
     }
 
-    func openTree(gitDirectory: String?, onGitChange: @escaping () -> Void) {
+    func openTree(gitDirectories: [String], onGitChange: @escaping () -> Void) {
         guard let session = session() else { return }
 
         state.fileTree(for: session.url).open(
             session.url,
-            gitDirectory: gitDirectory,
+            gitDirectories: gitDirectories,
             onGitChange: onGitChange
         )
     }

@@ -140,7 +140,7 @@ private extension PreviewContentView {
                 lines: lines,
                 folds: folds,
                 folded: folded,
-                removed: preview.changes.removed,
+                changes: preview.changes,
                 expanded: expanded,
                 font: codeFont,
                 revision: revision

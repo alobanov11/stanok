@@ -52,6 +52,16 @@ enum FileOperations {
     }
 
     @discardableResult
+    static func copy(_ urls: [URL], into directory: URL) async throws -> [URL] {
+        try await Task.detached(priority: .userInitiated) { try copy(urls, into: directory) }.value
+    }
+
+    @discardableResult
+    static func move(_ urls: [URL], into directory: URL) async throws -> [URL] {
+        try await Task.detached(priority: .userInitiated) { try move(urls, into: directory) }.value
+    }
+
+    @discardableResult
     static func copy(_ urls: [URL], into directory: URL) throws -> [URL] {
         var targets: [URL] = []
 

@@ -45,10 +45,16 @@ public final class GitStatusStore {
 
         repeat {
             pending.remove(path)
-            let snapshot = await GitClient.snapshot(for: session.url)
-            rootByPath[path] = snapshot?.root
-            if let root = snapshot?.root, cache[root] != snapshot {
-                cache[root] = snapshot
+            switch await GitClient.probe(for: session.url) {
+            case .notRepository:
+                rootByPath[path] = nil
+
+            case .failed:
+                break
+
+            case let .snapshot(snapshot):
+                rootByPath[path] = snapshot.root
+                if cache[snapshot.root] != snapshot { cache[snapshot.root] = snapshot }
             }
         } while pending.contains(path)
     }

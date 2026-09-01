@@ -58,6 +58,12 @@ public struct WorkspaceView<Terminal: View>: View {
         inspectorControls.mode
     }
 
+    private var gitDirectories: [String] {
+        guard let gitSnapshot else { return [] }
+
+        return Array(Set([gitSnapshot.gitDirectory, gitSnapshot.commonDirectory]))
+    }
+
     private var gitSnapshot: GitSnapshot? {
         git.snapshot(for: selectedSession)
     }
@@ -474,7 +480,7 @@ private extension WorkspaceView {
     func openFileTree() {
         let session = selectedSession
 
-        inspectorControls.openTree(gitDirectory: gitSnapshot?.gitDirectory) {
+        inspectorControls.openTree(gitDirectories: gitDirectories) {
             Task { await git.refresh(session) }
         }
     }

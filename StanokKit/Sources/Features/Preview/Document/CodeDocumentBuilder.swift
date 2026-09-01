@@ -6,7 +6,7 @@ enum CodeDocumentBuilder {
         lines: [[CodeToken]],
         folds: CodeFoldMap,
         folded: Set<Int>,
-        removed: [Int: [String]] = [:],
+        changes: GitFileChanges = .none,
         expanded: Set<Int> = [],
         font: NSFont,
         revision: String = ""
@@ -14,19 +14,25 @@ enum CodeDocumentBuilder {
         let visible = folds.visibleLines(count: lines.count, folded: folded)
         let text = NSMutableAttributedString()
 
-        for (position, index) in visible.enumerated() {
-            if expanded.contains(index + 1), let gone = removed[index + 1] {
-                for line in gone {
-                    text.append(NSAttributedString(
-                        string: line + "\n",
-                        attributes: [
-                            .font: font,
-                            .foregroundColor: NSColor.secondaryLabelColor,
-                            .backgroundColor: NSColor.systemRed.withAlphaComponent(0.18)
-                        ]
-                    ))
-                }
+        func appendRemoved(_ gone: [String]) {
+            for line in gone {
+                text.append(NSAttributedString(
+                    string: line + "\n",
+                    attributes: [
+                        .font: font,
+                        .foregroundColor: NSColor.secondaryLabelColor,
+                        .backgroundColor: NSColor.systemRed.withAlphaComponent(0.18)
+                    ]
+                ))
             }
+        }
+
+        for (position, index) in visible.enumerated() {
+            let number = index + 1
+            let gone = expanded.contains(number) ? changes.removed[number] : nil
+            let follows = changes.kinds[number] == .removed
+
+            if let gone, !follows { appendRemoved(gone) }
 
             let paragraph = NSMutableAttributedString()
 
@@ -57,6 +63,14 @@ enum CodeDocumentBuilder {
                 range: NSRange(location: 0, length: paragraph.length)
             )
             text.append(paragraph)
+
+            if let gone, follows {
+                if position == visible.count - 1 {
+                    text.append(NSAttributedString(string: "\n", attributes: [.font: font]))
+                }
+
+                appendRemoved(gone)
+            }
         }
 
         return PreviewDocument(text: text, revision: revision)

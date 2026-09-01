@@ -21,14 +21,20 @@ final class GitBranchStore {
     func isOperating(_ session: TerminalSession?) -> Bool {
         guard let session else { return false }
 
-        return operating.contains(session.url.path(percentEncoded: false))
+        return operating.contains(key(for: session))
+    }
+
+    func key(for session: TerminalSession) -> String {
+        let path = session.url.path(percentEncoded: false)
+
+        return rootByPath[path] ?? path
     }
 
     func refresh(_ session: TerminalSession?) async {
         guard let session else { return }
 
         let path = session.url.path(percentEncoded: false)
-        guard !operating.contains(path) else { return }
+        guard !operating.contains(key(for: session)) else { return }
 
         guard !inFlight.contains(path) else {
             pending.insert(path)
@@ -59,12 +65,16 @@ final class GitBranchStore {
         _ operation: @escaping () async -> GitCommandOutcome
     ) async -> GitCommandOutcome {
         let path = session.url.path(percentEncoded: false)
-        operating.insert(path)
+        let scope = key(for: session)
+        guard operating.insert(scope).inserted else {
+            return GitCommandOutcome(succeeded: false, message: "Операция уже выполняется")
+        }
+
         generation[path, default: 0] += 1
 
         let outcome = await operation()
 
-        operating.remove(path)
+        operating.remove(scope)
         Task { await refresh(session) }
 
         return outcome

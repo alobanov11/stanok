@@ -16,7 +16,7 @@ enum GitTreeBuilder {
         }
 
         for change in snapshot.changes {
-            entries[change.path] = Entry(isDirectory: false, status: change.status)
+            entries[change.path] = Entry(isDirectory: change.isSubmodule, status: change.status)
         }
 
         var childrenByParent: [String: [String]] = [:]

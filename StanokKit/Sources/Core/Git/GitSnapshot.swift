@@ -6,6 +6,7 @@ public struct GitSnapshot: Equatable, Sendable {
     public let isDetached: Bool
     public let root: String
     public let gitDirectory: String
+    public let commonDirectory: String
     public let added: Int
     public let removed: Int
     public let changes: [GitChange]
@@ -18,6 +19,7 @@ public struct GitSnapshot: Equatable, Sendable {
         isDetached: Bool,
         root: String,
         gitDirectory: String,
+        commonDirectory: String? = nil,
         added: Int,
         removed: Int,
         changes: [GitChange],
@@ -27,6 +29,7 @@ public struct GitSnapshot: Equatable, Sendable {
         self.isDetached = isDetached
         self.root = root
         self.gitDirectory = gitDirectory
+        self.commonDirectory = commonDirectory ?? gitDirectory
         self.added = added
         self.removed = removed
         self.changes = changes

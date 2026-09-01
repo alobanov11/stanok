@@ -2,6 +2,13 @@ import Foundation
 
 public enum GitClient {
 
+    public enum Probe: Sendable {
+
+        case notRepository
+        case failed
+        case snapshot(GitSnapshot)
+    }
+
     private enum Limit {
 
         static let untrackedFileSize = 1_000_000
@@ -10,7 +17,7 @@ public enum GitClient {
     }
 
     public static func status(for url: URL) async -> GitStatus? {
-        guard let snapshot = await snapshot(for: url) else { return nil }
+        guard case let .snapshot(snapshot) = await probe(for: url) else { return nil }
 
         return GitStatus(
             branch: snapshot.branch,
@@ -21,14 +28,19 @@ public enum GitClient {
         )
     }
 
-    public static func snapshot(for url: URL) async -> GitSnapshot? {
+    public static func probe(for url: URL) async -> Probe {
         let path = url.path(percentEncoded: false)
 
         guard let root = await run(["rev-parse", "--show-toplevel"], at: path), !root.isEmpty
-        else { return nil }
+        else { return .notRepository }
 
         guard let gitDirectory = await run(["rev-parse", "--absolute-git-dir"], at: path)
-        else { return nil }
+        else { return .failed }
+
+        let commonDirectory = await run(
+            ["rev-parse", "--path-format=absolute", "--git-common-dir"],
+            at: path
+        )
 
         let branch = await run(["branch", "--show-current"], at: path) ?? ""
         let hasCommit = await run(["rev-parse", "--verify", "HEAD"], at: path) != nil
@@ -38,22 +50,25 @@ public enum GitClient {
 
         let numstat = await run(diffArguments, at: path) ?? ""
         let (diffAdded, removed) = parseNumstat(numstat)
-        let statusData = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
+        guard let statusData = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
+        else { return .failed }
+
         let untracked = untrackedAddedLines(in: statusData, root: URL(filePath: root))
         let tracking = await GitTracking.parse(
             run(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], at: path)
         )
 
-        return GitSnapshot(
+        return .snapshot(GitSnapshot(
             branch: branch.isEmpty ? nil : branch,
             isDetached: branch.isEmpty,
             root: root,
             gitDirectory: gitDirectory,
+            commonDirectory: commonDirectory,
             added: diffAdded + untracked,
             removed: removed,
-            changes: GitStatusParser.parse(statusData ?? Data()),
+            changes: GitStatusParser.parse(statusData),
             tracking: tracking
-        )
+        ))
     }
 }
 

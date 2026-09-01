@@ -14,7 +14,7 @@ final class ClaudeProjectsWatcher: Sendable {
         guard !hasStarted else { return true }
 
         let fileWatcher = FileWatcher(onDirectoriesChanged: { _ in }, onGitChange: onChange)
-        guard fileWatcher.watch(root, gitDirectory: nil) else { return false }
+        guard fileWatcher.watch(root) else { return false }
 
         watcher = fileWatcher
         hasStarted = true

@@ -81,6 +81,9 @@ struct BranchTree: View {
     private var isPromptingNewBranch = false
 
     @State
+    private var isTapping = false
+
+    @State
     private var newBranchName = ""
 
     @State
@@ -278,18 +281,33 @@ private extension BranchTree {
     }
 
     func handleTap(_ ref: GitBranchRef) async {
-        guard !actions.isOperating, !ref.isCurrent, ref.occupyingWorktreePath == nil else {
-            return
-        }
+        guard
+            !actions.isOperating,
+            !isTapping,
+            !ref.isCurrent,
+            ref.occupyingWorktreePath == nil
+        else { return }
+
+        isTapping = true
+
+        defer { isTapping = false }
 
         if ref.kind == .remote {
             createTarget = ref
             return
         }
 
-        if await actions.checkDirty() == true {
+        switch await actions.checkDirty() {
+        case true:
             dirtyTarget = ref
             return
+
+        case nil:
+            errorMessage = "Не удалось проверить рабочую копию"
+            return
+
+        default:
+            break
         }
 
         await performSwitch(ref)

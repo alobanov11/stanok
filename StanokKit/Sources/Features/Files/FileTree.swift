@@ -228,16 +228,19 @@ private extension FileTree {
         let operation = Self.resolvedOperation(for: session, target: target)
         guard operation == .move || operation == .copy else { return }
 
-        var results: [URL] = []
-        let succeeded = perform {
-            switch operation {
-            case .move: results = try FileOperations.move(sources, into: target)
-            default: results = try FileOperations.copy(sources, into: target)
+        dropTarget = nil
+
+        Task {
+            do {
+                let results = operation == .move
+                    ? try await FileOperations.move(sources, into: target)
+                    : try await FileOperations.copy(sources, into: target)
+
+                if let last = results.last { selected = last }
+            } catch {
+                failure = error.localizedDescription
             }
         }
-
-        dropTarget = nil
-        if succeeded, let last = results.last { selected = last }
     }
 
     func reveal(_ target: URL?, in root: FileNode, proxy: ScrollViewProxy) {
@@ -290,7 +293,13 @@ private extension FileTree {
         let urls = FilePasteboard.urls
         guard !urls.isEmpty else { return }
 
-        perform { try FileOperations.copy(urls, into: directory) }
+        Task {
+            do {
+                try await FileOperations.copy(urls, into: directory)
+            } catch {
+                failure = error.localizedDescription
+            }
+        }
     }
 
     func copyPath(_ url: URL) {

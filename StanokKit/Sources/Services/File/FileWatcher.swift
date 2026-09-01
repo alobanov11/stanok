@@ -15,15 +15,15 @@ public final class FileWatcher {
 
         private let lock = NSLock()
         private let scheduleDelivery: @Sendable () -> Void
-        private let gitDirectory: String?
+        private let gitDirectories: [String]
 
         init(
             generation: Int,
-            gitDirectory: String?,
+            gitDirectories: [String],
             scheduleDelivery: @escaping @Sendable () -> Void
         ) {
             self.generation = generation
-            self.gitDirectory = gitDirectory
+            self.gitDirectories = gitDirectories
             self.scheduleDelivery = scheduleDelivery
         }
 
@@ -42,8 +42,11 @@ public final class FileWatcher {
                     continue
                 }
 
-                if let gitDirectory, FileWatcher.isInside(path, gitDirectory: gitDirectory) {
-                    if FileWatcher.isRelevantGitEvent(path, gitDirectory: gitDirectory) {
+                if
+                    let owner = gitDirectories.first(where: {
+                        FileWatcher.isInside(path, gitDirectory: $0)
+                    }) {
+                    if FileWatcher.isRelevantGitEvent(path, gitDirectory: owner) {
                         pendingGitChange = true
                     }
                     continue
@@ -170,7 +173,7 @@ public final class FileWatcher {
     }
 
     @discardableResult
-    public func watch(_ url: URL, gitDirectory: String?) -> Bool {
+    public func watch(_ url: URL, gitDirectories: [String] = []) -> Bool {
         stop()
 
         nextGeneration += 1
@@ -180,9 +183,10 @@ public final class FileWatcher {
         let scheduleDelivery: @Sendable () -> Void = { [weak self] in
             Task { @MainActor in self?.deliver(generation: currentGeneration) }
         }
+        let unique = Array(Set(gitDirectories))
         let context = Context(
             generation: currentGeneration,
-            gitDirectory: gitDirectory,
+            gitDirectories: unique,
             scheduleDelivery: scheduleDelivery
         )
         self.context = context
@@ -201,8 +205,7 @@ public final class FileWatcher {
                 | kFSEventStreamCreateFlagUseCFTypes
         )
 
-        let paths = gitDirectory.map { [url.path(percentEncoded: false), $0] }
-            ?? [url.path(percentEncoded: false)]
+        let paths = [url.path(percentEncoded: false)] + unique
 
         stream = FSEventStreamCreate(
             kCFAllocatorDefault,

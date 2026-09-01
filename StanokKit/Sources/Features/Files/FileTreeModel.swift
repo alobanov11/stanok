@@ -9,16 +9,16 @@ final class FileTreeModel {
 
     private var watcher: FileWatcher?
     private var onGitChange: (() -> Void)?
-    private var currentGitDirectory: String?
+    private var currentGitDirectories: [String] = []
 
-    func open(_ url: URL?, gitDirectory: String?, onGitChange: @escaping () -> Void) {
+    func open(_ url: URL?, gitDirectories: [String], onGitChange: @escaping () -> Void) {
         self.onGitChange = onGitChange
 
         guard root?.url != url else { return }
 
         watcher?.stop()
         watcher = nil
-        currentGitDirectory = nil
+        currentGitDirectories = []
 
         guard let url else {
             root = nil
@@ -37,21 +37,21 @@ final class FileTreeModel {
         node.expand()
         root = node
 
-        startWatcher(at: url, gitDirectory: gitDirectory)
+        startWatcher(at: url, gitDirectories: gitDirectories)
     }
 
     func close() {
         watcher?.stop()
         watcher = nil
-        currentGitDirectory = nil
+        currentGitDirectories = []
         onGitChange = nil
         root = nil
     }
 
-    func updateGitDirectory(_ gitDirectory: String?) {
-        guard let root, gitDirectory != currentGitDirectory else { return }
+    func updateGitDirectories(_ gitDirectories: [String]) {
+        guard let root, gitDirectories != currentGitDirectories else { return }
 
-        startWatcher(at: root.url, gitDirectory: gitDirectory)
+        startWatcher(at: root.url, gitDirectories: gitDirectories)
     }
 
     func reloadAll() {
@@ -73,15 +73,15 @@ private extension FileTreeModel {
         }
     }
 
-    func startWatcher(at url: URL, gitDirectory: String?) {
-        currentGitDirectory = gitDirectory
+    func startWatcher(at url: URL, gitDirectories: [String]) {
+        currentGitDirectories = gitDirectories
         watcher?.stop()
 
         let watcher = FileWatcher(
             onDirectoriesChanged: { [weak self] directories in self?.apply(directories) },
             onGitChange: { [weak self] in self?.onGitChange?() }
         )
-        watcher.watch(url, gitDirectory: gitDirectory)
+        watcher.watch(url, gitDirectories: gitDirectories)
         self.watcher = watcher
     }
 

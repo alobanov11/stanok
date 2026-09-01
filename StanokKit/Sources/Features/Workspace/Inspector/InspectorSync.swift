@@ -2,6 +2,12 @@ import SwiftUI
 
 struct InspectorSync: ViewModifier {
 
+    private var gitDirectories: [String] {
+        guard let snapshot else { return [] }
+
+        return Array(Set([snapshot.gitDirectory, snapshot.commonDirectory])).sorted()
+    }
+
     let state: InspectorState
     let folder: URL?
     let gitRoot: String?
@@ -12,10 +18,10 @@ struct InspectorSync: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: snapshot?.gitDirectory, initial: true) { _, directory in
+            .onChange(of: gitDirectories, initial: true) { _, directories in
                 guard let folder else { return }
 
-                state.fileTree(for: folder).updateGitDirectory(directory)
+                state.fileTree(for: folder).updateGitDirectories(directories)
             }
             .onChange(of: snapshot, initial: true) { _, snapshot in
                 guard let gitRoot else { return }
