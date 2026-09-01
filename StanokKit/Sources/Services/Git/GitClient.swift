@@ -61,16 +61,28 @@ public enum GitClient {
     }
 
     // Почему: правку читают и после коммита, поэтому показываем всё с точки отсчёта
+    public static func history(
+        of ref: String,
+        at url: URL,
+        limit: Int
+    ) async -> [GitCommitChanges] {
+        await log(range: ref, at: url, limit: limit)
+    }
+
     public static func commits(
         since base: String,
         upTo head: String,
         at url: URL
     ) async -> [GitCommitChanges] {
+        await log(range: "\(base)..\(head)", at: url, limit: Limit.reviewedCommits)
+    }
+
+    static func log(range: String, at url: URL, limit: Int) async -> [GitCommitChanges] {
         let path = url.path(percentEncoded: false)
         let arguments = [
             "log", "--name-status", "-z", "-M", "--first-parent", "--root",
-            "--max-count=\(Limit.reviewedCommits)",
-            "--format=%x1e%H%x1f%s%x1f", "\(base)..\(head)"
+            "--max-count=\(limit)",
+            "--format=%x1e%H%x1f%s%x1f", range
         ]
 
         guard let log = await runRaw(arguments, at: path), !log.isEmpty else { return [] }

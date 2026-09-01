@@ -160,6 +160,9 @@ public struct WorkspaceView<Terminal: View>: View {
     private var commits = ReviewCommitStore()
 
     @State
+    private var branchCommits = BranchCommitStore()
+
+    @State
     private var mainWidth: CGFloat = 0
 
     @State
@@ -371,9 +374,7 @@ private extension WorkspaceView {
     }
 
     var needsAgentChanges: Bool {
-        if case .review(.agents) = navigator.current { return true }
-
-        return filesMode == .git
+        filesMode == .git
     }
 
     func activate(_ session: TerminalSession.ID?) {
@@ -417,10 +418,7 @@ private extension WorkspaceView {
     }
 
     func hasReview(_ kind: ReviewKind) -> Bool {
-        switch kind {
-        case .git: !reviewFiles(.git).isEmpty
-        case .agents: !reviewFiles(.agents).isEmpty
-        }
+        !reviewFiles(kind).isEmpty
     }
 
     func pane(
@@ -538,11 +536,13 @@ private extension WorkspaceView {
             branchTreeModel: inspector.branchTree(for: gitRoot),
             agentChanges: agentChanges ?? ownChanges,
             branchActions: branchActions,
+            branchCommits: branchCommits,
+            inspector: inspector,
+            branches: branchStore,
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
             onOpen: inspectorControls.open,
             hasGitReview: hasReview(.git),
-            hasAgentReview: hasReview(.agents),
             onReview: { navigator.openReview($0) }
         )
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
@@ -560,17 +560,12 @@ private extension WorkspaceView {
                 repository: nil
             )
 
-        case .agents:
-            let model: AgentChangesModel = agentChanges ?? ownChanges
-
-            return model.repositories.flatMap { repository in
-                ReviewFiles.build(
-                    root: repository.root,
-                    changes: repository.changes,
-                    commits: repository.commits,
-                    repository: repository.name
-                )
+        case let .commit(sha, _):
+            guard let root = inspectorGitRoot, let commit = branchCommits.commit(sha) else {
+                return []
             }
+
+            return ReviewFiles.build(root: root, changes: [], commits: [commit], repository: nil)
         }
     }
 

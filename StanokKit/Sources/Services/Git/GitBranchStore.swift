@@ -30,6 +30,22 @@ final class GitBranchStore {
         return rootByPath[path] ?? path
     }
 
+    func snapshot(root: String) -> GitBranchSnapshot? {
+        cache[root]
+    }
+
+    // Почему: ветки чужого репозитория читаются по пути, сессии для него нет
+    func refresh(root: String) async {
+        guard !inFlight.contains(root) else { return }
+
+        inFlight.insert(root)
+        defer { inFlight.remove(root) }
+
+        let snapshot = await GitBranchClient.listBranches(for: URL(filePath: root))
+
+        store(snapshot, at: root, generation: generation[root, default: 0])
+    }
+
     func refresh(_ session: TerminalSession?) async {
         guard let session else { return }
 

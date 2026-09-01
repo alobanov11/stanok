@@ -164,15 +164,11 @@ private extension AgentChangesModel {
 
             guard !changes.isEmpty || !untouched.isEmpty else { continue }
 
-            // Почему: правку агента читают и после коммита, поэтому берём всё с точки отсчёта
-            let commits = await Self.commits(at: root, isClean: changes.isEmpty)
-
             found.append(AgentRepositoryChanges(
                 root: root,
                 changes: changes,
                 touchedOnly: Array(untouched),
-                touchedAt: touchedAt,
-                commits: commits
+                touchedAt: touchedAt
             ))
         }
 
@@ -190,22 +186,6 @@ private extension AgentChangesModel {
 
             return left == right ? $0.root < $1.root : left < right
         }
-    }
-
-    nonisolated static func commits(at root: String, isClean: Bool) async -> [GitCommitChanges] {
-        let url = URL(filePath: root)
-        guard let head = await GitClient.head(at: url) else { return [] }
-
-        let parent = await GitClient.parent(at: url)
-        let base = await ReviewBaselines.shared.base(
-            for: root,
-            head: head,
-            parent: parent,
-            isClean: isClean
-        )
-        guard base != head else { return [] }
-
-        return await GitClient.commits(since: base, upTo: head, at: url)
     }
 
     nonisolated static func resolved(_ url: URL) -> String {

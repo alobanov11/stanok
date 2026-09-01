@@ -70,8 +70,11 @@ struct BranchTree: View {
     @Bindable
     var model: BranchTreeModel
 
-    let actions: BranchActions
+    let actions: BranchActions?
     let tracking: GitTracking
+    let root: String?
+    let commits: BranchCommitStore
+    let onReviewCommit: (GitCommitChanges) -> Void
 
     @State
     private var isPromptingNewBranch = false
@@ -93,6 +96,9 @@ struct BranchTree: View {
 
     @State
     private var errorMessage: String?
+
+    @State
+    private var opened: Set<String> = []
 }
 
 private extension BranchTree {
@@ -102,8 +108,8 @@ private extension BranchTree {
         if let listError = model.listError { errorBanner(listError) }
 
         ForEach(root.visibleDescendants) { row($0) }
-            .opacity(actions.isOperating ? 0.6 : 1)
-            .allowsHitTesting(!actions.isOperating)
+            .opacity(actions?.isOperating == true ? 0.6 : 1)
+            .allowsHitTesting(actions?.isOperating != true)
 
         if let worktreeError = model.worktreeError { errorBanner(worktreeError) }
     }
@@ -140,11 +146,14 @@ private extension BranchTree {
         .onTapGesture { withAnimation(.smooth(duration: 0.2)) { node.toggle() } }
     }
 
+    @ViewBuilder
     func leafRow(_ node: BranchNode, ref: GitBranchRef) -> some View {
+        let isOpen = opened.contains(ref.fullName)
+
         FileRow(
             name: node.name,
-            isDirectory: false,
-            isExpanded: false,
+            isDirectory: true,
+            isExpanded: isOpen,
             depth: node.depth,
             status: nil,
             isSelected: ref.isCurrent,
@@ -155,6 +164,45 @@ private extension BranchTree {
         .opacity(ref.occupyingWorktreePath != nil ? 0.5 : 1)
         .help(helpText(for: ref))
         .onTapGesture(count: 2) { Task { await handleTap(ref) } }
+        .onTapGesture { toggle(ref) }
+        .task(id: isOpen ? ref.fullName : "") { await loadCommits(ref, isOpen: isOpen) }
+
+        if isOpen {
+            ForEach(commits.commits(for: ref.fullName), id: \.sha) { commit in
+                commitRow(commit, depth: node.depth + 1)
+            }
+        }
+    }
+
+    func commitRow(_ commit: GitCommitChanges, depth: Int) -> some View {
+        FileRow(
+            name: commit.title,
+            isDirectory: false,
+            isExpanded: false,
+            depth: depth,
+            status: nil,
+            isSelected: false,
+            actions: nil,
+            icon: Image(systemName: "point.3.connected.trianglepath.dotted")
+        )
+        .help("Двойной клик — ревью коммита")
+        .onTapGesture(count: 2) { onReviewCommit(commit) }
+    }
+
+    func toggle(_ ref: GitBranchRef) {
+        withAnimation(.smooth(duration: 0.2)) {
+            if opened.contains(ref.fullName) {
+                opened.remove(ref.fullName)
+            } else {
+                opened.insert(ref.fullName)
+            }
+        }
+    }
+
+    func loadCommits(_ ref: GitBranchRef, isOpen: Bool) async {
+        guard isOpen, let root else { return }
+
+        await commits.load(branch: ref.fullName, root: root)
     }
 
     func divergence(for ref: GitBranchRef) -> String? {
@@ -169,12 +217,14 @@ private extension BranchTree {
     }
 
     func folderActions(_ node: BranchNode) -> FileRow.Actions? {
+        guard actions != nil else { return nil }
+
         if node.id == BranchTreeBuilder.remotesID {
             return FileRow.Actions(items: [
                 .init(
                     icon: "arrow.triangle.2.circlepath",
                     hint: "git fetch --all --prune — выполнится в терминале",
-                    action: actions.fetch
+                    action: { actions?.fetch() }
                 )
             ])
         }
@@ -190,14 +240,14 @@ private extension BranchTree {
     }
 
     func leafActions(_ ref: GitBranchRef) -> FileRow.Actions? {
-        guard ref.occupyingWorktreePath == nil else { return nil }
+        guard actions != nil, ref.occupyingWorktreePath == nil else { return nil }
 
         if ref.isCurrent {
             return FileRow.Actions(items: [
                 .init(
                     icon: "arrow.down.circle",
                     hint: "git pull --ff-only — выполнится в терминале",
-                    action: actions.pull
+                    action: { actions?.pull() }
                 )
             ])
         }
@@ -259,7 +309,7 @@ private extension BranchTree {
 
     func handleTap(_ ref: GitBranchRef) async {
         guard
-            !actions.isOperating,
+            actions?.isOperating != true,
             !isTapping,
             !ref.isCurrent,
             ref.occupyingWorktreePath == nil
@@ -273,6 +323,8 @@ private extension BranchTree {
             createTarget = ref
             return
         }
+
+        guard let actions else { return }
 
         switch await actions.checkDirty() {
         case .dirty:
@@ -291,11 +343,15 @@ private extension BranchTree {
     }
 
     func performSwitch(_ ref: GitBranchRef) async {
+        guard let actions else { return }
+
         let outcome = await actions.switchTo(ref)
         if !outcome.succeeded { errorMessage = outcome.message }
     }
 
     func performDelete(_ ref: GitBranchRef) async {
+        guard let actions else { return }
+
         let outcome = await actions.delete(ref.displayName)
         if !outcome.succeeded { errorMessage = outcome.message }
     }
@@ -305,6 +361,8 @@ private extension BranchTree {
         guard !trimmed.isEmpty else { return }
 
         Task {
+            guard let actions else { return }
+
             let format = await actions.checkRefFormat(trimmed)
             guard format.succeeded else {
                 errorMessage = format.message

@@ -44,7 +44,10 @@ struct FilePanel: View {
                 BranchTree(
                     model: branchTreeModel,
                     actions: branchActions,
-                    tracking: snapshot?.tracking ?? .none
+                    tracking: snapshot?.tracking ?? .none,
+                    root: snapshot?.root,
+                    commits: branchCommits,
+                    onReviewCommit: { onReview(.commit(sha: $0.sha, subject: $0.subject)) }
                 )
 
                 ChangeTree(
@@ -54,11 +57,12 @@ struct FilePanel: View {
                     onReview: hasGitReview ? { onReview(.git) } : nil
                 )
 
-                AgentChangesPanel(
+                AgentRepositoriesTree(
                     model: agentChanges,
-                    selected: $selected,
-                    onOpen: onOpen,
-                    onReview: hasAgentReview ? { onReview(.agents) } : nil
+                    inspector: inspector,
+                    branches: branches,
+                    commits: branchCommits,
+                    onReviewCommit: { onReview(.commit(sha: $0.sha, subject: $0.subject)) }
                 )
             }
             .padding(.horizontal, 8)
@@ -73,6 +77,9 @@ struct FilePanel: View {
     let branchTreeModel: BranchTreeModel
     let agentChanges: AgentChangesModel
     let branchActions: BranchActions
+    let branchCommits: BranchCommitStore
+    let inspector: InspectorState
+    let branches: GitBranchStore
     let snapshot: GitSnapshot?
 
     @Binding
@@ -80,6 +87,5 @@ struct FilePanel: View {
 
     let onOpen: (URL) -> Void
     let hasGitReview: Bool
-    let hasAgentReview: Bool
     let onReview: (ReviewKind) -> Void
 }

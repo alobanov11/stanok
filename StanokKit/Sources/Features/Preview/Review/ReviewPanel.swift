@@ -10,7 +10,7 @@ struct ReviewPanel: View {
     }
 
     private var stamp: String {
-        kind.rawValue + "\n" + files.map(\.id).joined(separator: "\n")
+        kind.key + "\n" + files.map(\.id).joined(separator: "\n")
     }
 
     @State

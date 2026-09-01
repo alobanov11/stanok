@@ -10,7 +10,7 @@ enum PreviewEntry: Identifiable, Sendable {
         switch self {
         case let .file(preview): "file:" + preview.url.absoluteString
         case let .web(preview): "web:" + preview.url.absoluteString
-        case let .review(kind): "review:" + kind.rawValue
+        case let .review(kind): "review:" + kind.key
         }
     }
 
