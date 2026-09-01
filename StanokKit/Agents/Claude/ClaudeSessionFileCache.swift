@@ -41,6 +41,7 @@ actor ClaudeSessionFileCache {
     private enum Limits {
 
         static let headCap = 512 * 1024
+        static let tailCap = 256 * 1024
     }
 
     private var entries: [String: Entry] = [:]
@@ -92,9 +93,24 @@ actor ClaudeSessionFileCache {
         }
 
         let targetLength = min(identity.size, Limits.headCap)
-        let headBytes = Self.readRange(path, from: 0, upTo: targetLength) ?? Data()
+        guard targetLength > 0 else {
+            entries[path] = Entry(identity: identity, result: .empty)
+            return resolution(from: .empty, modifiedAt: identity.modifiedAt)
+        }
 
-        let result = ClaudeSessionRecordScanner.scan(headBytes)
+        guard let headBytes = Self.readRange(path, from: 0, upTo: targetLength) else {
+            return entries[path].map {
+                resolution(from: $0.result, modifiedAt: $0.identity.modifiedAt)
+            }
+        }
+
+        var result = ClaudeSessionRecordScanner.scan(headBytes)
+        if result.title == nil, identity.size > Limits.headCap {
+            let tailStart = max(identity.size - Limits.tailCap, targetLength)
+            let tail = Self.readRange(path, from: tailStart, upTo: identity.size) ?? Data()
+            result = result.filling(from: ClaudeSessionRecordScanner.scan(tail))
+        }
+
         entries[path] = Entry(identity: identity, result: result)
         return resolution(from: result, modifiedAt: identity.modifiedAt)
     }

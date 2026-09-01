@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 @MainActor
@@ -29,6 +30,20 @@ public final class ShellProcessLabelStore {
     }
 
     public func purgeStaleLabels() {
-        try? FileManager.default.removeItem(at: directory)
+        let manager = FileManager.default
+        let files = (try? manager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+
+        for file in files where !isAlive(pid(forLabel: file.lastPathComponent)) {
+            try? manager.removeItem(at: file)
+        }
+    }
+
+    private func isAlive(_ pid: Int32?) -> Bool {
+        guard let pid else { return false }
+
+        return kill(pid, 0) == 0 || errno == EPERM
     }
 }

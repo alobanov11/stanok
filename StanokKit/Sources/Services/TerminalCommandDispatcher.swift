@@ -24,6 +24,10 @@ public final class TerminalCommandDispatcher {
         confirmedIdle.insert(id)
     }
 
+    public func markBusy(_ id: TerminalSession.ID) {
+        confirmedIdle.remove(id)
+    }
+
     public func forget(_ id: TerminalSession.ID) {
         confirmedIdle.remove(id)
         insertRequests[id] = nil

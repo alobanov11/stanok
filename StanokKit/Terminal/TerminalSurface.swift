@@ -14,6 +14,7 @@ struct TerminalSurface: NSViewRepresentable {
     let onTitleChanged: (String) -> Void
     let onCloseRequested: (Bool) -> Void
     let onPwdChanged: (String) -> Void
+    let onInput: () -> Void
     let onFocused: () -> Void
     let onScrollbar: (TerminalScrollbar) -> Void
     let scrollController: TerminalScrollController
@@ -35,6 +36,7 @@ struct TerminalSurface: NSViewRepresentable {
         view.onTitleChanged = onTitleChanged
         view.onCloseRequested = onCloseRequested
         view.onPwdChanged = onPwdChanged
+        view.onInput = onInput
         view.onFocused = onFocused
         view.onScrollbarChanged = onScrollbar
         scrollController.scroll = { [weak view] rows in view?.scroll(rows: rows) }
@@ -48,6 +50,7 @@ struct TerminalSurface: NSViewRepresentable {
         view.onTitleChanged = onTitleChanged
         view.onCloseRequested = onCloseRequested
         view.onPwdChanged = onPwdChanged
+        view.onInput = onInput
         view.onFocused = onFocused
         view.onScrollbarChanged = onScrollbar
         scrollController.scroll = { [weak view] rows in view?.scroll(rows: rows) }

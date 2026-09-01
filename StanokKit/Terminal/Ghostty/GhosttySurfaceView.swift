@@ -23,6 +23,7 @@ final class GhosttySurfaceView: NSView {
     }
 
     var onCommandFinished: ((CommandRun) -> Void)?
+    var onInput: (() -> Void)?
     var onOpenURL: ((String) -> Void)?
     var onTitleChanged: ((String) -> Void)?
     var onCloseRequested: ((Bool) -> Void)?
@@ -171,6 +172,7 @@ final class GhosttySurfaceView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
+        onInput?()
         send(event, action: event.isARepeat ? GHOSTTY_ACTION_REPEAT : GHOSTTY_ACTION_PRESS)
     }
 

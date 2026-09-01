@@ -44,6 +44,6 @@ private extension ClaudeProjectDirectoryResolver {
     }
 
     static func encode(_ path: String) -> String {
-        path.replacingOccurrences(of: "/", with: "-")
+        ClaudeProjectPathEncoder.encode(path)
     }
 }

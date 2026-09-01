@@ -22,6 +22,26 @@ public enum ConfigFile {
         return nil
     }
 
+    public static func remove(_ key: String) {
+        let url = AppPaths.ghosttyConfig
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return }
+
+        let kept = text.components(separatedBy: .newlines).filter { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.hasPrefix("#"), let separator = trimmed.firstIndex(of: "=")
+            else { return true }
+
+            return trimmed[..<separator].trimmingCharacters(in: .whitespaces) != key
+        }
+
+        do {
+            try kept.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+            NotificationCenter.default.post(name: changed, object: nil)
+        } catch {
+            Log.terminal.error("cannot write config: \(error.localizedDescription)")
+        }
+    }
+
     public static func set(_ key: String, to value: String) {
         let url = AppPaths.ghosttyConfig
         var lines = (try? String(contentsOf: url, encoding: .utf8))?

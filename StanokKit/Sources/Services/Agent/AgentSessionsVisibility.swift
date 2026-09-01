@@ -12,6 +12,8 @@ public enum AgentSessionsVisibility {
         public static let includeServiceSessions = false
     }
 
+    public static let changed = Notification.Name("stanok.agentSessions.visibilityChanged")
+
     public static var includesServiceSessions: Bool {
         UserDefaults.standard.object(forKey: Keys.includeServiceSessions) as? Bool
             ?? Defaults.includeServiceSessions

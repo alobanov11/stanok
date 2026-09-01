@@ -38,6 +38,7 @@ public final class AgentSessionRegistry {
     private var globalInFlight: Set<String> = []
     private var globalPendingRefresh: Set<String> = []
     private var observedGlobalProviders: Set<String> = []
+    private var visibilityObserver: (any NSObjectProtocol)?
     private var globalRefreshTasks: [String: Task<Void, Never>] = [:]
 
     public nonisolated init() {}
@@ -68,12 +69,22 @@ public final class AgentSessionRegistry {
     public func register(_ provider: AgentSessionProvider) {
         guard providers[provider.id] == nil else { return }
 
-        providers[provider.id] = provider
+        let providerID = provider.id
+        providers[providerID] = provider
+        observeVisibility()
+
         provider.startWatching { [weak self] in
             Task { @MainActor in
-                self?.refreshAllObserved(providerID: provider.id)
-                self?.scheduleGlobalRefresh(providerID: provider.id)
+                self?.refreshAllObserved(providerID: providerID)
+                self?.scheduleGlobalRefresh(providerID: providerID)
             }
+        }
+    }
+
+    public func refreshEverything() {
+        for providerID in providers.keys {
+            refreshAllObserved(providerID: providerID)
+            scheduleGlobalRefresh(providerID: providerID)
         }
     }
 
@@ -99,6 +110,18 @@ public final class AgentSessionRegistry {
         guard observedGlobalProviders.insert(providerID).inserted else { return }
 
         refreshGlobal(providerID: providerID)
+    }
+
+    private func observeVisibility() {
+        guard visibilityObserver == nil else { return }
+
+        visibilityObserver = NotificationCenter.default.addObserver(
+            forName: AgentSessionsVisibility.changed,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshEverything() }
+        }
     }
 
     private func refreshAllObserved(providerID: String) {

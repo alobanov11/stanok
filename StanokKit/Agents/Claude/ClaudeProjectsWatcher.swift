@@ -9,13 +9,15 @@ final class ClaudeProjectsWatcher: Sendable {
 
     nonisolated init() {}
 
-    func start(root: URL, onChange: @escaping @Sendable () -> Void) {
-        guard !hasStarted else { return }
-
-        hasStarted = true
+    @discardableResult
+    func start(root: URL, onChange: @escaping @Sendable () -> Void) -> Bool {
+        guard !hasStarted else { return true }
 
         let fileWatcher = FileWatcher(onDirectoriesChanged: { _ in }, onGitChange: onChange)
-        fileWatcher.watch(root, gitDirectory: nil)
+        guard fileWatcher.watch(root, gitDirectory: nil) else { return false }
+
         watcher = fileWatcher
+        hasStarted = true
+        return true
     }
 }

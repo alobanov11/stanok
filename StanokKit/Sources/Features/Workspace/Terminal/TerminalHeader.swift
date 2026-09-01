@@ -14,8 +14,8 @@ struct TerminalHeader: View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             folderBadge((session.liveDirectory ?? session.url).lastPathComponent)
 
-            if let status, let branch = status.branch {
-                branchBadge(branch)
+            if let status {
+                branchBadge(status.branch ?? "detached")
 
                 if status.hasChanges {
                     changesBadge(status)
@@ -102,14 +102,14 @@ private extension TerminalHeader {
         .help(filesMode == .changes ? "Скрыть изменения" : "Показать изменения")
         .contextMenu {
             Button(WorkingTreeAction.stash.command, action: stashChanges)
-                .disabled(!hasChanges)
+                .disabled(!hasChanges || isBusy)
 
             Button(
                 WorkingTreeAction.discard.command,
                 role: .destructive,
                 action: discardChanges
             )
-            .disabled(!hasChanges)
+            .disabled(!hasChanges || isBusy)
         }
     }
 

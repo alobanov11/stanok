@@ -5,10 +5,26 @@ enum ClaudeSessionRecordScanner {
 
     struct Result: Equatable, Sendable {
 
+        static let empty = Result(
+            sessionID: nil,
+            title: nil,
+            cwd: nil,
+            firstUserMessageText: nil
+        )
+
         let sessionID: String?
         let title: String?
         let cwd: String?
         let firstUserMessageText: String?
+
+        func filling(from other: Result) -> Result {
+            Result(
+                sessionID: sessionID ?? other.sessionID,
+                title: title ?? other.title,
+                cwd: cwd ?? other.cwd,
+                firstUserMessageText: firstUserMessageText ?? other.firstUserMessageText
+            )
+        }
     }
 
     private enum Limits {

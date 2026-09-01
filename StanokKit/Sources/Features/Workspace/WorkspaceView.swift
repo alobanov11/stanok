@@ -47,7 +47,10 @@ public struct WorkspaceView<Terminal: View>: View {
             state: inspector,
             navigator: navigator,
             session: { selectedSession },
-            rawMode: $filesPanelMode
+            rawMode: $filesPanelMode,
+            persist: { sessionID, relative in
+                store.updateWorkspace(sessionID) { $0.selectedFile = relative }
+            }
         )
     }
 
@@ -422,6 +425,7 @@ private extension WorkspaceView {
                     }
                 },
                 onPwdChanged: { WorkingDirectoryTracker.report($0, for: session.id, into: store) },
+                onInput: { dispatcher.markBusy(session.id) },
                 onFocused: { selection = session.id }
             )
         )
@@ -528,6 +532,7 @@ private extension WorkspaceView {
     }
 
     func perform(_ action: WorkingTreeAction) async {
+        guard !isWorkingTreeBusy else { return }
         guard
             let target = workingTreeTarget ?? selectedSession,
             let root = git.snapshot(for: target)?.root

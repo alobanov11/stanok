@@ -9,10 +9,18 @@ struct InspectorController {
 
     var selectedFile: Binding<URL?> {
         Binding(
-            get: { session().map { state.selectedFile(in: $0.url) } ?? nil },
+            get: {
+                guard let session = session() else { return nil }
+
+                return state.selectedFile(in: session.url)
+                    ?? WorkspacePaths.resolvedSelectedFile(from: session)
+            },
             set: { newValue in
                 guard let newValue else {
-                    if let folder = session()?.url { state.select(nil, in: folder) }
+                    if let session = session() {
+                        state.select(nil, in: session.url)
+                        persist(session.id, nil)
+                    }
                     return
                 }
                 reveal(newValue)
@@ -24,6 +32,7 @@ struct InspectorController {
     let navigator: PreviewNavigator
     let session: () -> TerminalSession?
     let rawMode: Binding<String>
+    let persist: (TerminalSession.ID, String?) -> Void
 
     func open(_ url: URL) {
         reveal(url)
@@ -40,6 +49,7 @@ struct InspectorController {
         else { return }
 
         state.select(url, in: session.url)
+        persist(session.id, WorkspacePaths.relativePath(for: url, in: session.url))
 
         if mode != .changes {
             showAllFiles()

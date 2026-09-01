@@ -169,7 +169,8 @@ public final class FileWatcher {
         return relative.hasPrefix("refs/")
     }
 
-    public func watch(_ url: URL, gitDirectory: String?) {
+    @discardableResult
+    public func watch(_ url: URL, gitDirectory: String?) -> Bool {
         stop()
 
         nextGeneration += 1
@@ -215,7 +216,7 @@ public final class FileWatcher {
 
         guard let stream else {
             self.context = nil
-            return
+            return false
         }
 
         let exclusions = IgnoredPaths.homeExclusions
@@ -233,8 +234,10 @@ public final class FileWatcher {
             FSEventStreamRelease(stream)
             self.stream = nil
             self.context = nil
-            return
+            return false
         }
+
+        return true
     }
 
     public func stop() {

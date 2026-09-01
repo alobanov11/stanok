@@ -50,8 +50,10 @@ struct AgentChatListSection: View {
         } else {
             ForEach(filtered) { session in
                 AgentChatRow(session: session)
-                    .onTapGesture(count: 2) { onInsert(session) }
-                    .onTapGesture { onCopy(session) }
+                    .gesture(
+                        TapGesture(count: 2).onEnded { onInsert(session) }
+                            .exclusively(before: TapGesture().onEnded { onCopy(session) })
+                    )
             }
         }
     }
