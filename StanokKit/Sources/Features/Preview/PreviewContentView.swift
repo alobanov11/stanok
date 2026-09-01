@@ -44,15 +44,15 @@ struct PreviewContentView: View {
         [
             preview.url.path(percentEncoded: false),
             "\(preview.size)",
-            "\(preview.modified?.timeIntervalSince1970 ?? 0)",
-            "\(preview.changes.kinds.count)",
-            "\(preview.changes.removed.count)"
+            "\(preview.modified?.timeIntervalSince1970 ?? 0)"
         ].joined(separator: "|")
     }
 
     private var revision: String {
         [
             fileRevision,
+            "\(preview.changes.kinds.count)",
+            "\(preview.changes.removed.count)",
             "\(markdownSize)", markdownFamily, "\(markdownSpacing)",
             "\(codeSize)", resolvedCodeFamily
         ].joined(separator: "|")

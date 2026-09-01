@@ -112,7 +112,7 @@ struct ReviewPanel: View {
 
         if let initial, present.contains(initial) { return }
 
-        // Почему: пока раскрытая человеком карточка на экране, не отбираем её ради первой
+        // Почему: пока раскрытая человеком карточка в списке, не отбираем её ради первой
         guard expanded.isEmpty else {
             initial = nil
             return

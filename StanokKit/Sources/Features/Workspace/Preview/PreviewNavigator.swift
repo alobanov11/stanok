@@ -20,7 +20,16 @@ final class PreviewNavigator {
     private(set) var stack: [PreviewEntry] = []
 
     private var token = UUID()
+    private var changesToken = UUID()
     private var loadTask: Task<FilePreview, Never>?
+
+    private static func changedOnDisk(_ preview: FilePreview) -> Bool {
+        let keys: Set<URLResourceKey> = [.fileSizeKey, .contentModificationDateKey]
+        guard let values = try? preview.url.resourceValues(forKeys: keys) else { return true }
+
+        return Int64(values.fileSize ?? 0) != preview.size
+            || values.contentModificationDate != preview.modified
+    }
 
     func openFile(_ url: URL) async {
         await load(url, replacing: false)
@@ -33,11 +42,21 @@ final class PreviewNavigator {
     func refreshChanges() async {
         guard case let .file(preview) = stack.last else { return }
 
-        let generation = token
+        // Почему: checkout и stash меняют сам файл, иначе рибоны лягут на прежний текст
+        guard !Self.changedOnDisk(preview) else {
+            await reloadFile(preview.url)
+            return
+        }
+
+        let navigation = token
+        let generation = UUID()
+        changesToken = generation
+
         let changes = await GitLineChanges.load(for: preview.url)
 
         guard
-            token == generation,
+            token == navigation,
+            changesToken == generation,
             case let .file(latest) = stack.last,
             latest.url == preview.url,
             latest.changes != changes
