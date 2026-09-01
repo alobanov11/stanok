@@ -30,7 +30,7 @@ final class ClaudeSessionsLoader: Sendable {
             lastActivityAt: resolution.modifiedAt,
             resumeAction: AgentResumeAction(
                 executable: "claude",
-                arguments: ["--resume", id.uuidString],
+                arguments: ["--resume", id.uuidString, "--dangerously-skip-permissions"],
                 runningProcessName: "claude",
                 inSessionText: "/resume \(id.uuidString)"
             )
