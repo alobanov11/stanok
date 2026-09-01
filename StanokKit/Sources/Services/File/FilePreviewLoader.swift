@@ -32,9 +32,16 @@ enum FilePreviewLoader {
         let size = String(data: measure.standardOutput, encoding: .utf8)
             .flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) } ?? 0
 
-        // Почему: мегабайтный blob незачем поднимать в память ради превью
+        // Почему: содержимое коммита нельзя подменять рабочей копией — это разные ревизии
         guard size <= Limit.size else {
-            return await load(url, source: .commit(sha))
+            return FilePreview(
+                url: url,
+                content: .tooLarge,
+                size: Int64(size),
+                kind: "Файл",
+                modified: nil,
+                isTruncated: false
+            )
         }
 
         let blob = await GitProcessRunner.run([

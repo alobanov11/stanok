@@ -24,6 +24,28 @@ public enum ProcessTreeAggregator {
         return subtree
     }
 
+    static func childrenByParent(in snapshot: ProcessTableSnapshot) -> [Int32: [Int32]] {
+        var children: [Int32: [Int32]] = [:]
+        for entry in snapshot.entries.values where entry.pid != entry.parentPID {
+            children[entry.parentPID, default: []].append(entry.pid)
+        }
+
+        return children
+    }
+
+    static func subtreePIDs(ofRoot root: Int32, children: [Int32: [Int32]]) -> Set<Int32> {
+        var subtree: Set<Int32> = [root]
+        var stack: [Int32] = [root]
+
+        while let pid = stack.popLast() {
+            for child in children[pid] ?? [] where subtree.insert(child).inserted {
+                stack.append(child)
+            }
+        }
+
+        return subtree
+    }
+
     public static func subtreeProcessNames(
         ofRoot root: Int32,
         in snapshot: ProcessTableSnapshot
@@ -80,8 +102,10 @@ public enum ProcessTreeAggregator {
         var usage: [Int32: ProcessTreeUsage] = [:]
         var names: [Int32: Set<String>] = [:]
 
+        let children = childrenByParent(in: current)
+
         for root in roots {
-            let pids = subtreePIDs(ofRoot: root, in: current)
+            let pids = subtreePIDs(ofRoot: root, children: children)
 
             usage[root] = self.usage(
                 pids: pids,

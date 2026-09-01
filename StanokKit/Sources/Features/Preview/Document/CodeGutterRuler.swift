@@ -60,7 +60,12 @@ final class CodeGutterRuler: NSRulerView {
         ]
 
         enumerateVisibleFragments(from: rect.minY, in: text) { line, top, height in
-            guard let line else { return top < rect.maxY }
+            // Почему: у раскрытых удалённых строк нет номера, но полоса им нужна целиком
+            guard let line else {
+                drawRemovedRibbon(top: top, height: height)
+
+                return top < rect.maxY
+            }
 
             let label = NSAttributedString(string: "\(line + 1)", attributes: numbers)
             let size = label.size()
@@ -195,6 +200,22 @@ private extension CodeGutterRuler {
         ).fill()
     }
 
+    func drawRemovedRibbon(top: CGFloat, height: CGFloat) {
+        let box = NSRect(
+            x: ruleThickness - Metric.ribbon - Metric.ribbonGap,
+            y: top,
+            width: Metric.ribbon,
+            height: height
+        )
+
+        NSColor.systemRed.withAlphaComponent(0.9).setFill()
+        NSBezierPath(
+            roundedRect: box,
+            xRadius: Metric.ribbon / 2,
+            yRadius: Metric.ribbon / 2
+        ).fill()
+    }
+
     func drawChangeRibbon(for line: Int, top: CGFloat, height: CGFloat, source: Source) {
         guard let change = source.changes.kinds[line + 1] else { return }
 
@@ -206,11 +227,13 @@ private extension CodeGutterRuler {
             height: change == .removed ? 3 : height
         )
 
-        // Почему: раскрытые удаления и обычная правка должны различаться на глаз
+        // Почему: по яркости полосы видно, есть ли под ней удалённые строки
+        let hasRemoval = removalAnchor(for: line, source: source) != nil
+
         if expanded {
             NSColor.systemRed.withAlphaComponent(0.9).setFill()
         } else {
-            NSColor.controlAccentColor.withAlphaComponent(0.75).setFill()
+            NSColor.controlAccentColor.withAlphaComponent(hasRemoval ? 0.95 : 0.4).setFill()
         }
 
         NSBezierPath(

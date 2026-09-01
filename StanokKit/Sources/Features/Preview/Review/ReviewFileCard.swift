@@ -46,6 +46,16 @@ struct ReviewFileCard: View {
 
             Spacer(minLength: 8)
 
+            if file.isReadable {
+                Button { onOpen(file.url) } label: {
+                    Image(systemName: "arrow.up.forward.app")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Открыть файл целиком")
+            }
+
             if let status = file.status {
                 Text(status.letter)
                     .font(.system(size: 10, weight: .semibold))
@@ -54,6 +64,8 @@ struct ReviewFileCard: View {
         }
         .padding(.horizontal, 10)
         .frame(height: Metric.header)
+        // Почему: шапка лежит над текстом карточки, без подложки сквозь неё видно гаттер
+        .background(.black.opacity(0.22))
         .contentShape(.rect)
         .onTapGesture { toggle() }
     }
@@ -110,6 +122,8 @@ struct ReviewFileCard: View {
     }
 
     let file: ReviewFile
+    let cache: PreviewCache
+    let onOpen: (URL) -> Void
 
     @Binding
     var isExpanded: Bool
@@ -151,6 +165,11 @@ struct ReviewFileCard: View {
     private func load() async {
         guard isExpanded, file.isReadable, !revision.isEmpty else { return }
 
+        if let cached = cache.preview(for: revision) {
+            preview = cached
+            return
+        }
+
         let loaded = if case let .commit(sha) = file.source {
             await FilePreviewLoader.load(file.url, in: file.root, path: file.path, sha: sha)
         } else {
@@ -158,6 +177,7 @@ struct ReviewFileCard: View {
         }
         guard !Task.isCancelled else { return }
 
+        cache.store(loaded, for: revision)
         preview = loaded
     }
 }

@@ -26,7 +26,8 @@ struct PreviewLayer: View {
                 files: reviewFiles(kind),
                 leadingInset: leadingInset,
                 previousName: previousName,
-                onBack: onBack
+                onBack: onBack,
+                onOpen: onOpen
             )
 
         case let .web(preview):
@@ -50,5 +51,6 @@ struct PreviewLayer: View {
     let leadingInset: CGFloat
     let previousName: String?
     let onBack: () -> Void
+    let onOpen: (URL) -> Void
     let onClose: () -> Void
 }

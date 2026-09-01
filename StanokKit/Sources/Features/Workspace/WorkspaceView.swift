@@ -600,6 +600,7 @@ private extension WorkspaceView {
             leadingInset: leadingInset,
             previousName: navigator.previousName,
             onBack: stepBack,
+            onOpen: inspectorControls.open,
             onClose: closePreview
         )
     }

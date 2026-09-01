@@ -22,6 +22,9 @@ struct ReviewPanel: View {
     @State
     private var initial: String?
 
+    @State
+    private var cache = PreviewCache()
+
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -70,7 +73,12 @@ struct ReviewPanel: View {
                             SectionHeader(title: name)
                         }
 
-                        ReviewFileCard(file: file, isExpanded: expansion(for: file))
+                        ReviewFileCard(
+                            file: file,
+                            cache: cache,
+                            onOpen: onOpen,
+                            isExpanded: expansion(for: file)
+                        )
                     }
                 }
                 .padding(.horizontal, 12)
@@ -85,6 +93,7 @@ struct ReviewPanel: View {
     let leadingInset: CGFloat
     let previousName: String?
     let onBack: () -> Void
+    let onOpen: (URL) -> Void
 
     private func expansion(for file: ReviewFile) -> Binding<Bool> {
         Binding(
