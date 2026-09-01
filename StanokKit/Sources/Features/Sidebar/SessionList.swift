@@ -20,6 +20,12 @@ struct SessionList: View {
     @State
     private var dropTarget: TerminalSession.ID?
 
+    @State
+    private var edit: SessionEdit?
+
+    @State
+    private var editText = ""
+
     @Environment(\.agentSessionRegistry)
     private var agentSessionRegistry
 
@@ -37,6 +43,17 @@ struct SessionList: View {
 
             SidebarToolbar(filterText: $chatFilter)
         }
+        .alert(edit?.title ?? "", isPresented: isEditing, presenting: edit) { pending in
+            TextField(pending.prompt, text: $editText)
+
+            Button("Сохранить") { apply(pending) }
+
+            Button("Отмена", role: .cancel) {}
+        }
+    }
+
+    private var isEditing: Binding<Bool> {
+        Binding(get: { edit != nil }, set: { if !$0 { edit = nil } })
     }
 
     private var listMask: some View {
@@ -79,6 +96,10 @@ struct SessionList: View {
             emptyState
         } else {
             ForEach(Array(store.roots.enumerated()), id: \.element.id) { index, root in
+                if let header = root.header, !header.isEmpty {
+                    SectionHeader(title: header)
+                }
+
                 rootRow(root, at: index)
 
                 ForEach(store.panes(of: root).filter { $0.id != root.id }) { pane in
@@ -116,7 +137,7 @@ private extension SessionList {
     }
 
     func rootRow(_ root: TerminalSession, at index: Int) -> some View {
-        sessionRow(root, indent: 0, isDropTarget: dropTarget == root.id)
+        sessionRow(root, indent: 0, isRoot: true, isDropTarget: dropTarget == root.id)
             .draggable(root.id.uuidString) {
                 Text(root.displayName)
                     .font(.system(size: 13))
@@ -144,6 +165,7 @@ private extension SessionList {
     func sessionRow(
         _ session: TerminalSession,
         indent: CGFloat,
+        isRoot: Bool = false,
         isDropTarget: Bool = false
     ) -> some View {
         SidebarRow(
@@ -158,6 +180,26 @@ private extension SessionList {
         )
         .onTapGesture { selection = session.id }
         .contextMenu {
+            Button("Переименовать…") { startEditing(session, field: .title) }
+
+            if session.title != nil {
+                Button("Вернуть имя из терминала") { store.setTitle(nil, for: session.id) }
+            }
+
+            if isRoot {
+                Divider()
+
+                Button(session.header == nil ? "Заголовок сверху…" : "Изменить заголовок…") {
+                    startEditing(session, field: .header)
+                }
+
+                if session.header != nil {
+                    Button("Убрать заголовок") { store.setHeader(nil, for: session.id) }
+                }
+            }
+
+            Divider()
+
             Button("Открыть в Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([session.url])
             }
@@ -170,5 +212,21 @@ private extension SessionList {
 
     func addSession(at url: URL) {
         selection = store.addSession(url: url).id
+    }
+
+    func startEditing(_ session: TerminalSession, field: SessionEdit.Field) {
+        editText = field == .title ? session.displayName : (session.header ?? "")
+        edit = SessionEdit(id: session.id, field: field)
+    }
+
+    func apply(_ pending: SessionEdit) {
+        let text = editText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch pending.field {
+        case .title: store.setTitle(text.isEmpty ? nil : text, for: pending.id)
+        case .header: withAnimation(.smooth(duration: 0.2)) {
+                store.setHeader(text.isEmpty ? nil : text, for: pending.id)
+            }
+        }
     }
 }

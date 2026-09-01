@@ -89,4 +89,30 @@ struct SessionStoreOrderTests {
 
         #expect(store.roots.map(\.id) == [first.id, second.id])
     }
+
+    @Test
+    func aCustomNameWinsOverTheTerminalsOwnTitle() throws {
+        let store = Self.makeStore()
+        let session = try #require(store.sessions.first)
+        store.setLiveTitle("vim", for: session.id)
+        store.setTitle("сборка", for: session.id)
+
+        #expect(store.session(for: session.id)?.displayName == "сборка")
+
+        store.setTitle(nil, for: session.id)
+
+        #expect(store.session(for: session.id)?.displayName == "vim")
+    }
+
+    @Test
+    func aHeaderSurvivesReloadAndMovesToTheHeir() throws {
+        let store = Self.makeStore()
+        let root = try #require(store.sessions.first)
+        store.setHeader("проекты", for: root.id)
+
+        let pane = try #require(store.splitSession(root.id, direction: .trailing))
+        store.removeSession(root.id)
+
+        #expect(store.session(for: pane.id)?.header == "проекты")
+    }
 }
