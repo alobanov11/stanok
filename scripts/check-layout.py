@@ -21,12 +21,7 @@ class Limit:
     FOLDER = 2          # папка меньше — кандидат на схлопывание
 
 
-ROOTS = [
-    "Stanok",
-    "StanokKit/Sources",
-    "StanokKit/Terminal",
-    "StanokKit/Agents",
-]
+from sources import MODULES as ROOTS
 
 WORDS = re.compile(r"[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+")
 

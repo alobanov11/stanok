@@ -54,98 +54,15 @@ public final class GhosttyRuntime {
             GhosttyRuntime.handleWakeup(userdata)
         }
         runtime.action_cb = { _, target, action in
-            guard target.tag == GHOSTTY_TARGET_SURFACE else { return false }
-
-            switch action.tag {
-            case GHOSTTY_ACTION_COMMAND_FINISHED:
-                let finished = action.action.command_finished
-                GhosttyRuntime.assertMainThread()
-                return MainActor.assumeIsolated {
-                    guard
-                        let surface = target.target.surface,
-                        let view = GhosttySurfaceView.from(surface: surface)
-                    else { return false }
-
-                    view.onCommandFinished?(
-                        CommandRun(
-                            exitCode: finished.exit_code,
-                            durationNanoseconds: finished.duration
-                        )
-                    )
-                    return true
-                }
-
-            case GHOSTTY_ACTION_OPEN_URL:
-                let openURL = action.action.open_url
-                guard let pointer = openURL.url else { return false }
-
-                let link = String(
-                    decoding: UnsafeRawBufferPointer(start: pointer, count: Int(openURL.len)),
-                    as: UTF8.self
-                )
-                GhosttyRuntime.assertMainThread()
-                return MainActor.assumeIsolated {
-                    guard
-                        let surface = target.target.surface,
-                        let view = GhosttySurfaceView.from(surface: surface)
-                    else { return false }
-
-                    view.onOpenURL?(link)
-                    return true
-                }
-
-            case GHOSTTY_ACTION_SET_TITLE:
-                return GhosttyRuntime.handleSetTitle(action.action.set_title, target: target)
-
-            case GHOSTTY_ACTION_PWD:
-                return GhosttyRuntime.handlePwd(action.action.pwd, target: target)
-
-            case GHOSTTY_ACTION_SCROLLBAR:
-                let scrollbar = action.action.scrollbar
-                GhosttyRuntime.assertMainThread()
-                return MainActor.assumeIsolated {
-                    guard
-                        let surface = target.target.surface,
-                        let view = GhosttySurfaceView.from(surface: surface)
-                    else { return false }
-
-                    view.updateScrollbar(
-                        TerminalScrollbar(
-                            total: scrollbar.total,
-                            offset: scrollbar.offset,
-                            length: scrollbar.len
-                        )
-                    )
-                    return true
-                }
-
-            case GHOSTTY_ACTION_MOUSE_SHAPE:
-                let shape = action.action.mouse_shape
-                GhosttyRuntime.assertMainThread()
-                return MainActor.assumeIsolated {
-                    guard
-                        let surface = target.target.surface,
-                        let view = GhosttySurfaceView.from(surface: surface)
-                    else { return false }
-
-                    view.setCursorShape(shape)
-                    return true
-                }
-
-            default:
-                return false
-            }
+            GhosttyRuntime.handle(action: action, target: target)
         }
         runtime.read_clipboard_cb = { userdata, _, state in
             GhosttyRuntime.assertMainThread()
             return MainActor.assumeIsolated {
-                guard
-                    let text = TerminalPaste.text(),
-                    let surface = GhosttySurfaceView.from(userdata: userdata)?.handle
-                else { return false }
+                guard let paste = GhosttyRuntime.pendingPaste(userdata) else { return false }
 
-                text.withCString { pointer in
-                    ghostty_surface_complete_clipboard_request(surface, pointer, state, false)
+                paste.text.withCString { pointer in
+                    ghostty_surface_complete_clipboard_request(paste.surface, pointer, state, false)
                 }
                 return true
             }
@@ -240,6 +157,87 @@ public final class GhosttyRuntime {
 }
 
 private extension GhosttyRuntime {
+
+    static func pendingPaste(
+        _ userdata: UnsafeMutableRawPointer?
+    ) -> (text: String, surface: ghostty_surface_t)? {
+        guard
+            let text = TerminalPaste.text(),
+            let surface = GhosttySurfaceView.from(userdata: userdata)?.handle
+        else { return nil }
+
+        return (text, surface)
+    }
+
+    static func onSurface(
+        _ target: ghostty_target_s,
+        _ work: @MainActor (GhosttySurfaceView) -> Void
+    ) -> Bool {
+        assertMainThread()
+
+        return MainActor.assumeIsolated {
+            guard
+                let surface = target.target.surface,
+                let view = GhosttySurfaceView.from(surface: surface)
+            else { return false }
+
+            work(view)
+
+            return true
+        }
+    }
+
+    static func handle(action: ghostty_action_s, target: ghostty_target_s) -> Bool {
+        guard target.tag == GHOSTTY_TARGET_SURFACE else { return false }
+
+        switch action.tag {
+        case GHOSTTY_ACTION_COMMAND_FINISHED:
+            let finished = action.action.command_finished
+
+            return onSurface(target) { view in
+                view.onCommandFinished?(CommandRun(
+                    exitCode: finished.exit_code,
+                    durationNanoseconds: finished.duration
+                ))
+            }
+
+        case GHOSTTY_ACTION_OPEN_URL:
+            let openURL = action.action.open_url
+            guard let pointer = openURL.url else { return false }
+
+            let link = String(
+                decoding: UnsafeRawBufferPointer(start: pointer, count: Int(openURL.len)),
+                as: UTF8.self
+            )
+
+            return onSurface(target) { view in view.onOpenURL?(link) }
+
+        case GHOSTTY_ACTION_SET_TITLE:
+            return handleSetTitle(action.action.set_title, target: target)
+
+        case GHOSTTY_ACTION_PWD:
+            return handlePwd(action.action.pwd, target: target)
+
+        case GHOSTTY_ACTION_SCROLLBAR:
+            let scrollbar = action.action.scrollbar
+
+            return onSurface(target) { view in
+                view.updateScrollbar(TerminalScrollbar(
+                    total: scrollbar.total,
+                    offset: scrollbar.offset,
+                    length: scrollbar.len
+                ))
+            }
+
+        case GHOSTTY_ACTION_MOUSE_SHAPE:
+            let shape = action.action.mouse_shape
+
+            return onSurface(target) { view in view.setCursorShape(shape) }
+
+        default:
+            return false
+        }
+    }
 
     static func confirmClipboard(
         userdata: UnsafeMutableRawPointer?,

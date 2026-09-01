@@ -14,17 +14,21 @@ enum GitLineChanges {
             return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
         }
 
+        return await untracked(directory: directory, path: path)
+    }
+
+    static func untracked(directory: String, path: String) async -> GitFileChanges {
         let insideWorkTree = await GitProcessRunner.run([
             "--no-optional-locks", "-C", directory, "rev-parse", "--is-inside-work-tree"
         ]).exitCode == 0
 
         guard insideWorkTree else { return .none }
 
-        let tracked = await GitProcessRunner.run([
+        let known = await GitProcessRunner.run([
             "--no-optional-locks", "-C", directory, "ls-files", "--error-unmatch", "--", path
         ]).exitCode == 0
 
-        guard !tracked else { return .none }
+        guard !known else { return .none }
 
         let fresh = await GitProcessRunner.run([
             "--no-optional-locks", "-C", directory,
@@ -53,16 +57,7 @@ enum GitLineChanges {
                 guard let hunk = hunk(from: line) else { continue }
 
                 anchor = max(hunk.start, 1)
-
-                guard hunk.added > 0 else {
-                    kinds[max(hunk.start, 1)] = .removed
-                    continue
-                }
-
-                let kind: LineChange = hunk.removed > 0 ? .modified : .added
-                for number in hunk.start..<(hunk.start + hunk.added) {
-                    kinds[number] = kind
-                }
+                apply(hunk, into: &kinds)
                 continue
             }
 
@@ -76,6 +71,23 @@ enum GitLineChanges {
 }
 
 private extension GitLineChanges {
+
+    static func apply(
+        _ hunk: (start: Int, added: Int, removed: Int),
+        into kinds: inout [Int: LineChange]
+    ) {
+        guard hunk.added > 0 else {
+            kinds[max(hunk.start, 1)] = .removed
+
+            return
+        }
+
+        let kind: LineChange = hunk.removed > 0 ? .modified : .added
+
+        for number in hunk.start..<(hunk.start + hunk.added) {
+            kinds[number] = kind
+        }
+    }
 
     static func hunk(from line: String) -> (start: Int, added: Int, removed: Int)? {
         let parts = line.split(separator: " ")

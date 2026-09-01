@@ -246,7 +246,14 @@ private extension SessionStore {
     }
 
     func normalizeGroups() {
-        var changed = false
+        let changes = reparentOrphans() + pruneStrays()
+        guard changes > 0 else { return }
+
+        persistVerified(currentSnapshot())
+    }
+
+    func reparentOrphans() -> Int {
+        var changed = 0
 
         for index in sessions.indices {
             guard let parentID = sessions[index].parentID else { continue }
@@ -256,7 +263,7 @@ private extension SessionStore {
                 sessions[parentIndex].parentID == nil
             else {
                 sessions[index].parentID = nil
-                changed = true
+                changed += 1
                 continue
             }
 
@@ -268,10 +275,15 @@ private extension SessionStore {
                 .trailing,
                 near: layout.leafIDs.last ?? parentID
             )
-            changed = true
+            changed += 1
         }
 
+        return changed
+    }
+
+    func pruneStrays() -> Int {
         let known = Set(sessions.map(\.id))
+        var changed = 0
 
         for index in sessions.indices {
             guard let layout = sessions[index].layout else { continue }
@@ -285,12 +297,10 @@ private extension SessionStore {
             }
 
             sessions[index].layout = pruned(kept, soleLeaf: sessions[index].id)
-            changed = true
+            changed += 1
         }
 
-        guard changed else { return }
-
-        persistVerified(currentSnapshot())
+        return changed
     }
 
     func load() {

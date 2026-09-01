@@ -2,6 +2,12 @@ import Foundation
 
 enum FilePreviewLoader {
 
+    private enum Source {
+
+        case text(String)
+        case rejected(FilePreview.Content)
+    }
+
     private enum Limit {
 
         static let size = 2 * 1024 * 1024
@@ -32,6 +38,31 @@ enum FilePreviewLoader {
         return String(data: data, encoding: .utf8)
     }
 
+    private static func missing(_ url: URL) -> FilePreview.Content {
+        FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
+            ? .unreadable
+            : .failed("Файл не найден")
+    }
+
+    private static func source(of url: URL, isRegular: Bool) -> Source {
+        guard isRegular else { return .rejected(missing(url)) }
+
+        guard let handle = try? FileHandle(forReadingFrom: url) else {
+            return .rejected(.failed("Нет доступа к файлу"))
+        }
+
+        defer { try? handle.close() }
+
+        guard let data = try? handle.read(upToCount: Limit.size + 1) else {
+            return .rejected(.failed("Не удалось прочитать файл"))
+        }
+
+        guard data.count <= Limit.size else { return .rejected(.tooLarge) }
+        guard let text = decode(data) else { return .rejected(.unreadable) }
+
+        return .text(text)
+    }
+
     private static func read(_ url: URL) -> FilePreview {
         let values = try? url.resourceValues(forKeys: [
             .fileSizeKey, .contentModificationDateKey, .contentTypeKey, .isRegularFileKey
@@ -40,7 +71,7 @@ enum FilePreviewLoader {
         let kind = values?.contentType?.localizedDescription ?? "Файл"
         let modified = values?.contentModificationDate
 
-        func preview(_ content: FilePreview.Content, truncated: Bool = false) -> FilePreview {
+        func preview(_ content: FilePreview.Content, truncated: Bool) -> FilePreview {
             FilePreview(
                 url: url,
                 content: content,
@@ -51,36 +82,26 @@ enum FilePreviewLoader {
             )
         }
 
-        guard values?.isRegularFile == true else {
-            let exists = FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
-            return preview(exists ? .unreadable : .failed("Файл не найден"))
+        switch source(of: url, isRegular: values?.isRegularFile == true) {
+        case let .rejected(content):
+            return preview(content, truncated: false)
+
+        case let .text(text):
+            if markdownExtensions.contains(url.pathExtension.lowercased()) {
+                let baseURL = url.deletingLastPathComponent()
+                let blocks = MarkdownParser.blocks(from: text, baseURL: baseURL)
+
+                return preview(.markdown(blocks), truncated: false)
+            }
+
+            let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+            let truncated = lines.count > Limit.lines
+            let shown = truncated ? lines.prefix(Limit.lines).joined(separator: "\n") : text
+
+            return preview(
+                .code(CodeHighlighter.lines(shown, language: url.pathExtension.lowercased())),
+                truncated: truncated
+            )
         }
-
-        guard let handle = try? FileHandle(forReadingFrom: url) else {
-            return preview(.failed("Нет доступа к файлу"))
-        }
-
-        defer { try? handle.close() }
-
-        guard let data = try? handle.read(upToCount: Limit.size + 1) else {
-            return preview(.failed("Не удалось прочитать файл"))
-        }
-
-        guard data.count <= Limit.size else { return preview(.tooLarge) }
-        guard let text = decode(data) else { return preview(.unreadable) }
-
-        if markdownExtensions.contains(url.pathExtension.lowercased()) {
-            let baseURL = url.deletingLastPathComponent()
-            return preview(.markdown(MarkdownParser.blocks(from: text, baseURL: baseURL)))
-        }
-
-        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-        let truncated = lines.count > Limit.lines
-        let shown = truncated ? lines.prefix(Limit.lines).joined(separator: "\n") : text
-
-        return preview(
-            .code(CodeHighlighter.lines(shown, language: url.pathExtension.lowercased())),
-            truncated: truncated
-        )
     }
 }

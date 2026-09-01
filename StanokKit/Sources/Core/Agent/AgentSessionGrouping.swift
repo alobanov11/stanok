@@ -24,8 +24,7 @@ public enum AgentSessionGrouping {
         if calendar.isDateInToday(day) { return "Сегодня" }
         if calendar.isDateInYesterday(day) { return "Вчера" }
 
-        let days = calendar.dateComponents([.day], from: day, to: calendar.startOfDay(for: now)).day
-        if let days, days >= 0, days < 7 {
+        if isWithinWeek(day, now: now, calendar: calendar) {
             return weekday.string(from: day).capitalized
         }
 
@@ -42,6 +41,15 @@ private extension AgentSessionGrouping {
     nonisolated(unsafe) static let short: DateFormatter = formatter("d MMMM")
 
     nonisolated(unsafe) static let full: DateFormatter = formatter("d MMMM yyyy")
+
+    static func isWithinWeek(_ day: Date, now: Date, calendar: Calendar) -> Bool {
+        let start = calendar.startOfDay(for: now)
+        guard let days = calendar.dateComponents([.day], from: day, to: start).day else {
+            return false
+        }
+
+        return days >= 0 && days < 7
+    }
 
     static func formatter(_ template: String) -> DateFormatter {
         let formatter = DateFormatter()

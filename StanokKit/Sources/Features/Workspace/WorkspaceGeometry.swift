@@ -26,12 +26,14 @@ enum WorkspaceGeometry {
         sidebarExpanded ? outsideLeading : insideOffset
     }
 
-    static func isPreviewSplit(hasPreview: Bool, width: CGFloat) -> Bool {
-        hasPreview && width >= WorkspaceLayout.minimumSplitWidth
+    static func previewMode(hasPreview: Bool, width: CGFloat) -> PreviewMode {
+        guard hasPreview else { return .none }
+
+        return width >= WorkspaceLayout.minimumSplitWidth ? .split : .fullScreen
     }
 
-    static func previewTransition(split: Bool) -> AnyTransition {
-        split ? .move(edge: .trailing).combined(with: .opacity) : .opacity
+    static func previewTransition(for mode: PreviewMode) -> AnyTransition {
+        mode == .split ? .move(edge: .trailing).combined(with: .opacity) : .opacity
     }
 
     static func headerLeading(sidebarExpanded: Bool) -> CGFloat {

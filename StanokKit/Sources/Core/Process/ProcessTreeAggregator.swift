@@ -55,6 +55,21 @@ public enum ProcessTreeAggregator {
         )
     }
 
+    static func delta(
+        for pid: Int32,
+        current: ProcessTableSnapshot,
+        previous: ProcessTableSnapshot
+    ) -> UInt64 {
+        guard
+            let entry = current.entries[pid],
+            let previousEntry = previous.entries[pid],
+            previousEntry.startedAt == entry.startedAt,
+            entry.cpuTimeNanoseconds >= previousEntry.cpuTimeNanoseconds
+        else { return 0 }
+
+        return entry.cpuTimeNanoseconds - previousEntry.cpuTimeNanoseconds
+    }
+
     public static func usage(
         forSubtreeRoot root: Int32,
         current: ProcessTableSnapshot,
@@ -70,16 +85,8 @@ public enum ProcessTreeAggregator {
             return ProcessTreeUsage(cpuPercent: nil, memoryBytes: memoryBytes)
         }
 
-        var deltaNanoseconds: UInt64 = 0
-        for pid in pids {
-            guard
-                let entry = current.entries[pid],
-                let previousEntry = previous.entries[pid],
-                previousEntry.startedAt == entry.startedAt,
-                entry.cpuTimeNanoseconds >= previousEntry.cpuTimeNanoseconds
-            else { continue }
-
-            deltaNanoseconds += entry.cpuTimeNanoseconds - previousEntry.cpuTimeNanoseconds
+        let deltaNanoseconds = pids.reduce(UInt64(0)) {
+            $0 + delta(for: $1, current: current, previous: previous)
         }
 
         let cpuSeconds = Double(deltaNanoseconds) / 1_000_000_000

@@ -121,15 +121,11 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var previewInset: CGFloat {
-        isPreviewSplit ? previewWidth + WorkspaceLayout.inset : 0
+        previewMode == .split ? previewWidth + WorkspaceLayout.inset : 0
     }
 
-    private var isPreviewSplit: Bool {
-        WorkspaceGeometry.isPreviewSplit(hasPreview: navigator.current != nil, width: mainWidth)
-    }
-
-    private var isPreviewFullScreen: Bool {
-        navigator.current != nil && !isPreviewSplit
+    private var previewMode: PreviewMode {
+        WorkspaceGeometry.previewMode(hasPreview: navigator.current != nil, width: mainWidth)
     }
 
     private var isClosingLiveSession: Binding<Bool> {
@@ -206,13 +202,7 @@ public struct WorkspaceView<Terminal: View>: View {
                 .padding(.vertical, WorkspaceLayout.inset)
                 .environment(\.openURL, OpenURLAction(handler: linkRouter.handleLink))
 
-            if filesMode == .agents {
-                agentsPanel
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-            } else if let filesMode, let folder = inspectorFolder, let root = inspectorGitRoot {
-                filesPanel(filesMode, folder: folder, gitRoot: root)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
-            }
+            rightPanel
         }
         .overlay(alignment: .topLeading) { toggle }
         .background(TrafficLights(isHidden: !isSidebarExpanded).frame(width: 0, height: 0))
@@ -228,20 +218,12 @@ public struct WorkspaceView<Terminal: View>: View {
         .task(id: visiblePaneIDs) { await refreshPanes() }
         .task(id: selection) { await branchStore.refresh(selectedSession) }
         .task(id: selectedSession?.url) { await settleDirectoryChange() }
-        .onChange(of: selection) { _, new in
-            guard let new else { return }
-
-            liveSessions.activate(new)
-        }
+        .onChange(of: selection) { _, new in activate(new) }
         .onChange(of: knownSessionIDs) { _, known in
             liveSessions.reconcile(known)
             navigators.prune(roots: Set(store.roots.map(\.id)))
         }
-        .onChange(of: filesMode) { _, mode in
-            guard mode == .branches else { return }
-
-            Task { await branchStore.refresh(selectedSession) }
-        }
+        .onChange(of: filesMode) { _, mode in refreshBranches(for: mode) }
         .modifier(
             InspectorSync(
                 state: inspector,
@@ -258,18 +240,8 @@ public struct WorkspaceView<Terminal: View>: View {
             // Почему: коммит из терминала не трогает файл, но рибоны в превью уже не о том дереве
             Task { await navigator.refreshChanges() }
         }
-        .task(id: needsAgentChanges) {
-            while !Task.isCancelled, needsAgentChanges {
-                await (agentChanges ?? ownChanges).refresh()
-                try? await Task.sleep(for: .seconds(20))
-            }
-        }
-        .task {
-            while !Task.isCancelled {
-                await store.refreshReachability()
-                try? await Task.sleep(for: .seconds(15))
-            }
-        }
+        .task(id: needsAgentChanges) { await pollAgentChanges() }
+        .task { await pollReachability() }
     }
 
     private var toggle: some View {
@@ -358,13 +330,13 @@ public struct WorkspaceView<Terminal: View>: View {
             if let entry = navigator.current {
                 previewLayer(
                     entry,
-                    leadingInset: isPreviewSplit
+                    leadingInset: previewMode == .split
                         ? WorkspaceGeometry.expandedHeaderLeading
                         : WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
                 )
-                .frame(width: isPreviewSplit ? previewWidth : nil)
+                .frame(width: previewMode == .split ? previewWidth : nil)
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .transition(WorkspaceGeometry.previewTransition(split: isPreviewSplit))
+                .transition(WorkspaceGeometry.previewTransition(for: previewMode))
             }
         }
     }
@@ -379,22 +351,21 @@ public struct WorkspaceView<Terminal: View>: View {
 
 private extension WorkspaceView {
 
-    var needsAgentChanges: Bool {
-        isReviewingAgents || filesMode == .agents
+    @ViewBuilder
+    var rightPanel: some View {
+        if filesMode == .agents {
+            agentsPanel
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+        } else if let filesMode, let folder = inspectorFolder, let root = inspectorGitRoot {
+            filesPanel(filesMode, folder: folder, gitRoot: root)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+        }
     }
 
-    var isReviewingAgents: Bool {
+    var needsAgentChanges: Bool {
         if case .review(.agents) = navigator.current { return true }
 
-        return false
-    }
-
-    var hasGitReview: Bool {
-        !(gitSnapshot?.changes.isEmpty ?? true)
-    }
-
-    var hasAgentReview: Bool {
-        (agentChanges ?? ownChanges).repositories.contains { !$0.changes.isEmpty }
+        return filesMode == .agents
     }
 
     var agentsPanel: some View {
@@ -408,10 +379,43 @@ private extension WorkspaceView {
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
             onOpen: inspectorControls.open,
-            hasReview: hasAgentReview,
+            hasReview: hasReview(.agents),
             onReview: { navigator.openReview(.agents) }
         )
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
+    }
+
+    func activate(_ session: TerminalSession.ID?) {
+        guard let session else { return }
+
+        liveSessions.activate(session)
+    }
+
+    func refreshBranches(for mode: FilePanelMode?) {
+        guard mode == .branches else { return }
+
+        Task { await branchStore.refresh(selectedSession) }
+    }
+
+    func pollAgentChanges() async {
+        while !Task.isCancelled, needsAgentChanges {
+            await (agentChanges ?? ownChanges).refresh()
+            try? await Task.sleep(for: .seconds(20))
+        }
+    }
+
+    func pollReachability() async {
+        while !Task.isCancelled {
+            await store.refreshReachability()
+            try? await Task.sleep(for: .seconds(15))
+        }
+    }
+
+    func hasReview(_ kind: ReviewKind) -> Bool {
+        switch kind {
+        case .git: !(gitSnapshot?.changes.isEmpty ?? true)
+        case .agents: (agentChanges ?? ownChanges).repositories.contains { !$0.changes.isEmpty }
+        }
     }
 
     func pane(
@@ -421,7 +425,7 @@ private extension WorkspaceView {
         container: CGSize
     ) -> some View {
         let rect = frame ?? resting ?? CGRect(origin: .zero, size: container)
-        let isShown = frame != nil && !isPreviewFullScreen
+        let isShown = frame != nil && previewMode != .fullScreen
         let isFocused = isShown && session.id == selection
 
         return paneCard(
@@ -531,7 +535,7 @@ private extension WorkspaceView {
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
             onOpen: inspectorControls.open,
-            hasReview: hasGitReview,
+            hasReview: hasReview(.git),
             onReview: { navigator.openReview(.git) }
         )
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))

@@ -11,20 +11,23 @@ struct TerminalScrollbarOverlay: View {
         static let minimumThumb: CGFloat = 28
     }
 
-    private var scrollbar: TerminalScrollbar? {
-        controller.scrollbar
+    private enum Appearance {
+
+        case hidden
+        case idle
+        case visible
     }
 
-    private var isShown: Bool {
-        controller.isShown
+    private var active: TerminalScrollbar? {
+        guard let scrollbar = controller.scrollbar, scrollbar.isScrollable else { return nil }
+
+        return scrollbar
     }
 
-    private var isInteractive: Bool {
-        scrollbar?.isScrollable == true
-    }
+    private var appearance: Appearance {
+        guard active != nil else { return .hidden }
 
-    private var isVisible: Bool {
-        isShown || isHovering || grab != nil
+        return controller.isShown || isHovering || grab != nil ? .visible : .idle
     }
 
     @State
@@ -47,7 +50,7 @@ struct TerminalScrollbarOverlay: View {
         }
         .padding(.vertical, Metric.inset)
         .frame(width: Metric.hitWidth + Metric.inset)
-        .allowsHitTesting(isInteractive)
+        .allowsHitTesting(appearance != .hidden)
 
     }
 
@@ -55,7 +58,7 @@ struct TerminalScrollbarOverlay: View {
 
     @ViewBuilder
     private func track(in height: CGFloat) -> some View {
-        if let scrollbar, scrollbar.isScrollable {
+        if let scrollbar = active {
             let thumb = min(max(height * scrollbar.thumbFraction, Metric.minimumThumb), height)
             let travel = max(height - thumb, 0)
 
@@ -68,7 +71,7 @@ struct TerminalScrollbarOverlay: View {
                         .offset(y: travel * (dragPosition ?? scrollbar.position))
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .padding(.trailing, Metric.inset)
-                        .opacity(isVisible ? 1 : 0)
+                        .opacity(appearance == .visible ? 1 : 0)
                 }
                 .onHover { hovering in
                     withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }

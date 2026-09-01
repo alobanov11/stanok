@@ -4,15 +4,43 @@ import Foundation
 @MainActor
 public final class FileWatcher {
 
+    private enum GitWindow {
+
+        case armed
+        case expired
+        case kept
+    }
+
+    private struct Pending {
+
+        enum Git: Int, Comparable {
+
+            case none
+            case ignoredOnly
+            case changed
+
+            static func < (lhs: Git, rhs: Git) -> Bool {
+                lhs.rawValue < rhs.rawValue
+            }
+        }
+
+        var isEmpty: Bool {
+            directories.isEmpty && !needsFullRescan && git == .none
+        }
+
+        let directories: Set<URL>
+        let needsFullRescan: Bool
+        let git: Git
+    }
+
     private final class Context: @unchecked Sendable {
 
         let generation: Int
 
         private var pendingDirectories: Set<URL> = []
         private var pendingNeedsFullRescan = false
-        private var pendingGitChange = false
-        private var pendingIgnoredGitChange = false
         private var deliveryScheduled = false
+        private var pendingGit = Pending.Git.none
 
         private let lock = NSLock()
         private let scheduleDelivery: @Sendable () -> Void
@@ -42,7 +70,7 @@ public final class FileWatcher {
             for (index, path) in paths.enumerated() {
                 if flags[index] & rescanMask != 0 {
                     pendingNeedsFullRescan = true
-                    pendingGitChange = true
+                    pendingGit = .changed
                     continue
                 }
 
@@ -52,17 +80,17 @@ public final class FileWatcher {
 
                 if let owner {
                     if FileWatcher.isRelevantGitEvent(path, gitDirectory: owner) {
-                        pendingGitChange = true
+                        pendingGit = .changed
                     }
                     continue
                 }
 
                 guard !FileWatcher.isIgnored(path, under: root) else {
-                    pendingIgnoredGitChange = true
+                    pendingGit = max(pendingGit, .ignoredOnly)
                     continue
                 }
 
-                pendingGitChange = true
+                pendingGit = .changed
                 pendingDirectories.insert(URL(filePath: path).deletingLastPathComponent())
             }
 
@@ -75,25 +103,21 @@ public final class FileWatcher {
             scheduleDelivery()
         }
 
-        func drain() -> (
-            directories: Set<URL>,
-            needsFullRescan: Bool,
-            gitChanged: Bool,
-            ignoredGitChanged: Bool
-        ) {
+        func drain() -> Pending {
             lock.lock()
             defer { lock.unlock() }
 
-            let directories = pendingDirectories
-            let needsFullRescan = pendingNeedsFullRescan
-            let gitChanged = pendingGitChange
-            let ignoredGitChanged = pendingIgnoredGitChange
+            let drained = Pending(
+                directories: pendingDirectories,
+                needsFullRescan: pendingNeedsFullRescan,
+                git: pendingGit
+            )
             pendingDirectories.removeAll()
             pendingNeedsFullRescan = false
-            pendingGitChange = false
-            pendingIgnoredGitChange = false
+            pendingGit = .none
             deliveryScheduled = false
-            return (directories, needsFullRescan, gitChanged, ignoredGitChanged)
+
+            return drained
         }
     }
 
@@ -288,26 +312,27 @@ private extension FileWatcher {
         guard let context, context.generation == delivered else { return }
 
         let drained = context.drain()
-        guard
-            !drained.directories.isEmpty
-            || drained.needsFullRescan
-            || drained.gitChanged
-            || drained.ignoredGitChanged
-        else { return }
+        guard !drained.isEmpty else { return }
 
-        if !drained.directories.isEmpty || drained.needsFullRescan {
-            pendingDirectories.formUnion(drained.directories)
-            if drained.needsFullRescan, let watchedRoot {
-                pendingDirectories.insert(watchedRoot)
-            }
-            scheduleDirectoriesFlush()
+        scheduleDirectories(drained)
+
+        switch drained.git {
+        case .none: break
+        case .changed: scheduleGitFlush(ignoredOnly: false)
+        case .ignoredOnly: scheduleGitFlush(ignoredOnly: true)
+        }
+    }
+
+    private func scheduleDirectories(_ drained: Pending) {
+        guard !drained.directories.isEmpty || drained.needsFullRescan else { return }
+
+        pendingDirectories.formUnion(drained.directories)
+
+        if drained.needsFullRescan, let watchedRoot {
+            pendingDirectories.insert(watchedRoot)
         }
 
-        if drained.gitChanged {
-            scheduleGitFlush(ignoredOnly: false)
-        } else if drained.ignoredGitChanged {
-            scheduleGitFlush(ignoredOnly: true)
-        }
+        scheduleDirectoriesFlush()
     }
 
     func scheduleDirectoriesFlush() {
@@ -323,24 +348,40 @@ private extension FileWatcher {
     func scheduleGitFlush(ignoredOnly: Bool) {
         let cap = ignoredOnly ? FlushDelay.ignoredGitCap : FlushDelay.gitCap
 
-        if let startedAt = gitFlushStartedAt {
-            gitFlushCap = min(gitFlushCap, cap)
+        switch openGitWindow(cap: cap, ignoredOnly: ignoredOnly) {
+        case .kept:
+            return
 
-            if Date().timeIntervalSince(startedAt) >= gitFlushCap {
-                gitFlush?.cancel()
-                gitFlush = nil
-                emitGitChange()
-                return
-            }
+        case .expired:
+            gitFlush?.cancel()
+            gitFlush = nil
+            emitGitChange()
 
-            // Почему: взведённый таймер настоящей правки нельзя отодвигать шумом сборки
-            if ignoredOnly, gitFlush != nil { return }
-        } else {
+        case .armed:
+            armGitFlush(ignoredOnly: ignoredOnly)
+        }
+    }
+
+    private func openGitWindow(cap: TimeInterval, ignoredOnly: Bool) -> GitWindow {
+        guard let startedAt = gitFlushStartedAt else {
             gitFlushStartedAt = Date()
             gitFlushCap = cap
+
+            return .armed
         }
 
+        gitFlushCap = min(gitFlushCap, cap)
+        guard Date().timeIntervalSince(startedAt) < gitFlushCap else { return .expired }
+
+        // Почему: взведённый таймер настоящей правки нельзя отодвигать шумом сборки
+        guard !ignoredOnly || gitFlush == nil else { return .kept }
+
+        return .armed
+    }
+
+    func armGitFlush(ignoredOnly: Bool) {
         let delay = ignoredOnly ? FlushDelay.ignoredGit : FlushDelay.git
+
         gitFlush?.cancel()
         gitFlush = Task { [weak self] in
             try? await Task.sleep(for: delay)

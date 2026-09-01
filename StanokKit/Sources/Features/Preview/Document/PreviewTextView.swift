@@ -153,6 +153,28 @@ struct PreviewTextView: NSViewRepresentable {
         scroll.reflectScrolledClipView(scroll.contentView)
     }
 
+    func fixedHeight(of nsView: NSScrollView) -> CGFloat? {
+        guard let contentLines, let line = Self.lineHeight(of: nsView) else { return nil }
+
+        let inset = (nsView.documentView as? NSTextView)?.textContainerInset.height ?? 0
+
+        return CGFloat(contentLines) * line + inset * 2
+    }
+
+    func measuredHeight(of nsView: NSScrollView, width: CGFloat, context: Context) -> CGFloat {
+        let key = document.revision + "@\(Int(width))"
+
+        if context.coordinator.measuredKey == key, let measured = context.coordinator.measured {
+            return measured
+        }
+
+        let height = Self.height(of: nsView, width: width, mode: mode)
+        context.coordinator.measuredKey = key
+        context.coordinator.measured = height
+
+        return height
+    }
+
     func sizeThatFits(
         _ proposal: ProposedViewSize,
         nsView: NSScrollView,
@@ -162,22 +184,14 @@ struct PreviewTextView: NSViewRepresentable {
         let width = proposed.isFinite ? proposed : nsView.frame.width
         guard !scrolls else { return CGSize(width: width, height: proposal.height ?? 0) }
 
-        if let contentLines, let line = Self.lineHeight(of: nsView) {
-            let inset = (nsView.documentView as? NSTextView)?.textContainerInset.height ?? 0
-
-            return CGSize(width: width, height: CGFloat(contentLines) * line + inset * 2)
+        if let fixed = fixedHeight(of: nsView) {
+            return CGSize(width: width, height: fixed)
         }
 
-        let key = document.revision + "@\(Int(width))"
-        if context.coordinator.measuredKey == key, let measured = context.coordinator.measured {
-            return CGSize(width: width, height: measured)
-        }
-
-        let height = Self.height(of: nsView, width: width, mode: mode)
-        context.coordinator.measuredKey = key
-        context.coordinator.measured = height
-
-        return CGSize(width: width, height: height)
+        return CGSize(
+            width: width,
+            height: measuredHeight(of: nsView, width: width, context: context)
+        )
     }
 
     private func configure(_ scroll: NSScrollView, text: NSTextView) {

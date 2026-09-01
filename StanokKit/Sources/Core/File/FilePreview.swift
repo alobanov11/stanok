@@ -19,6 +19,10 @@ struct FilePreview: Identifiable, Sendable {
         url.lastPathComponent
     }
 
+    var stamp: FileStamp {
+        FileStamp(size: size, modified: modified)
+    }
+
     let url: URL
     let content: Content
     let size: Int64

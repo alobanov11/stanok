@@ -26,14 +26,14 @@ enum GitBranchOperations {
         await outcome(["-C", root, "branch", "-d", "--", name])
     }
 
-    static func isDirty(at root: String) async -> Bool? {
+    static func workingTree(at root: String) async -> GitWorkingTree {
         let result = await GitProcessRunner.run([
             "--no-optional-locks", "-C", root, "status",
             "--porcelain=v2", "-z", "--untracked-files=normal"
         ])
-        guard result.exitCode == 0 else { return nil }
+        guard result.exitCode == 0 else { return .unknown }
 
-        return !GitStatusParser.parse(result.standardOutput).isEmpty
+        return GitStatusParser.parse(result.standardOutput).isEmpty ? .clean : .dirty
     }
 
     private static func outcome(_ arguments: [String]) async -> GitCommandOutcome {

@@ -36,7 +36,7 @@ public final class AgentChangesModel {
 
         isLoading = true
 
-        let task = Task { await reload() }
+        let task = Task { _ = try? await reload() }
         running = task
         await task.value
         running = nil
@@ -46,11 +46,11 @@ public final class AgentChangesModel {
 
 private extension AgentChangesModel {
 
-    func reload() async {
+    func reload() async throws {
         guard let source else { return }
 
         let touched = await source.touched()
-        guard !Task.isCancelled else { return }
+        try Task.checkCancellation()
 
         var roots: [String: Date] = [:]
         var byRoot: [String: [AgentTouchedFile]] = [:]
@@ -58,14 +58,14 @@ private extension AgentChangesModel {
         var discovered: Set<String> = []
 
         for directory in touched.directories.sorted() {
-            guard !Task.isCancelled else { return }
+            try Task.checkCancellation()
             guard let root = await root(of: directory, known: &knownRoots, found: &discovered) else { continue }
 
             roots[root] = roots[root] ?? .distantPast
         }
 
         for file in touched.files {
-            guard !Task.isCancelled else { return }
+            try Task.checkCancellation()
 
             let directory = file.url.deletingLastPathComponent().path(percentEncoded: false)
             guard let root = await root(of: directory, known: &knownRoots, found: &discovered) else { continue }
@@ -74,10 +74,10 @@ private extension AgentChangesModel {
             roots[root] = max(roots[root] ?? .distantPast, file.touchedAt)
         }
 
-        guard !Task.isCancelled else { return }
+        try Task.checkCancellation()
 
-        let collected = await collect(roots: roots, touched: byRoot)
-        guard !Task.isCancelled else { return }
+        let collected = try await collect(roots: roots, touched: byRoot)
+        try Task.checkCancellation()
 
         repositories = collected
         checkedAt = Date()
@@ -105,11 +105,11 @@ private extension AgentChangesModel {
     func collect(
         roots: [String: Date],
         touched: [String: [AgentTouchedFile]]
-    ) async -> [AgentRepositoryChanges] {
+    ) async throws -> [AgentRepositoryChanges] {
         var found: [AgentRepositoryChanges] = []
 
         for (root, touchedAt) in roots {
-            guard !Task.isCancelled else { break }
+            try Task.checkCancellation()
 
             let changes = await GitClient.changes(at: URL(filePath: root))
             let changed = Set(changes.map { Self.resolved(URL(filePath: root + "/" + $0.path)) })

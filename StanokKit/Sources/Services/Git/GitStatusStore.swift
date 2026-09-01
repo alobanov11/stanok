@@ -45,17 +45,21 @@ public final class GitStatusStore {
 
         repeat {
             pending.remove(path)
-            switch await GitClient.probe(for: session.url) {
-            case .notRepository:
-                if rootByPath[path] != nil { rootByPath[path] = nil }
-
-            case .failed:
-                break
-
-            case let .snapshot(snapshot):
-                if rootByPath[path] != snapshot.root { rootByPath[path] = snapshot.root }
-                if cache[snapshot.root] != snapshot { cache[snapshot.root] = snapshot }
-            }
+            await store(GitClient.probe(for: session.url), at: path)
         } while pending.contains(path)
+    }
+
+    func store(_ probe: GitClient.Probe, at path: String) {
+        switch probe {
+        case .notRepository:
+            if rootByPath[path] != nil { rootByPath[path] = nil }
+
+        case .failed:
+            break
+
+        case let .snapshot(snapshot):
+            if rootByPath[path] != snapshot.root { rootByPath[path] = snapshot.root }
+            if cache[snapshot.root] != snapshot { cache[snapshot.root] = snapshot }
+        }
     }
 }

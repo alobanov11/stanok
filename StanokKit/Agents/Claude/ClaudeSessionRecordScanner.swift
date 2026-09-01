@@ -17,6 +17,16 @@ enum ClaudeSessionRecordScanner {
         let cwd: String?
         let firstUserMessageText: String?
 
+        func merging(_ next: Result) -> Result {
+            Result(
+                // Почему: заголовок задаёт последняя запись ai-title, остальные поля — первая
+                sessionID: sessionID ?? next.sessionID,
+                title: next.title ?? title,
+                cwd: cwd ?? next.cwd,
+                firstUserMessageText: firstUserMessageText ?? next.firstUserMessageText
+            )
+        }
+
         func filling(from other: Result) -> Result {
             Result(
                 sessionID: sessionID ?? other.sessionID,
@@ -34,10 +44,7 @@ enum ClaudeSessionRecordScanner {
     }
 
     static func scan(_ data: Data) -> Result {
-        var sessionID: String?
-        var title: String?
-        var cwd: String?
-        var firstUserMessageText: String?
+        var result = Result.empty
         var start = data.startIndex
 
         while start < data.endIndex {
@@ -45,29 +52,7 @@ enum ClaudeSessionRecordScanner {
             let lineLength = data.distance(from: start, to: newline)
 
             if lineLength > 0, lineLength <= Limits.maxLineBytes {
-                let line = data[start..<newline]
-                if let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] {
-                    if sessionID == nil, let id = object["sessionId"] as? String {
-                        sessionID = id
-                    }
-                    if cwd == nil, let value = object["cwd"] as? String {
-                        cwd = value
-                    }
-                    if
-                        object["type"] as? String == "ai-title",
-                        let raw = object["aiTitle"] as? String {
-                        title = UntrustedText.sanitizedSingleLine(
-                            raw,
-                            maxLength: Limits.maxTitleLength
-                        )
-                    }
-                    if firstUserMessageText == nil, let text = userMessageText(object) {
-                        firstUserMessageText = UntrustedText.sanitizedSingleLine(
-                            text,
-                            maxLength: Limits.maxTitleLength
-                        )
-                    }
-                }
+                result = result.merging(record(from: data[start..<newline]))
             }
 
             guard newline < data.endIndex else { break }
@@ -75,12 +60,30 @@ enum ClaudeSessionRecordScanner {
             start = data.index(after: newline)
         }
 
+        return result
+    }
+
+    private static func record(from line: Data) -> Result {
+        guard let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any]
+        else { return .empty }
+
         return Result(
-            sessionID: sessionID,
-            title: title,
-            cwd: cwd,
-            firstUserMessageText: firstUserMessageText
+            sessionID: object["sessionId"] as? String,
+            title: title(from: object),
+            cwd: object["cwd"] as? String,
+            firstUserMessageText: userMessageText(object).map {
+                UntrustedText.sanitizedSingleLine($0, maxLength: Limits.maxTitleLength)
+            }
         )
+    }
+
+    private static func title(from object: [String: Any]) -> String? {
+        guard
+            object["type"] as? String == "ai-title",
+            let raw = object["aiTitle"] as? String
+        else { return nil }
+
+        return UntrustedText.sanitizedSingleLine(raw, maxLength: Limits.maxTitleLength)
     }
 
     private static func userMessageText(_ object: [String: Any]) -> String? {

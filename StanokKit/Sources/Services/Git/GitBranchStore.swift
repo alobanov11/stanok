@@ -48,16 +48,18 @@ final class GitBranchStore {
             pending.remove(path)
             let generationAtStart = generation[path, default: 0]
             let snapshot = await GitBranchClient.listBranches(for: session.url)
-            let isCurrent = generation[path, default: 0] == generationAtStart
 
-            if isCurrent {
-                let key = snapshot.root ?? path
-                if rootByPath[path] != key { rootByPath[path] = key }
-                if cache[key] != snapshot {
-                    cache[key] = snapshot
-                }
-            }
+            store(snapshot, at: path, generation: generationAtStart)
         } while pending.contains(path)
+    }
+
+    func store(_ snapshot: GitBranchSnapshot, at path: String, generation generationAtStart: Int) {
+        guard generation[path, default: 0] == generationAtStart else { return }
+
+        let key = snapshot.root ?? path
+
+        if rootByPath[path] != key { rootByPath[path] = key }
+        if cache[key] != snapshot { cache[key] = snapshot }
     }
 
     func perform(

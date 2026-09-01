@@ -53,6 +53,26 @@ public enum GitClient {
         guard let gitDirectory = await run(["rev-parse", "--absolute-git-dir"], at: path)
         else { return .failed }
 
+        guard let statusData = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
+        else { return .failed }
+
+        return await .snapshot(snapshot(
+            at: path,
+            root: root,
+            gitDirectory: gitDirectory,
+            statusData: statusData
+        ))
+    }
+}
+
+private extension GitClient {
+
+    static func snapshot(
+        at path: String,
+        root: String,
+        gitDirectory: String,
+        statusData: Data
+    ) async -> GitSnapshot {
         let commonDirectory = await run(
             ["rev-parse", "--path-format=absolute", "--git-common-dir"],
             at: path
@@ -66,15 +86,12 @@ public enum GitClient {
 
         let numstat = await run(diffArguments, at: path) ?? ""
         let (diffAdded, removed) = parseNumstat(numstat)
-        guard let statusData = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
-        else { return .failed }
-
         let untracked = untrackedAddedLines(in: statusData, root: URL(filePath: root))
         let tracking = await GitTracking.parse(
             run(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], at: path)
         )
 
-        return .snapshot(GitSnapshot(
+        return GitSnapshot(
             branch: branch.isEmpty ? nil : branch,
             isDetached: branch.isEmpty,
             root: root,
@@ -84,35 +101,39 @@ public enum GitClient {
             removed: removed,
             changes: GitStatusParser.parse(statusData),
             tracking: tracking
-        ))
+        )
     }
-}
-
-private extension GitClient {
 
     static func parseNumstat(_ raw: String) -> (added: Int, removed: Int) {
         let chunks = raw.split(separator: "\0", omittingEmptySubsequences: false)
-        var added = 0
-        var removed = 0
+        var total = (added: 0, removed: 0)
         var index = 0
 
         while index < chunks.count {
             let chunk = chunks[index]
             index += 1
-            guard !chunk.isEmpty else { continue }
 
-            let fields = chunk.split(separator: "\t", omittingEmptySubsequences: false)
-            guard fields.count >= 2 else { continue }
+            guard let entry = numstatEntry(chunk) else { continue }
 
-            if fields[0] != "-", fields[1] != "-" {
-                added += Int(fields[0]) ?? 0
-                removed += Int(fields[1]) ?? 0
-            }
-
-            if fields.count == 3, fields[2].isEmpty { index += 2 }
+            total.added += entry.added
+            total.removed += entry.removed
+            index += entry.skip
         }
 
-        return (added, removed)
+        return total
+    }
+
+    static func numstatEntry(_ chunk: Substring) -> (added: Int, removed: Int, skip: Int)? {
+        guard !chunk.isEmpty else { return nil }
+
+        let fields = chunk.split(separator: "\t", omittingEmptySubsequences: false)
+        guard fields.count >= 2 else { return nil }
+
+        // Почему: у переименования третье поле пустое, а следом идут две части старого пути
+        let skip = fields.count == 3 && fields[2].isEmpty ? 2 : 0
+        guard fields[0] != "-", fields[1] != "-" else { return (0, 0, skip) }
+
+        return (Int(fields[0]) ?? 0, Int(fields[1]) ?? 0, skip)
     }
 
     static func untrackedAddedLines(in data: Data?, root: URL) -> Int {
@@ -126,13 +147,17 @@ private extension GitClient {
         return paths.reduce(0) { $0 + lineCount(at: root.appending(path: $1)) }
     }
 
-    static func lineCount(at url: URL) -> Int {
+    static func readableHandle(at url: URL) -> FileHandle? {
         let values = try? url.resourceValues(forKeys: [.fileSizeKey])
         guard let size = values?.fileSize, size > 0, size <= Limit.untrackedFileSize else {
-            return 0
+            return nil
         }
 
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return 0 }
+        return try? FileHandle(forReadingFrom: url)
+    }
+
+    static func lineCount(at url: URL) -> Int {
+        guard let handle = readableHandle(at: url) else { return 0 }
 
         defer { try? handle.close() }
 

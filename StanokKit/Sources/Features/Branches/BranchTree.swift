@@ -44,14 +44,18 @@ struct BranchTree: View {
 
     @ViewBuilder
     private var content: some View {
-        if !model.isLoaded {
+        switch model.state {
+        case .loading:
             placeholder("Загрузка веток…")
-        } else if !model.isRepository {
+
+        case .notRepository:
             placeholder("Здесь нет git-репозитория")
-        } else if model.isEmpty {
+
+        case .empty:
             placeholder("Нет веток")
-        } else if let root = model.root {
-            list(root)
+
+        case .loaded:
+            if let root = model.root { list(root) }
         }
     }
 
@@ -183,12 +187,12 @@ private extension BranchTree {
     func divergence(for ref: GitBranchRef) -> String? {
         guard ref.isCurrent, tracking.hasDivergence else { return nil }
 
-        var text = ""
-        if tracking.ahead > 0 { text += "\(tracking.ahead)↑" }
-        if tracking.ahead > 0, tracking.behind > 0 { text += " " }
-        if tracking.behind > 0 { text += "\(tracking.behind)↓" }
+        let parts = [
+            tracking.ahead > 0 ? "\(tracking.ahead)↑" : nil,
+            tracking.behind > 0 ? "\(tracking.behind)↓" : nil
+        ]
 
-        return text
+        return parts.compactMap(\.self).joined(separator: " ")
     }
 
     func folderActions(_ node: BranchNode) -> FileRow.Actions? {
@@ -298,15 +302,15 @@ private extension BranchTree {
         }
 
         switch await actions.checkDirty() {
-        case true:
+        case .dirty:
             dirtyTarget = ref
             return
 
-        case nil:
+        case .unknown:
             errorMessage = "Не удалось проверить рабочую копию"
             return
 
-        default:
+        case .clean:
             break
         }
 

@@ -45,15 +45,19 @@ public final class AgentSessionRegistry {
 
     public nonisolated init() {}
 
-    private static func merge(_ states: [AgentSessionsLoadState]) -> AgentSessionsLoadState {
-        guard !states.isEmpty else { return .loading }
-
+    private static func settled(_ states: [AgentSessionsLoadState]) -> Bool {
         let stillLoading = states.contains { if case .loading = $0 { true } else { false } }
         let hasLoaded = states.contains { if case .loaded = $0 { true } else { false } }
-        guard !stillLoading || hasLoaded else { return .loading }
 
+        return !stillLoading || hasLoaded
+    }
+
+    private static func split(
+        _ states: [AgentSessionsLoadState]
+    ) -> (sessions: [AgentSession], failures: [String]) {
         var sessions: [AgentSession] = []
         var failures: [String] = []
+
         for state in states {
             switch state {
             case .loading: continue
@@ -61,6 +65,15 @@ public final class AgentSessionRegistry {
             case let .failed(reason): failures.append(reason)
             }
         }
+
+        return (sessions, failures)
+    }
+
+    private static func merge(_ states: [AgentSessionsLoadState]) -> AgentSessionsLoadState {
+        guard !states.isEmpty else { return .loading }
+        guard settled(states) else { return .loading }
+
+        let (sessions, failures) = split(states)
         guard !sessions.isEmpty || failures.isEmpty else {
             return .failed(failures.joined(separator: "; "))
         }

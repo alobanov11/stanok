@@ -2,20 +2,45 @@ import AppKit
 
 enum CodeDocumentBuilder {
 
-    static func document(
-        lines: [[CodeToken]],
-        folds: CodeFoldMap,
-        folded: Set<Int>,
-        changes: GitFileChanges = .none,
-        expanded: Set<Int> = [],
-        font: NSFont,
-        revision: String = ""
-    ) -> PreviewDocument {
-        let visible = folds.visibleLines(count: lines.count, folded: folded)
+    private struct Builder {
+
+        let font: NSFont
+        let changes: GitFileChanges
+        let folded: Set<Int>
+        let expanded: Set<Int>
+        let visible: [Int]
         let text = NSMutableAttributedString()
+
         var rendered: [Int] = []
 
-        func appendRemoved(_ gone: [String], closing: Bool = false) {
+        mutating func append(_ tokens: [CodeToken], index: Int, position: Int) {
+            let number = index + 1
+            let gone = expanded.contains(number) ? changes.removed[number] : nil
+            let follows = changes.kinds[number] == .removed
+
+            if !follows { appendRemoved(gone, closing: false) }
+
+            rendered.append(index)
+            text.append(paragraph(tokens, index: index, position: position))
+
+            if follows { appendTrailing(gone, position: position) }
+        }
+
+        mutating func appendTrailing(_ gone: [String]?, position: Int) {
+            guard let gone, !gone.isEmpty else { return }
+
+            let closing = position == visible.count - 1
+
+            if closing {
+                text.append(NSAttributedString(string: "\n", attributes: [.font: font]))
+            }
+
+            appendRemoved(gone, closing: closing)
+        }
+
+        mutating func appendRemoved(_ gone: [String]?, closing: Bool) {
+            guard let gone, !gone.isEmpty else { return }
+
             for (position, line) in gone.enumerated() {
                 let last = closing && position == gone.count - 1
                 rendered.append(-1)
@@ -30,18 +55,10 @@ enum CodeDocumentBuilder {
             }
         }
 
-        for (position, index) in visible.enumerated() {
-            let number = index + 1
-            let gone = expanded.contains(number) ? changes.removed[number] : nil
-            let follows = changes.kinds[number] == .removed
-
-            if let gone, !gone.isEmpty, !follows { appendRemoved(gone) }
-
-            rendered.append(index)
-
+        func paragraph(_ tokens: [CodeToken], index: Int, position: Int) -> NSAttributedString {
             let paragraph = NSMutableAttributedString()
 
-            for token in lines[index] {
+            for token in tokens {
                 paragraph.append(NSAttributedString(
                     string: token.text,
                     attributes: [
@@ -67,18 +84,33 @@ enum CodeDocumentBuilder {
                 value: index,
                 range: NSRange(location: 0, length: paragraph.length)
             )
-            text.append(paragraph)
 
-            if let gone, !gone.isEmpty, follows {
-                let closing = position == visible.count - 1
-                if closing {
-                    text.append(NSAttributedString(string: "\n", attributes: [.font: font]))
-                }
+            return paragraph
+        }
+    }
 
-                appendRemoved(gone, closing: closing)
-            }
+    static func document(
+        lines: [[CodeToken]],
+        folds: CodeFoldMap,
+        folded: Set<Int>,
+        changes: GitFileChanges = .none,
+        expanded: Set<Int> = [],
+        font: NSFont,
+        revision: String = ""
+    ) -> PreviewDocument {
+        let visible = folds.visibleLines(count: lines.count, folded: folded)
+        var builder = Builder(
+            font: font,
+            changes: changes,
+            folded: folded,
+            expanded: expanded,
+            visible: visible
+        )
+
+        for (position, index) in visible.enumerated() {
+            builder.append(lines[index], index: index, position: position)
         }
 
-        return PreviewDocument(text: text, lines: rendered, revision: revision)
+        return PreviewDocument(text: builder.text, lines: builder.rendered, revision: revision)
     }
 }

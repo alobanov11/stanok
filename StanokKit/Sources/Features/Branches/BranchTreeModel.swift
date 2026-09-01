@@ -4,6 +4,14 @@ import Foundation
 @Observable
 final class BranchTreeModel {
 
+    enum State {
+
+        case loading
+        case notRepository
+        case empty
+        case loaded
+    }
+
     var listError: String? {
         snapshot?.listError
     }
@@ -12,16 +20,11 @@ final class BranchTreeModel {
         snapshot?.worktreeError
     }
 
-    var isLoaded: Bool {
-        snapshot != nil
-    }
+    var state: State {
+        guard let snapshot else { return .loading }
+        guard snapshot.root != nil else { return .notRepository }
 
-    var isRepository: Bool {
-        snapshot?.root != nil
-    }
-
-    var isEmpty: Bool {
-        snapshot?.refs.isEmpty ?? true
+        return snapshot.refs.isEmpty ? .empty : .loaded
     }
 
     private(set) var root: BranchNode?

@@ -31,6 +31,10 @@ enum CodeHighlighter {
             character.isLetter || character.isNumber || character == "_" || character == "$"
         }
 
+        private static func isWordStart(_ character: Character) -> Bool {
+            character.isLetter || character == "_"
+        }
+
         private static func isNumber(_ character: Character) -> Bool {
             character.isHexDigit || character == "." || character == "_"
                 || character == "x" || character == "o" || character == "b"
@@ -89,14 +93,30 @@ enum CodeHighlighter {
             index += token.count
         }
 
+        private func nestedOpen() -> String? {
+            guard
+                profile.nestsBlockComments,
+                let open = profile.blockOpen,
+                matches(open)
+            else { return nil }
+
+            return open
+        }
+
+        private func blockClose() -> String? {
+            guard let close = profile.blockClose, matches(close) else { return nil }
+
+            return close
+        }
+
         private mutating func scanBlockComment() {
-            if let open = profile.blockOpen, profile.nestsBlockComments, matches(open) {
+            if let open = nestedOpen() {
                 depth += 1
                 take(open, .comment)
                 return
             }
 
-            if let close = profile.blockClose, matches(close) {
+            if let close = blockClose() {
                 take(close, .comment)
                 depth -= 1
                 if depth <= 0 { state = .normal }
@@ -122,18 +142,35 @@ enum CodeHighlighter {
             if character == quote { state = .normal }
         }
 
+        private mutating func scanLineComment() {
+            while index < code.count, !code[index].isNewline {
+                emit(code[index], .comment)
+                index += 1
+            }
+        }
+
+        private mutating func scanNumber() {
+            while index < code.count, Self.isNumber(code[index]) {
+                emit(code[index], .number)
+                index += 1
+            }
+        }
+
+        private func blockOpen() -> String? {
+            guard let open = profile.blockOpen, matches(open) else { return nil }
+
+            return open
+        }
+
         private mutating func scanNormal() {
             let character = code[index]
 
             if matches(profile.lineComment) {
-                while index < code.count, !code[index].isNewline {
-                    emit(code[index], .comment)
-                    index += 1
-                }
+                scanLineComment()
                 return
             }
 
-            if let open = profile.blockOpen, matches(open) {
+            if let open = blockOpen() {
                 depth = 1
                 take(open, .comment)
                 state = .blockComment
@@ -148,14 +185,11 @@ enum CodeHighlighter {
             }
 
             if character.isNumber {
-                while index < code.count, Self.isNumber(code[index]) {
-                    emit(code[index], .number)
-                    index += 1
-                }
+                scanNumber()
                 return
             }
 
-            if character.isLetter || character == "_" {
+            if Self.isWordStart(character) {
                 scanWord()
                 return
             }

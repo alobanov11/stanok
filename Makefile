@@ -1,6 +1,7 @@
 .PHONY: ghostty check-ghostty format lint install
 
-SOURCES := Stanok StanokKit/Sources StanokKit/Terminal StanokKit/Agents StanokTests
+SOURCES := $(shell ./scripts/sources.py)
+CHECKS := layout declaration-order comments conditions booleans
 
 # Xcode's script sandbox denies mise shims (they read mise.toml), so bypass PATH.
 SWIFTFORMAT := $(firstword $(wildcard /opt/homebrew/bin/swiftformat /usr/local/bin/swiftformat) swiftformat)
@@ -30,9 +31,7 @@ lint:
 	@./scripts/fix-property-spacing.py --check $$(find $(SOURCES) -name '*.swift')
 	@./scripts/fix-property-grouping.py --check $$(find $(SOURCES) -name '*.swift')
 	@$(SWIFTLINT) lint --quiet
-	@./scripts/check-layout.py
-	@./scripts/check-declaration-order.py
-	@./scripts/check-comments.py
+	@status=0; for check in $(CHECKS); do ./scripts/check-$$check.py || status=1; done; exit $$status
 
 install:
 	xcodebuild -project Stanok.xcodeproj -scheme Stanok -configuration Release \

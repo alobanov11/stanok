@@ -16,35 +16,11 @@ public enum GitStatusParser {
         var index = 0
 
         while index < chunks.count {
-            let text = decode(chunks[index])
-            guard let prefix = text.first else {
-                index += 1
-                continue
-            }
+            let step = step(at: index, in: chunks)
 
-            switch prefix {
-            case "1":
-                if let change = parseOrdinary(text) { changes.append(change) }
-                index += 1
+            if let change = step.change { changes.append(change) }
 
-            case "2":
-                let originalPath = index + 1 < chunks.count ? decode(chunks[index + 1]) : nil
-                if let change = parseRenameOrCopy(text, originalPath: originalPath) {
-                    changes.append(change)
-                }
-                index += 2
-
-            case "u":
-                if let change = parseUnmerged(text) { changes.append(change) }
-                index += 1
-
-            case "?":
-                if let change = parseUntracked(text) { changes.append(change) }
-                index += 1
-
-            default:
-                index += 1
-            }
+            index += step.width
         }
 
         return changes
@@ -52,6 +28,36 @@ public enum GitStatusParser {
 }
 
 private extension GitStatusParser {
+
+    struct Step {
+
+        let change: GitChange?
+        let width: Int
+    }
+
+    static func step(at index: Int, in chunks: [Data.SubSequence]) -> Step {
+        let text = decode(chunks[index])
+        guard let prefix = text.first else { return Step(change: nil, width: 1) }
+
+        switch prefix {
+        case "1":
+            return Step(change: parseOrdinary(text), width: 1)
+
+        case "2":
+            let originalPath = index + 1 < chunks.count ? decode(chunks[index + 1]) : nil
+
+            return Step(change: parseRenameOrCopy(text, originalPath: originalPath), width: 2)
+
+        case "u":
+            return Step(change: parseUnmerged(text), width: 1)
+
+        case "?":
+            return Step(change: parseUntracked(text), width: 1)
+
+        default:
+            return Step(change: nil, width: 1)
+        }
+    }
 
     static func decode(_ chunk: Data.SubSequence) -> String {
         // swiftlint:disable:next optional_data_string_conversion
@@ -73,14 +79,22 @@ private extension GitStatusParser {
         return (iterator.next(), iterator.next())
     }
 
-    static func status(xy: Substring, isRenameOrCopy: Bool) -> GitFileStatus {
+    static func status(xy: Substring) -> GitFileStatus {
         let (x, y) = pair(xy)
 
         if x == "D" || y == "D" { return .deleted }
-        if isRenameOrCopy { return x == "C" || y == "C" ? .copied : .renamed }
         if x == "A" { return .added }
         if x == "T" || y == "T" { return .typeChanged }
+
         return .modified
+    }
+
+    static func renameStatus(xy: Substring) -> GitFileStatus {
+        let (x, y) = pair(xy)
+
+        if x == "D" || y == "D" { return .deleted }
+
+        return x == "C" || y == "C" ? .copied : .renamed
     }
 
     static func isSubmodule(_ field: Substring) -> Bool {
@@ -96,7 +110,7 @@ private extension GitStatusParser {
         let (x, y) = pair(fields[1])
         return GitChange(
             path: path,
-            status: status(xy: fields[1], isRenameOrCopy: false),
+            status: status(xy: fields[1]),
             indexStatus: x,
             worktreeStatus: y,
             isSubmodule: isSubmodule(fields[2])
@@ -113,7 +127,7 @@ private extension GitStatusParser {
         return GitChange(
             path: path,
             originalPath: originalPath,
-            status: status(xy: fields[1], isRenameOrCopy: true),
+            status: renameStatus(xy: fields[1]),
             indexStatus: x,
             worktreeStatus: y,
             isSubmodule: isSubmodule(fields[2])

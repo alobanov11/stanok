@@ -23,10 +23,6 @@ struct ReviewFileCard: View {
         ].joined(separator: "|")
     }
 
-    private var isReadable: Bool {
-        file.status != .deleted
-    }
-
     private var header: some View {
         HStack(spacing: 6) {
             Image(systemName: "chevron.right")
@@ -71,7 +67,7 @@ struct ReviewFileCard: View {
 
     @ViewBuilder
     private var content: some View {
-        if !isReadable {
+        if !file.isReadable {
             notice("файл удалён")
         } else if let preview {
             switch preview.content {
@@ -144,7 +140,7 @@ struct ReviewFileCard: View {
     }
 
     private func load() async {
-        guard isExpanded, isReadable, !revision.isEmpty else { return }
+        guard isExpanded, file.isReadable, !revision.isEmpty else { return }
 
         let loaded = await FilePreviewLoader.load(file.url)
         guard !Task.isCancelled else { return }

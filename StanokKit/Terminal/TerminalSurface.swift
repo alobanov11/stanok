@@ -62,8 +62,8 @@ struct TerminalSurface: NSViewRepresentable {
         view.onFocused = onFocused
         view.onScrollbarChanged = onScrollbar
         scrollController.scroll = { [weak view] row in view?.scroll(toRow: row) }
-        view.setVisible(isVisible)
-        view.setFocused(isFocused)
+        view.setVisible(to: isVisible)
+        view.setFocused(to: isFocused)
         view.apply(insertRequest: insertRequest)
         view.apply(closeRequest: closeRequest)
     }

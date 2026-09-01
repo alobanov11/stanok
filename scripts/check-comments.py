@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOTS = ["Stanok", "StanokKit/Sources", "StanokKit/Terminal", "StanokKit/Agents", "StanokTests"]
+from sources import ROOTS
 
 MARKER = re.compile(r"^// (Почему): \S")
 

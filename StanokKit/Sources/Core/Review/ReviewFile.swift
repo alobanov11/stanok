@@ -10,6 +10,10 @@ public struct ReviewFile: Identifiable, Sendable, Equatable {
         url.lastPathComponent
     }
 
+    public var isReadable: Bool {
+        status != .deleted
+    }
+
     public let url: URL
     public let path: String
     public let status: GitFileStatus?

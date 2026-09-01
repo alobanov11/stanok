@@ -173,12 +173,22 @@ private extension FileTree {
         }
 
         let operation: DropOperation = session.suggestedOperations.contains(.move) ? .move : .copy
+
+        return moveOperation(operation, sources: sources, target: target)
+    }
+
+    static func moveOperation(
+        _ operation: DropOperation,
+        sources: [URL],
+        target: URL
+    ) -> DropOperation {
         guard operation == .move else { return operation }
 
         let normalizedTarget = target.standardizedFileURL
         let redundant = sources.allSatisfy {
             $0.deletingLastPathComponent().standardizedFileURL == normalizedTarget
         }
+
         return redundant ? .forbidden : operation
     }
 

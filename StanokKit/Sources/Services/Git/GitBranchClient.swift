@@ -2,15 +2,40 @@ import Foundation
 
 enum GitBranchClient {
 
+    static func root(at path: String) async -> String? {
+        let result = await GitProcessRunner.run(["-C", path, "rev-parse", "--show-toplevel"])
+        guard result.exitCode == 0 else { return nil }
+
+        let root = (String(data: result.standardOutput, encoding: .utf8) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return root.isEmpty ? nil : root
+    }
+
+    static func snapshot(
+        refs refsOutcome: GitProcessRunner.Result,
+        worktrees worktreeOutcome: GitProcessRunner.Result,
+        root: String
+    ) -> GitBranchSnapshot {
+        let refs = refsOutcome.exitCode == 0
+            ? GitBranchRefParser.parse(refsOutcome.standardOutput)
+            : []
+        let worktrees = worktreeOutcome.exitCode == 0
+            ? GitWorktreeListParser.parse(worktreeOutcome.standardOutput)
+            : []
+
+        return GitBranchSnapshot(
+            refs: GitBranchOccupancy.apply(refs, worktrees: worktrees, currentRoot: root),
+            root: root,
+            listError: refsOutcome.exitCode == 0 ? nil : refsOutcome.standardError,
+            worktreeError: worktreeOutcome.exitCode == 0 ? nil : worktreeOutcome.standardError
+        )
+    }
+
     static func listBranches(for url: URL) async -> GitBranchSnapshot {
         let path = url.path(percentEncoded: false)
 
-        let rootResult = await GitProcessRunner.run(["-C", path, "rev-parse", "--show-toplevel"])
-        guard rootResult.exitCode == 0 else { return GitBranchSnapshot(refs: []) }
-
-        let root = (String(data: rootResult.standardOutput, encoding: .utf8) ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !root.isEmpty else { return GitBranchSnapshot(refs: []) }
+        guard let root = await root(at: path) else { return GitBranchSnapshot(refs: []) }
 
         async let refsResult = GitProcessRunner.run([
             "--no-optional-locks", "-C", path, "for-each-ref",
@@ -20,23 +45,6 @@ enum GitBranchClient {
             "-C", path, "worktree", "list", "--porcelain", "-z"
         ])
 
-        let refsOutcome = await refsResult
-        let worktreeOutcome = await worktreeResult
-
-        let refs = refsOutcome.exitCode == 0
-            ? GitBranchRefParser.parse(refsOutcome.standardOutput)
-            : []
-        let worktrees = worktreeOutcome.exitCode == 0
-            ? GitWorktreeListParser.parse(worktreeOutcome.standardOutput)
-            : []
-
-        let merged = GitBranchOccupancy.apply(refs, worktrees: worktrees, currentRoot: root)
-
-        return GitBranchSnapshot(
-            refs: merged,
-            root: root,
-            listError: refsOutcome.exitCode == 0 ? nil : refsOutcome.standardError,
-            worktreeError: worktreeOutcome.exitCode == 0 ? nil : worktreeOutcome.standardError
-        )
+        return await snapshot(refs: refsResult, worktrees: worktreeResult, root: root)
     }
 }

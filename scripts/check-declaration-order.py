@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOTS = ["Stanok", "StanokKit/Sources", "StanokKit/Terminal", "StanokKit/Agents"]
+from sources import MODULES as ROOTS
 
 ACCESS = ["open", "public", "package", "internal", "fileprivate", "private"]
 

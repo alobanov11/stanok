@@ -103,15 +103,7 @@ private extension ClaudeEditIndex {
             return nil
         }
 
-        var entry = entries[path]
-        // Почему: лог могли заменить или переписать на месте, тогда прежний офсет уже не о том файле
-        if let known = entry, Self.rewritten(known, into: identity) {
-            entry = Entry(identity: identity, scanned: 0, touches: [:], directory: nil)
-        } else if entry == nil {
-            entry = Entry(identity: identity, scanned: 0, touches: [:], directory: nil)
-        }
-
-        guard var entry else { return nil }
+        var entry = entry(for: path, identity: identity)
         guard entry.scanned < identity.size, budget > 0 else { return entry }
 
         let start = entry.scanned == 0
@@ -123,13 +115,33 @@ private extension ClaudeEditIndex {
         let consumed = Self.collect(chunk, skipsHead: start > entry.scanned, into: &entry)
         budget -= chunk.count
         entry.identity = identity
-        // Почему: перепрыгиваем окно, только если его урезал не бюджет, а сама длина строки
-        let reachedEnd = start + chunk.count >= identity.size
-        let cutByBudget = length < identity.size - start && chunk.count < Limit.firstChunk
-        let progress = consumed > 0 || reachedEnd || cutByBudget ? consumed : chunk.count
-        entry.scanned = start + progress
+        entry.scanned = start + Self.advanced(
+            consumed: consumed,
+            chunk: chunk.count,
+            from: start,
+            length: length,
+            size: identity.size
+        )
         entries[path] = entry
+
         return entry
+    }
+
+    func entry(for path: String, identity: Identity) -> Entry {
+        // Почему: лог могли заменить или переписать на месте, тогда прежний офсет уже не о том файле
+        guard let known = entries[path], !Self.rewritten(known, into: identity) else {
+            return Entry(identity: identity, scanned: 0, touches: [:], directory: nil)
+        }
+
+        return known
+    }
+
+    static func advanced(consumed: Int, chunk: Int, from start: Int, length: Int, size: Int) -> Int {
+        // Почему: перепрыгиваем окно, только если его урезал не бюджет, а сама длина строки
+        let reachedEnd = start + chunk >= size
+        let cutByBudget = length < size - start && chunk < Limit.firstChunk
+
+        return consumed > 0 || reachedEnd || cutByBudget ? consumed : chunk
     }
 
     static func rewritten(_ entry: Entry, into identity: Identity) -> Bool {
@@ -175,15 +187,30 @@ private extension ClaudeEditIndex {
         guard let record = try? JSONSerialization.jsonObject(with: line) as? [String: Any]
         else { return }
 
-        if entry.directory == nil, let cwd = record["cwd"] as? String { entry.directory = cwd }
+        readDirectory(from: record, into: &entry)
 
+        guard interesting else { return }
+
+        readEdits(from: record, into: &entry)
+    }
+
+    static func readDirectory(from record: [String: Any], into entry: inout Entry) {
+        guard entry.directory == nil, let cwd = record["cwd"] as? String else { return }
+
+        entry.directory = cwd
+    }
+
+    static func readEdits(from record: [String: Any], into entry: inout Entry) {
         guard
-            interesting,
-            let at = (record["timestamp"] as? String).flatMap(Self.date(from:)),
+            let at = (record["timestamp"] as? String).flatMap(date(from:)),
             let message = record["message"] as? [String: Any],
             let blocks = message["content"] as? [[String: Any]]
         else { return }
 
+        readTouches(from: blocks, at: at, into: &entry)
+    }
+
+    static func readTouches(from blocks: [[String: Any]], at: Date, into entry: inout Entry) {
         for block in blocks where block["type"] as? String == "tool_use" {
             guard
                 let input = block["input"] as? [String: Any],

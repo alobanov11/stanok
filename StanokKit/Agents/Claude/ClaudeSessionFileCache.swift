@@ -92,23 +92,10 @@ actor ClaudeSessionFileCache {
             return resolution(from: existing.result, modifiedAt: identity.modifiedAt)
         }
 
-        let targetLength = min(identity.size, Limits.headCap)
-        guard targetLength > 0 else {
-            entries[path] = Entry(identity: identity, result: .empty)
-            return resolution(from: .empty, modifiedAt: identity.modifiedAt)
-        }
-
-        guard let headBytes = Self.readRange(path, from: 0, upTo: targetLength) else {
+        guard let result = scanned(path, identity: identity) else {
             return entries[path].map {
                 resolution(from: $0.result, modifiedAt: $0.identity.modifiedAt)
             }
-        }
-
-        var result = ClaudeSessionRecordScanner.scan(headBytes)
-        if result.title == nil, identity.size > Limits.headCap {
-            let tailStart = max(identity.size - Limits.tailCap, targetLength)
-            let tail = Self.readRange(path, from: tailStart, upTo: identity.size) ?? Data()
-            result = result.filling(from: ClaudeSessionRecordScanner.scan(tail))
         }
 
         entries[path] = Entry(identity: identity, result: result)
@@ -117,6 +104,21 @@ actor ClaudeSessionFileCache {
 
     func purge(keeping validPaths: Set<String>) {
         entries = entries.filter { validPaths.contains($0.key) }
+    }
+
+    private func scanned(_ path: String, identity: Identity) -> ClaudeSessionRecordScanner.Result? {
+        let targetLength = min(identity.size, Limits.headCap)
+        guard targetLength > 0 else { return .empty }
+
+        guard let headBytes = Self.readRange(path, from: 0, upTo: targetLength) else { return nil }
+
+        let result = ClaudeSessionRecordScanner.scan(headBytes)
+        guard result.title == nil, identity.size > Limits.headCap else { return result }
+
+        let tailStart = max(identity.size - Limits.tailCap, targetLength)
+        let tail = Self.readRange(path, from: tailStart, upTo: identity.size) ?? Data()
+
+        return result.filling(from: ClaudeSessionRecordScanner.scan(tail))
     }
 
     private func resolution(
