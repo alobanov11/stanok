@@ -21,6 +21,7 @@ final class PreviewNavigator {
 
     private var token = UUID()
     private var changesToken = UUID()
+    private var isOpening = false
     private var loadTask: Task<FilePreview, Never>?
 
     private static func changedOnDisk(_ preview: FilePreview) -> Bool {
@@ -40,7 +41,8 @@ final class PreviewNavigator {
     }
 
     func refreshChanges() async {
-        guard case let .file(preview) = stack.last else { return }
+        // Почему: идущее открытие само прочитает и свежий текст, и свежий дифф
+        guard !isOpening, case let .file(preview) = stack.last else { return }
 
         // Почему: checkout и stash меняют сам файл, иначе рибоны лягут на прежний текст
         guard !Self.changedOnDisk(preview) else {
@@ -116,6 +118,8 @@ final class PreviewNavigator {
 
         let task = Task { await FilePreviewLoader.load(url) }
         loadTask = task
+        isOpening = true
+        defer { isOpening = false }
 
         let loaded = await task.value
         guard token == generation else { return }
