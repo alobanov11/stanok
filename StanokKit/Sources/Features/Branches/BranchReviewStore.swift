@@ -23,6 +23,9 @@ final class BranchReviewStore {
     private var entries: [String: Review] = [:]
 
     @ObservationIgnored
+    private var generation = 0
+
+    @ObservationIgnored
     private var loading: [String: Task<Void, Never>] = [:]
 
     private static func key(_ root: String, _ branch: String, _ isCurrent: Bool) -> String {
@@ -45,13 +48,18 @@ final class BranchReviewStore {
             return
         }
 
+        let started = generation
         let task = Task { [weak self] in
             let url = URL(filePath: root)
             // Почему: незакоммиченное есть только у текущей ветки, у остальных читаем историю
             let changes = isCurrent ? await GitClient.changes(at: url) : []
             let commits = await GitClient.history(of: branch, at: url, limit: Limit.commits)
 
-            self?.store(Review(changes: changes, commits: commits, loadedAt: Date()), at: key)
+            self?.store(
+                Review(changes: changes, commits: commits, loadedAt: Date()),
+                at: key,
+                generation: started
+            )
         }
 
         loading[key] = task
@@ -59,11 +67,15 @@ final class BranchReviewStore {
         loading[key] = nil
     }
 
+    // Почему: после инвалидации поздняя загрузка не должна вернуть забытое обратно
     func forget(root: String) {
+        generation += 1
         entries = entries.filter { !$0.key.hasPrefix(root + "\n") }
     }
 
-    private func store(_ review: Review, at key: String) {
+    private func store(_ review: Review, at key: String, generation started: Int) {
+        guard generation == started else { return }
+
         entries[key] = review
 
         guard entries.count > Limit.cached else { return }

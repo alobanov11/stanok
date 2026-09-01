@@ -6,7 +6,10 @@ enum GitLineChanges {
         let directory = url.deletingLastPathComponent().path(percentEncoded: false)
         let path = url.path(percentEncoded: false)
         let arguments = if case let .commit(sha) = source {
-            ["show", "--format=", "-U0", "--no-color", sha, "--", path]
+            [
+                "show", "--format=", "-U0", "--no-color",
+                "--diff-merges=first-parent", sha, "--", path
+            ]
         } else {
             ["diff", "HEAD", "-U0", "--no-color", "--", path]
         }

@@ -2,6 +2,12 @@ import Foundation
 
 enum FilePreviewLoader {
 
+    enum Rendering {
+
+        case rich
+        case plain
+    }
+
     private enum Source {
 
         case text(String)
@@ -16,8 +22,14 @@ enum FilePreviewLoader {
 
     private static let markdownExtensions: Set<String> = ["md", "markdown", "mdown", "mkd"]
 
-    static func load(_ url: URL, source: ReviewSource = .worktree) async -> FilePreview {
-        var preview = await Task.detached(priority: .userInitiated) { read(url) }.value
+    static func load(
+        _ url: URL,
+        source: ReviewSource = .worktree,
+        rendering: Rendering = .rich
+    ) async -> FilePreview {
+        var preview = await Task.detached(priority: .userInitiated) {
+            read(url, rendering: rendering)
+        }.value
         guard !Task.isCancelled, case .code = preview.content else { return preview }
 
         preview.changes = await GitLineChanges.load(for: url, source: source)
@@ -25,7 +37,13 @@ enum FilePreviewLoader {
     }
 
     // Почему: текст коммита и его дифф должны быть одной ревизией, иначе номера строк врут
-    static func load(_ url: URL, in root: String, path: String, sha: String) async -> FilePreview {
+    static func load(
+        _ url: URL,
+        in root: String,
+        path: String,
+        sha: String,
+        rendering: Rendering = .rich
+    ) async -> FilePreview {
         let measure = await GitProcessRunner.run([
             "--no-optional-locks", "-C", root, "cat-file", "-s", "\(sha):\(path)"
         ])
@@ -54,7 +72,7 @@ enum FilePreviewLoader {
         }
 
         var preview = await Task.detached(priority: .userInitiated) {
-            read(url, text: text)
+            read(url, text: text, rendering: rendering)
         }.value
 
         guard !Task.isCancelled, case .code = preview.content else { return preview }
@@ -118,13 +136,13 @@ enum FilePreviewLoader {
         return .text(text)
     }
 
-    private static func read(_ url: URL, text: String) -> FilePreview {
+    private static func read(_ url: URL, text: String, rendering: Rendering) -> FilePreview {
         let size = Int64(text.utf8.count)
         let all = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         let cut = all.count > Limit.lines
         let text = cut ? all.prefix(Limit.lines).joined(separator: "\n") : text
 
-        if markdownExtensions.contains(url.pathExtension.lowercased()) {
+        if rendering == .rich, markdownExtensions.contains(url.pathExtension.lowercased()) {
             let blocks = MarkdownParser.blocks(from: text, baseURL: url.deletingLastPathComponent())
 
             return FilePreview(
@@ -147,7 +165,7 @@ enum FilePreviewLoader {
         )
     }
 
-    private static func read(_ url: URL) -> FilePreview {
+    private static func read(_ url: URL, rendering: Rendering) -> FilePreview {
         let values = try? url.resourceValues(forKeys: [
             .fileSizeKey, .contentModificationDateKey, .contentTypeKey, .isRegularFileKey
         ])
@@ -175,7 +193,7 @@ enum FilePreviewLoader {
             let truncated = lines.count > Limit.lines
             let shown = truncated ? lines.prefix(Limit.lines).joined(separator: "\n") : text
 
-            if markdownExtensions.contains(url.pathExtension.lowercased()) {
+            if rendering == .rich, markdownExtensions.contains(url.pathExtension.lowercased()) {
                 let baseURL = url.deletingLastPathComponent()
                 // Почему: разметка тоже режется, иначе мегабайтный файл раскладывается целиком
                 let blocks = MarkdownParser.blocks(from: shown, baseURL: baseURL)

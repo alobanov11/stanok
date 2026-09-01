@@ -253,7 +253,7 @@ public struct WorkspaceView<Terminal: View>: View {
             (touchedRepositories ?? ownRepositories).focus(on: root)
         }
         .onChange(of: gitSnapshot) { _, snapshot in
-            if let root = snapshot?.root { branchReviews.forget(root: root) }
+            if let root = snapshot?.root { revalidateBranchReview(root) }
 
             Task {
                 await commits.refresh(
@@ -394,11 +394,9 @@ private extension WorkspaceView {
         filesMode == .git
     }
 
-    // Почему: карточки должны перечитать файлы, когда рабочее дерево изменилось
+    // Почему: карточки должны перечитать файлы, когда рабочее дерево пересканировали
     var reviewRevision: String {
-        guard let snapshot = gitSnapshot else { return "" }
-
-        return "\(snapshot.added)|\(snapshot.removed)|\(snapshot.changes.count)"
+        "\(git.revision(for: selectedSession))"
     }
 
     func activate(_ session: TerminalSession.ID?) {
@@ -439,6 +437,16 @@ private extension WorkspaceView {
             await store.refreshReachability()
             try? await Task.sleep(for: .seconds(15))
         }
+    }
+
+    // Почему: открытое ревью ветки должно пережить инвалидацию, а не остаться пустым
+    func revalidateBranchReview(_ root: String) {
+        branchReviews.forget(root: root)
+
+        guard case let .review(.branch(open, ref, _, isCurrent)) = navigator.current, open == root
+        else { return }
+
+        Task { await branchReviews.load(root: root, branch: ref, isCurrent: isCurrent) }
     }
 
     // Почему: ревью ветки открывается уже с данными, иначе панель мигает пустотой

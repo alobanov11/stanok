@@ -160,21 +160,27 @@ struct ReviewFileCard: View {
         let stamp = await Task.detached(priority: .userInitiated) { Self.stamp(of: url) }.value
         guard !Task.isCancelled else { return }
 
-        let revision = [file.id, file.status?.letter ?? "-", stamp].joined(separator: "|")
+        let key = [file.id, file.status?.letter ?? "-", stamp, revision].joined(separator: "|")
 
-        if let cached = cache.preview(for: revision) {
+        if let cached = cache.preview(for: key) {
             preview = cached
             return
         }
 
         let loaded = if case let .commit(sha) = file.source {
-            await FilePreviewLoader.load(file.url, in: file.root, path: file.path, sha: sha)
+            await FilePreviewLoader.load(
+                file.url,
+                in: file.root,
+                path: file.path,
+                sha: sha,
+                rendering: .plain
+            )
         } else {
-            await FilePreviewLoader.load(file.url, source: file.source)
+            await FilePreviewLoader.load(file.url, source: file.source, rendering: .plain)
         }
         guard !Task.isCancelled else { return }
 
-        cache.store(loaded, for: revision)
+        cache.store(loaded, for: key)
         preview = loaded
     }
 }

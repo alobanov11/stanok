@@ -60,7 +60,12 @@ final class ReviewCommitStore {
         // Почему: точка отсчёта могла сдвинуться сама, поэтому ключ считаем уже с ней
         let stamp = [root, head, base, "\(isClean)"].joined(separator: "|")
         guard stamp != loaded else { return }
-        let found = base == head ? [] : await GitClient.commits(since: base, upTo: head, at: url)
+        // Почему: сбой git — это не «коммитов нет», такой ответ кэшировать нельзя
+        guard
+            let found = base == head
+            ? []
+            : await GitClient.commits(since: base, upTo: head, at: url)
+        else { return }
 
         loaded = stamp
         commits = [root: found]

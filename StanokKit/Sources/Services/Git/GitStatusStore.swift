@@ -5,6 +5,7 @@ import Foundation
 public final class GitStatusStore {
 
     private var cache: [String: GitSnapshot] = [:]
+    private var scans: [String: Int] = [:]
     private var rootByPath: [String: String] = [:]
     private var inFlight: Set<String> = []
     private var pending: Set<String> = []
@@ -21,6 +22,15 @@ public final class GitStatusStore {
             isDirty: !snapshot.changes.isEmpty,
             tracking: snapshot.tracking
         )
+    }
+
+    // Почему: одинаковые счётчики не значат одинаковое дерево, ревью нужна честная ревизия
+    public func revision(for session: TerminalSession?) -> Int {
+        guard let session else { return 0 }
+
+        let root = rootByPath[session.url.path(percentEncoded: false)]
+
+        return root.flatMap { scans[$0] } ?? 0
     }
 
     public func snapshot(for session: TerminalSession?) -> GitSnapshot? {
@@ -60,6 +70,8 @@ public final class GitStatusStore {
         case let .snapshot(snapshot):
             if rootByPath[path] != snapshot.root { rootByPath[path] = snapshot.root }
             if cache[snapshot.root] != snapshot { cache[snapshot.root] = snapshot }
+
+            scans[snapshot.root, default: 0] += 1
         }
     }
 }
