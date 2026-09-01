@@ -11,7 +11,7 @@ actor HeldTouchesSource: AgentTouchesSource {
     private var isStarted = false
     private var isReleased = false
 
-    func touched() async -> (files: [AgentTouchedFile], directories: Set<String>) {
+    func touched(scope: String?) async -> (files: [AgentTouchedFile], directories: Set<String>) {
         callCount += 1
         isStarted = true
         started?.resume()

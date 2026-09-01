@@ -2,5 +2,5 @@ import Foundation
 
 public protocol AgentTouchesSource: Sendable {
 
-    func touched() async -> (files: [AgentTouchedFile], directories: Set<String>)
+    func touched(scope: String?) async -> (files: [AgentTouchedFile], directories: Set<String>)
 }

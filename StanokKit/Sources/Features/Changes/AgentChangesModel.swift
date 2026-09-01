@@ -24,6 +24,9 @@ public final class AgentChangesModel {
     @ObservationIgnored
     private var focused: String?
 
+    @ObservationIgnored
+    private var runningToken = UUID()
+
     public nonisolated init() {}
 
     public func use(_ source: any AgentTouchesSource) {
@@ -33,8 +36,14 @@ public final class AgentChangesModel {
     public func focus(on root: String?) {
         guard focused != root else { return }
 
+        // Почему: область поиска сменилась, идущий проход собирает уже не тот репозиторий
         focused = root
-        repositories = Self.ordered(repositories, focused: root)
+        repositories = []
+        running?.cancel()
+        running = nil
+        runningToken = UUID()
+
+        Task { await refresh() }
     }
 
     public func refresh() async {
@@ -44,11 +53,16 @@ public final class AgentChangesModel {
             return
         }
 
+        let token = UUID()
+        runningToken = token
         isLoading = true
 
         let task = Task { _ = try? await reload() }
         running = task
         await task.value
+
+        guard runningToken == token else { return }
+
         running = nil
         isLoading = false
     }
@@ -59,7 +73,7 @@ private extension AgentChangesModel {
     func reload() async throws {
         guard let source else { return }
 
-        let touched = await source.touched()
+        let touched = await source.touched(scope: focused)
         try Task.checkCancellation()
 
         var roots: [String: Date] = [:]
@@ -89,7 +103,8 @@ private extension AgentChangesModel {
 
         try Task.checkCancellation()
 
-        let collected = try await collect(roots: roots, touched: byRoot)
+        let scoped = focused.map { root in roots.filter { $0.key == root } } ?? roots
+        let collected = try await collect(roots: scoped, touched: byRoot)
         try Task.checkCancellation()
 
         repositories = collected

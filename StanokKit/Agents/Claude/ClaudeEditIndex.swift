@@ -31,8 +31,8 @@ actor ClaudeEditIndex {
 
     private var entries: [String: Entry] = [:]
 
-    func touched(under root: URL) async -> ([AgentTouchedFile], Set<String>) {
-        let files = Self.sessionFiles(under: root)
+    func touched(under root: URL, scope: String?) async -> ([AgentTouchedFile], Set<String>) {
+        let files = Self.sessionFiles(under: root, scope: scope)
         var directories: Set<String> = []
         var byPath: [String: Date] = [:]
         var budget = Limit.budget
@@ -62,7 +62,9 @@ actor ClaudeEditIndex {
 
 private extension ClaudeEditIndex {
 
-    static func sessionFiles(under root: URL) -> [String] {
+    static func sessionFiles(under root: URL, scope: String?) -> [String] {
+        // Почему: имя каталога логов — это путь проекта, так что вложенные сессии ловим префиксом
+        let prefix = scope.map { ClaudeProjectPathEncoder.encode($0) }
         let keys: [URLResourceKey] = [.contentModificationDateKey, .isRegularFileKey]
         let deadline = Date().addingTimeInterval(-Limit.freshness)
         guard
@@ -74,6 +76,8 @@ private extension ClaudeEditIndex {
 
         var found: [(path: String, modified: Date)] = []
         for case let url as URL in walker where url.pathExtension == "jsonl" {
+            if let prefix, !Self.belongs(url, to: prefix, under: root) { continue }
+
             let values = try? url.resourceValues(forKeys: Set(keys))
             guard
                 values?.isRegularFile == true,
@@ -85,6 +89,13 @@ private extension ClaudeEditIndex {
         }
 
         return found.sorted { $0.modified > $1.modified }.map(\.path)
+    }
+
+    static func belongs(_ url: URL, to prefix: String, under root: URL) -> Bool {
+        let directory = url.deletingLastPathComponent()
+        guard directory != root else { return false }
+
+        return directory.lastPathComponent.hasPrefix(prefix)
     }
 
     static func identity(of path: String) -> Identity? {

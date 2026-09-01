@@ -10,8 +10,8 @@ public struct ClaudeTouchesSource: AgentTouchesSource {
         self.root = root
     }
 
-    public func touched() async -> (files: [AgentTouchedFile], directories: Set<String>) {
-        let found = await index.touched(under: root)
+    public func touched(scope: String?) async -> (files: [AgentTouchedFile], directories: Set<String>) {
+        let found = await index.touched(under: root, scope: scope)
 
         return (found.0, found.1)
     }
