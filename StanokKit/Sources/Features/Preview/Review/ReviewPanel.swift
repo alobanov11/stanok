@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ReviewPanel: View {
 
+    private static let opened = 4
+
     private var title: String {
         let count = files.count
         let word = PluralForm.of(count, "файл", "файла", "файлов")
@@ -24,6 +26,9 @@ struct ReviewPanel: View {
 
     @State
     private var cache = PreviewCache()
+
+    @State
+    private var order: [String] = []
 
     var body: some View {
         content
@@ -104,14 +109,27 @@ struct ReviewPanel: View {
             },
             set: { isOpen in
                 if isOpen {
-                    expanded.insert(file.id)
-                    collapsed.remove(file.id)
+                    open(file.id)
                 } else {
                     expanded.remove(file.id)
                     collapsed.insert(file.id)
                 }
             }
         )
+    }
+
+    // Почему: каждая раскрытая карточка держит документ файла, поэтому их число ограничено
+    private func open(_ id: String) {
+        expanded.insert(id)
+        collapsed.remove(id)
+        order.removeAll { $0 == id }
+        order.append(id)
+
+        while order.count > Self.opened, let oldest = order.first {
+            order.removeFirst()
+            expanded.remove(oldest)
+            collapsed.insert(oldest)
+        }
     }
 
     private func adopt() {

@@ -10,12 +10,6 @@ struct ReviewFileCard: View {
         static let notice: CGFloat = 40
     }
 
-    private var revision: String {
-        guard isExpanded else { return "" }
-
-        return [file.id, file.status?.letter ?? "-", stamp].joined(separator: "|")
-    }
-
     private var header: some View {
         HStack(spacing: 6) {
             Image(systemName: "chevron.right")
@@ -117,8 +111,7 @@ struct ReviewFileCard: View {
             // Почему: свёрнутая карточка не должна держать документ целого файла
             if !isOpen { preview = nil }
         }
-        .task(id: file.id + "|\(isExpanded)") { refreshStamp() }
-        .task(id: revision) { await load() }
+        .task(id: file.id + "|\(file.status?.letter ?? "-")|\(isExpanded)") { await load() }
     }
 
     let file: ReviewFile
@@ -134,9 +127,6 @@ struct ReviewFileCard: View {
     @State
     private var isHovering = false
 
-    @State
-    private var stamp = ""
-
     private func notice(_ text: String) -> some View {
         Text(text)
             .font(Typography.caption)
@@ -151,19 +141,23 @@ struct ReviewFileCard: View {
         isExpanded.toggle()
     }
 
-    // Почему: чтение атрибутов файла в body висело на главном потоке при каждой прокрутке
-    private func refreshStamp() {
-        guard isExpanded else { return }
-
+    nonisolated static func stamp(of url: URL) -> String {
         let keys: Set<URLResourceKey> = [.fileSizeKey, .contentModificationDateKey]
-        let values = try? file.url.resourceValues(forKeys: keys)
+        let values = try? url.resourceValues(forKeys: keys)
         let modified = values?.contentModificationDate?.timeIntervalSince1970 ?? 0
 
-        stamp = "\(values?.fileSize ?? 0)|\(modified)"
+        return "\(values?.fileSize ?? 0)|\(modified)"
     }
 
     private func load() async {
-        guard isExpanded, file.isReadable, !revision.isEmpty else { return }
+        guard isExpanded, file.isReadable else { return }
+
+        // Почему: атрибуты файла читаем вне главного потока и одной операцией с загрузкой
+        let url = file.url
+        let stamp = await Task.detached(priority: .userInitiated) { Self.stamp(of: url) }.value
+        guard !Task.isCancelled else { return }
+
+        let revision = [file.id, file.status?.letter ?? "-", stamp].joined(separator: "|")
 
         if let cached = cache.preview(for: revision) {
             preview = cached

@@ -157,8 +157,10 @@ private extension BranchTree {
         )
         .opacity(ref.occupyingWorktreePath != nil ? 0.5 : 1)
         .help(helpText(for: ref))
-        .onTapGesture(count: 2) { openReview(ref) }
-        .onTapGesture { Task { await handleTap(ref) } }
+        .gesture(
+            TapGesture(count: 2).onEnded { openReview(ref) }
+                .exclusively(before: TapGesture().onEnded { Task { await handleTap(ref) } })
+        )
     }
 
     // Почему: у текущей ветки показываем правки рабочего дерева, у остальных — расхождение

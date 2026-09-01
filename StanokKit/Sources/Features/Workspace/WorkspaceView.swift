@@ -163,6 +163,9 @@ public struct WorkspaceView<Terminal: View>: View {
     private var branchReviews = BranchReviewStore()
 
     @State
+    private var branchRequest = UUID()
+
+    @State
     private var mainWidth: CGFloat = 0
 
     @State
@@ -431,10 +434,20 @@ private extension WorkspaceView {
 
     // Почему: ревью ветки открывается уже с данными, иначе панель мигает пустотой
     func openBranchReview(_ root: String, _ ref: GitBranchRef) {
+        let generation = UUID()
+        branchRequest = generation
+
         Task {
             await branchReviews.load(root: root, branch: ref.fullName, isCurrent: ref.isCurrent)
 
-            navigator.openReview(.branch(root: root, ref: ref.fullName, name: ref.displayName))
+            guard branchRequest == generation else { return }
+
+            navigator.openReview(.branch(
+                root: root,
+                ref: ref.fullName,
+                name: ref.displayName,
+                isCurrent: ref.isCurrent
+            ))
         }
     }
 
@@ -581,8 +594,9 @@ private extension WorkspaceView {
                 repository: nil
             )
 
-        case let .branch(root, ref, _):
-            guard let review = branchReviews.review(root: root, branch: ref) else { return [] }
+        case let .branch(root, ref, _, current):
+            guard let review = branchReviews.review(root: root, branch: ref, isCurrent: current)
+            else { return [] }
 
             return ReviewFiles.build(
                 root: root,

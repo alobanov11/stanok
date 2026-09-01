@@ -10,19 +10,33 @@ final class ReviewCommitStore {
     private var loaded: String?
 
     @ObservationIgnored
-    private var token = UUID()
+    private var running: Task<Void, Never>?
 
     func commits(for root: String?) -> [GitCommitChanges] {
         root.flatMap { commits[$0] } ?? []
     }
 
+    // Почему: повторный вызов ждёт идущий проход, иначе очередь git забивается дублями
     func refresh(root: String?, isClean: Bool) async {
         guard let root else { return }
 
-        let url = URL(filePath: root)
-        let generation = UUID()
-        token = generation
+        if let running {
+            await running.value
+            return
+        }
 
+        let task = Task { [weak self] in
+            guard let self else { return }
+
+            await reload(root: root, isClean: isClean)
+        }
+        running = task
+        await task.value
+        running = nil
+    }
+
+    private func reload(root: String, isClean: Bool) async {
+        let url = URL(filePath: root)
         guard let head = await GitClient.head(at: url) else { return }
 
         // Почему: без ключа состояния историю перечитывал каждый чих файловой системы
@@ -37,7 +51,6 @@ final class ReviewCommitStore {
             isClean: isClean
         )
         let found = base == head ? [] : await GitClient.commits(since: base, upTo: head, at: url)
-        guard !Task.isCancelled, token == generation else { return }
 
         loaded = stamp
         commits = [root: found]

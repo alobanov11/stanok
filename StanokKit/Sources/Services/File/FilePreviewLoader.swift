@@ -29,27 +29,28 @@ enum FilePreviewLoader {
         let measure = await GitProcessRunner.run([
             "--no-optional-locks", "-C", root, "cat-file", "-s", "\(sha):\(path)"
         ])
+        guard measure.exitCode == 0 else {
+            return rejected(url, content: .failed("Файла нет в этом коммите"))
+        }
+
         let size = String(data: measure.standardOutput, encoding: .utf8)
             .flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) } ?? 0
 
-        // Почему: содержимое коммита нельзя подменять рабочей копией — это разные ревизии
         guard size <= Limit.size else {
-            return FilePreview(
-                url: url,
-                content: .tooLarge,
-                size: Int64(size),
-                kind: "Файл",
-                modified: nil,
-                isTruncated: false
-            )
+            return rejected(url, content: .tooLarge, size: Int64(size))
         }
 
         let blob = await GitProcessRunner.run([
             "--no-optional-locks", "-C", root, "show", "\(sha):\(path)"
         ])
 
-        guard blob.exitCode == 0, let text = decode(blob.standardOutput) else {
-            return await load(url, source: .commit(sha))
+        // Почему: подменить содержимое коммита рабочей копией — значит соврать про ревизию
+        guard blob.exitCode == 0 else {
+            return rejected(url, content: .failed("Не удалось прочитать файл из коммита"))
+        }
+
+        guard let text = decode(blob.standardOutput) else {
+            return rejected(url, content: .unreadable)
         }
 
         var preview = await Task.detached(priority: .userInitiated) {
@@ -61,6 +62,21 @@ enum FilePreviewLoader {
         preview.changes = await GitLineChanges.load(for: url, source: .commit(sha))
 
         return preview
+    }
+
+    private static func rejected(
+        _ url: URL,
+        content: FilePreview.Content,
+        size: Int64 = 0
+    ) -> FilePreview {
+        FilePreview(
+            url: url,
+            content: content,
+            size: size,
+            kind: "Файл",
+            modified: nil,
+            isTruncated: false
+        )
     }
 
     private static func decode(_ data: Data) -> String? {

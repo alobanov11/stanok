@@ -30,7 +30,11 @@ enum CodeDocumentBuilder {
             rendered.append(-1)
             text.append(NSAttributedString(
                 string: "⋯\n",
-                attributes: [.font: font, .foregroundColor: NSColor.tertiaryLabelColor]
+                attributes: [
+                    .font: font,
+                    .foregroundColor: NSColor.tertiaryLabelColor,
+                    PreviewDocument.gap: true
+                ]
             ))
         }
 

@@ -59,10 +59,10 @@ final class CodeGutterRuler: NSRulerView {
             .foregroundColor: NSColor.tertiaryLabelColor
         ]
 
-        enumerateVisibleFragments(from: rect.minY, in: text) { line, top, height in
+        enumerateVisibleFragments(from: rect.minY, in: text) { line, top, height, isGap in
             // Почему: у раскрытых удалённых строк нет номера, но полоса им нужна целиком
             guard let line else {
-                drawRemovedRibbon(top: top, height: height)
+                if !isGap { drawRemovedRibbon(top: top, height: height) }
 
                 return top < rect.maxY
             }
@@ -131,6 +131,16 @@ final class CodeGutterRuler: NSRulerView {
         }
 
         source.showChange(anchor)
+    }
+
+    private func isGap(_ fragment: NSTextLayoutFragment) -> Bool {
+        guard let paragraph = fragment.textElement as? NSTextParagraph else { return false }
+
+        return paragraph.attributedString.attribute(
+            PreviewDocument.gap,
+            at: 0,
+            effectiveRange: nil
+        ) as? Bool ?? false
     }
 
     private func sourceLine(of fragment: NSTextLayoutFragment) -> Int? {
@@ -248,7 +258,7 @@ private extension CodeGutterRuler {
 
         var found: Int?
 
-        enumerateVisibleFragments(from: y, in: text) { line, top, height in
+        enumerateVisibleFragments(from: y, in: text) { line, top, height, _ in
             guard top <= y, top + height > y else { return top <= y }
 
             found = line
@@ -261,7 +271,7 @@ private extension CodeGutterRuler {
     func enumerateVisibleFragments(
         from y: CGFloat,
         in text: NSTextView,
-        body: (Int?, CGFloat, CGFloat) -> Bool
+        body: (Int?, CGFloat, CGFloat, Bool) -> Bool
     ) {
         guard let layout = text.textLayoutManager else { return }
 
@@ -276,7 +286,7 @@ private extension CodeGutterRuler {
                 from: text
             ).y
 
-            return body(sourceLine(of: fragment), top, frame.height)
+            return body(sourceLine(of: fragment), top, frame.height, isGap(fragment))
         }
     }
 }

@@ -25,16 +25,16 @@ final class BranchReviewStore {
     @ObservationIgnored
     private var loading: [String: Task<Void, Never>] = [:]
 
-    private static func key(_ root: String, _ branch: String) -> String {
-        root + "\n" + branch
+    private static func key(_ root: String, _ branch: String, _ isCurrent: Bool) -> String {
+        root + "\n" + branch + "\n" + (isCurrent ? "current" : "other")
     }
 
-    func review(root: String, branch: String) -> Review? {
-        entries[Self.key(root, branch)]
+    func review(root: String, branch: String, isCurrent: Bool) -> Review? {
+        entries[Self.key(root, branch, isCurrent)]
     }
 
     func load(root: String, branch: String, isCurrent: Bool) async {
-        let key = Self.key(root, branch)
+        let key = Self.key(root, branch, isCurrent)
 
         if let entry = entries[key], Date().timeIntervalSince(entry.loadedAt) < Limit.freshness {
             return
