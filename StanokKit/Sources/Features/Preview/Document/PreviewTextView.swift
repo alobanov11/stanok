@@ -13,6 +13,7 @@ struct PreviewTextView: NSViewRepresentable {
 
         var openLink: ((URL) -> Void)?
         var revision: String?
+        var shape: String?
         var fileKey: String?
         var measuredKey: String?
         var measured: CGFloat?
@@ -48,6 +49,7 @@ struct PreviewTextView: NSViewRepresentable {
 
     let document: PreviewDocument
     let fileKey: String
+    let shape: String
     let mode: Mode
     let gutter: CodeGutterRuler.Source?
     let topInset: CGFloat
@@ -55,6 +57,18 @@ struct PreviewTextView: NSViewRepresentable {
 
     var scrolls = true
     var contentLines: Int?
+
+    static func crossfade(_ text: NSTextView, scroll: NSScrollView) {
+        for view in [text, scroll.verticalRulerView].compactMap(\.self) {
+            view.wantsLayer = true
+
+            let fade = CATransition()
+            fade.type = .fade
+            fade.duration = 0.16
+            fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            view.layer?.add(fade, forKey: "contents")
+        }
+    }
 
     static func lineHeight(of scroll: NSScrollView) -> CGFloat? {
         guard
@@ -140,7 +154,15 @@ struct PreviewTextView: NSViewRepresentable {
         context.coordinator.fileKey = fileKey
 
         if context.coordinator.revision != document.revision {
+            let folding = context.coordinator.shape != nil
+                && context.coordinator.shape != shape
+                && !opened
             context.coordinator.revision = document.revision
+            context.coordinator.shape = shape
+
+            // Почему: TextKit меняет текст мгновенно, кроссфейд прячет рывок при сворачивании
+            if folding { Self.crossfade(text, scroll: scroll) }
+
             text.textStorage?.setAttributedString(document.text)
             scroll.tile()
             scroll.verticalRulerView?.needsDisplay = true

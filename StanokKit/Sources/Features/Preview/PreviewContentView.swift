@@ -104,6 +104,7 @@ struct PreviewContentView: View {
         PreviewTextView(
             document: document,
             fileKey: preview.url.path(percentEncoded: false),
+            shape: shape,
             mode: isCode ? .code : .reading,
             gutter: gutter,
             topInset: topInset,
@@ -133,6 +134,11 @@ struct PreviewContentView: View {
 }
 
 private extension PreviewContentView {
+
+    var shape: String {
+        folded.sorted().map(String.init).joined(separator: ",")
+            + "|" + expanded.sorted().map(String.init).joined(separator: ",")
+    }
 
     var documentRevision: String {
         [

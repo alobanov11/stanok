@@ -60,7 +60,9 @@ final class CodeGutterRuler: NSRulerView {
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         let line = line(at: point.y)
-        let owner = line.flatMap { source?.folds.owner(of: $0)?.header ?? source?.folds.fold(startingAt: $0)?.header }
+        let owner = line.flatMap {
+            source?.folds.fold(startingAt: $0)?.header ?? source?.folds.owner(of: $0)?.header
+        }
         let next = isInFoldColumn(point.x) ? owner : nil
 
         guard next != hovered else { return }
