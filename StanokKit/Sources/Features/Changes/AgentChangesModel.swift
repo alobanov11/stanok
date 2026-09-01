@@ -69,6 +69,8 @@ private extension AgentChangesModel {
 
         for directory in touched.directories.sorted() {
             try Task.checkCancellation()
+            // Почему: внутри .build и node_modules лежат чужие репозитории зависимостей
+            guard !IgnoredPaths.contains(relativePath: directory) else { continue }
             guard let root = await root(of: directory, known: &knownRoots, found: &discovered) else { continue }
 
             roots[root] = roots[root] ?? .distantPast
@@ -78,6 +80,7 @@ private extension AgentChangesModel {
             try Task.checkCancellation()
 
             let directory = file.url.deletingLastPathComponent().path(percentEncoded: false)
+            guard !IgnoredPaths.contains(relativePath: directory) else { continue }
             guard let root = await root(of: directory, known: &knownRoots, found: &discovered) else { continue }
 
             byRoot[root, default: []].append(file)

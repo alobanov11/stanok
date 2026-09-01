@@ -19,6 +19,28 @@ enum GitTreeBuilder {
             entries[change.path] = Entry(isDirectory: change.isSubmodule, status: change.status)
         }
 
+        return build(entries: entries, at: root)
+    }
+
+    static func build(files: [String: GitFileStatus?], at root: URL) -> [GitTreeNode] {
+        var entries: [String: Entry] = [:]
+
+        for (path, status) in files {
+            entries[path] = Entry(isDirectory: false, status: status)
+
+            var ancestor = parent(of: path)
+            while !ancestor.isEmpty {
+                let known = entries[ancestor]?.status
+                let marked = status == nil ? known : known ?? .modified
+                entries[ancestor] = Entry(isDirectory: true, status: marked)
+                ancestor = parent(of: ancestor)
+            }
+        }
+
+        return build(entries: entries, at: root)
+    }
+
+    private static func build(entries: [String: Entry], at root: URL) -> [GitTreeNode] {
         var childrenByParent: [String: [String]] = [:]
         for path in entries.keys {
             childrenByParent[parent(of: path), default: []].append(path)

@@ -12,22 +12,8 @@ struct AgentChangesPanel: View {
                     ForEach(model.repositories) { repository in
                         SectionHeader(title: repository.name)
 
-                        ForEach(repository.changes, id: \.path) { change in
-                            row(
-                                repository,
-                                path: change.path,
-                                url: URL(filePath: repository.root).appending(path: change.path),
-                                status: change.status
-                            )
-                        }
-
-                        ForEach(repository.touchedOnly, id: \.url) { file in
-                            row(
-                                repository,
-                                path: relative(file.url, in: repository),
-                                url: file.url,
-                                status: nil
-                            )
+                        ForEach(visible(repository), id: \.url) { node in
+                            row(repository, node: node)
                         }
                     }
                 }
@@ -67,39 +53,64 @@ struct AgentChangesPanel: View {
     @State
     private var chosen: URL?
 
+    @State
+    private var collapsed: Set<String> = []
+
     let onOpen: (URL) -> Void
 
-    private func row(
-        _ repository: AgentRepositoryChanges,
-        path: String,
-        url: URL,
-        status: GitFileStatus?
-    ) -> some View {
-        FileRow(
-            name: path,
-            url: url,
-            isDirectory: false,
-            isExpanded: false,
-            depth: 0,
-            status: status,
-            isSelected: url == chosen,
-            actions: nil
-        )
-        .opacity(status == nil ? 0.55 : 1)
-        .onTapGesture {
-            guard status != .deleted else { return }
+    private func visible(_ repository: AgentRepositoryChanges) -> [GitTreeNode] {
+        var rows: [GitTreeNode] = []
 
-            chosen = url
-            selected = url
-            onOpen(url)
+        func append(_ node: GitTreeNode) {
+            rows.append(node)
+            guard node.isDirectory, isExpanded(repository, node) else { return }
+
+            for child in node.children {
+                append(child)
+            }
         }
+
+        for node in repository.nodes {
+            append(node)
+        }
+
+        return rows
     }
 
-    private func relative(_ url: URL, in repository: AgentRepositoryChanges) -> String {
-        let base = repository.root.hasSuffix("/") ? repository.root : repository.root + "/"
-        let path = url.path(percentEncoded: false)
-        guard path.hasPrefix(base) else { return url.lastPathComponent }
+    private func isExpanded(_ repository: AgentRepositoryChanges, _ node: GitTreeNode) -> Bool {
+        !collapsed.contains(key(repository, node))
+    }
 
-        return String(path.dropFirst(base.count))
+    private func key(_ repository: AgentRepositoryChanges, _ node: GitTreeNode) -> String {
+        repository.root + "|" + node.relativePath
+    }
+
+    private func row(_ repository: AgentRepositoryChanges, node: GitTreeNode) -> some View {
+        FileRow(
+            name: node.name,
+            url: node.url,
+            isDirectory: node.isDirectory,
+            isExpanded: isExpanded(repository, node),
+            depth: node.depth - 1,
+            status: node.status,
+            isSelected: node.url == chosen,
+            actions: nil
+        )
+        .opacity(node.status == nil ? 0.55 : 1)
+        .onTapGesture { select(repository, node: node) }
+    }
+
+    private func select(_ repository: AgentRepositoryChanges, node: GitTreeNode) {
+        guard !node.isDirectory else {
+            let key = key(repository, node)
+            if collapsed.contains(key) { collapsed.remove(key) } else { collapsed.insert(key) }
+            return
+        }
+
+        guard node.status != .deleted else { return }
+
+        chosen = node.url
+        selected = node.url
+        onOpen(node.url)
     }
 }

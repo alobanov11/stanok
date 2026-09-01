@@ -15,6 +15,8 @@ public struct AgentRepositoryChanges: Identifiable, Sendable {
     public let touchedOnly: [AgentTouchedFile]
     public let touchedAt: Date
 
+    let nodes: [GitTreeNode]
+
     public init(
         root: String,
         changes: [GitChange],
@@ -25,5 +27,20 @@ public struct AgentRepositoryChanges: Identifiable, Sendable {
         self.changes = changes
         self.touchedOnly = touchedOnly
         self.touchedAt = touchedAt
+
+        var files: [String: GitFileStatus?] = [:]
+        for change in changes {
+            files[change.path] = change.status
+        }
+
+        let base = root.hasSuffix("/") ? root : root + "/"
+        for file in touchedOnly {
+            let path = file.url.path(percentEncoded: false)
+            guard path.hasPrefix(base) else { continue }
+
+            files[String(path.dropFirst(base.count))] = .some(nil)
+        }
+
+        self.nodes = GitTreeBuilder.build(files: files, at: URL(filePath: root))
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-struct GitTreeNode: Identifiable, Equatable {
+struct GitTreeNode: Identifiable, Equatable, Sendable {
 
     var id: String {
         relativePath
