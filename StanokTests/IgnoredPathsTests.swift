@@ -5,7 +5,9 @@ import Testing
 
 struct IgnoredPathsTests {
 
-    private var home: URL { URL(filePath: NSHomeDirectory()) }
+    private var home: URL {
+        URL(filePath: NSHomeDirectory())
+    }
 
     @Test
     func buildArtefactsAreIgnoredWhereverTheySit() {

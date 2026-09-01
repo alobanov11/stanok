@@ -11,8 +11,13 @@ public final class ClaudeAgentProvider: AgentSessionProvider, Sendable {
             .appending(path: "projects", directoryHint: .isDirectory)
     }
 
-    public var id: String { Self.providerID }
-    public var displayName: String { "Claude" }
+    public var id: String {
+        Self.providerID
+    }
+
+    public var displayName: String {
+        "Claude"
+    }
 
     private let projectsRoot: URL
     private let loader: ClaudeSessionsLoader

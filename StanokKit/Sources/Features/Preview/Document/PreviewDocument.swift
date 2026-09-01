@@ -8,7 +8,9 @@ struct PreviewDocument {
         PreviewDocument(text: NSAttributedString(), lines: [], folds: .empty)
     }
 
-    var isEmpty: Bool { text.length == 0 }
+    var isEmpty: Bool {
+        text.length == 0
+    }
 
     let text: NSAttributedString
     let lines: [Int]

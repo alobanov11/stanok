@@ -4,9 +4,6 @@ import SwiftUI
 public struct TerminalView: View {
 
     @State
-    private var scrollbar: TerminalScrollbar?
-
-    @State
     private var scrollController = TerminalScrollController()
 
     public var body: some View {
@@ -23,11 +20,11 @@ public struct TerminalView: View {
             onCloseRequested: onCloseRequested,
             onPwdChanged: onPwdChanged,
             onFocused: onFocused,
-            onScrollbar: { scrollbar = $0 },
+            onScrollbar: scrollController.report,
             scrollController: scrollController
         )
         .overlay(alignment: .trailing) {
-            TerminalScrollbarOverlay(scrollbar: scrollbar, controller: scrollController)
+            TerminalScrollbarOverlay(controller: scrollController)
         }
     }
 

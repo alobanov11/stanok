@@ -2,7 +2,9 @@ import Foundation
 
 public struct CommandRun: Identifiable, Equatable {
 
-    public var succeeded: Bool { exitCode == 0 }
+    public var succeeded: Bool {
+        exitCode == 0
+    }
 
     public let id = UUID()
     public let exitCode: Int?

@@ -3,6 +3,7 @@ import Foundation
 public protocol AgentSessionProvider: Sendable {
 
     var id: String { get }
+
     var displayName: String { get }
 
     @MainActor

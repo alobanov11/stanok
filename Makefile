@@ -20,10 +20,12 @@ format:
 	@$(SWIFTFORMAT) $(SOURCES) --quiet
 	@./scripts/fix-type-blank-lines.py $$(find $(SOURCES) -name '*.swift') >/dev/null
 	@./scripts/fix-declaration-order.py $$(find $(SOURCES) -name '*.swift') >/dev/null
+	@./scripts/fix-computed-body.py $$(find $(SOURCES) -name '*.swift') >/dev/null
 	@./scripts/fix-property-spacing.py $$(find $(SOURCES) -name '*.swift') >/dev/null
 
 lint:
 	@$(SWIFTFORMAT) $(SOURCES) --lint --quiet
+	@./scripts/fix-computed-body.py --check $$(find $(SOURCES) -name '*.swift')
 	@./scripts/fix-property-spacing.py --check $$(find $(SOURCES) -name '*.swift')
 	@$(SWIFTLINT) lint --quiet
 	@./scripts/check-layout.py

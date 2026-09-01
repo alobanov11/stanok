@@ -2,7 +2,9 @@ import AppKit
 
 final class PlainCopyTextView: NSTextView {
 
-    override var writablePasteboardTypes: [NSPasteboard.PasteboardType] { [.string] }
+    override var writablePasteboardTypes: [NSPasteboard.PasteboardType] {
+        [.string]
+    }
 
     override func writeSelection(
         to pasteboard: NSPasteboard,

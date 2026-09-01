@@ -2,7 +2,9 @@ import Foundation
 
 struct GitTreeNode: Identifiable, Equatable {
 
-    var id: String { relativePath }
+    var id: String {
+        relativePath
+    }
 
     let name: String
     let url: URL

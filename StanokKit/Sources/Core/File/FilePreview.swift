@@ -11,8 +11,13 @@ struct FilePreview: Identifiable, Sendable {
         case failed(String)
     }
 
-    var id: URL { url }
-    var name: String { url.lastPathComponent }
+    var id: URL {
+        url
+    }
+
+    var name: String {
+        url.lastPathComponent
+    }
 
     let url: URL
     let content: Content

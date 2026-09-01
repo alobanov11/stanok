@@ -12,6 +12,14 @@ struct TerminalScrollbarOverlay: View {
         static let idleDelay = Duration.seconds(1.2)
     }
 
+    private var scrollbar: TerminalScrollbar? {
+        controller.scrollbar
+    }
+
+    private var isShown: Bool {
+        controller.isShown
+    }
+
     private var isInteractive: Bool {
         scrollbar?.isScrollable == true && (isShown || isHovering || grab != nil)
     }
@@ -19,9 +27,6 @@ struct TerminalScrollbarOverlay: View {
     private var isVisible: Bool {
         isShown || isHovering || grab != nil
     }
-
-    @State
-    private var isShown = false
 
     @State
     private var isHovering = false
@@ -38,10 +43,9 @@ struct TerminalScrollbarOverlay: View {
         .padding(.vertical, Metric.inset)
         .frame(width: Metric.hitWidth + Metric.inset)
         .allowsHitTesting(isInteractive)
-        .task(id: scrollbar) { await settle() }
+
     }
 
-    let scrollbar: TerminalScrollbar?
     let controller: TerminalScrollController
 
     @ViewBuilder
@@ -63,6 +67,7 @@ struct TerminalScrollbarOverlay: View {
                 }
                 .onHover { hovering in
                     withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering }
+                    if hovering { controller.show() }
                 }
                 .gesture(drag(scrollbar, thumb: thumb, travel: travel))
         }
@@ -103,19 +108,5 @@ private extension TerminalScrollbarOverlay {
         let rows = Int(target) - Int(scrollbar.offset)
 
         controller.scroll(rows: rows)
-    }
-
-    func settle() async {
-        guard scrollbar?.isScrollable == true else {
-            isShown = false
-            return
-        }
-
-        withAnimation(.easeOut(duration: 0.12)) { isShown = true }
-
-        try? await Task.sleep(for: Metric.idleDelay)
-        guard !Task.isCancelled, grab == nil, !isHovering else { return }
-
-        withAnimation(.easeOut(duration: 0.35)) { isShown = false }
     }
 }

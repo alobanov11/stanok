@@ -4,8 +4,13 @@ import Foundation
 @Observable
 final class FileNode: Identifiable {
 
-    nonisolated var id: URL { url }
-    var name: String { url.lastPathComponent }
+    nonisolated var id: URL {
+        url
+    }
+
+    var name: String {
+        url.lastPathComponent
+    }
 
     var visibleDescendants: [FileNode] {
         var result: [FileNode] = []

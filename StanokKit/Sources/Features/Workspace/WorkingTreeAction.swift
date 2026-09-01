@@ -5,7 +5,9 @@ enum WorkingTreeAction: Identifiable {
     case stash
     case discard
 
-    var id: Self { self }
+    var id: Self {
+        self
+    }
 
     var command: String {
         switch self {

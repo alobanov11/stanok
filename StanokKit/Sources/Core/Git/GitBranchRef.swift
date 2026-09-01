@@ -8,7 +8,9 @@ public struct GitBranchRef: Identifiable, Equatable, Sendable {
         case remote
     }
 
-    public var id: String { fullName }
+    public var id: String {
+        fullName
+    }
 
     public let fullName: String
     public let displayName: String

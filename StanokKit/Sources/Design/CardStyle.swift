@@ -6,7 +6,9 @@ enum CardStyle: String, CaseIterable, Identifiable {
     case raised
     case inset
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     @ViewBuilder
     func background(radius: CGFloat) -> some View {

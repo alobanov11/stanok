@@ -51,7 +51,7 @@ def group_of(lines: list[str]) -> tuple[str, ...] | None:
 
     line = lines[0]
     body = line.split("//")[0].strip()
-    if body.endswith("{") or "//" in line:
+    if "{" in body or "}" in body or "//" in line:
         return None
 
     if CASE.match(line):

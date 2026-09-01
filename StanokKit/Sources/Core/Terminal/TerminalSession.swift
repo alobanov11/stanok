@@ -12,7 +12,9 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         case layout
     }
 
-    public var displayName: String { liveTitle ?? name }
+    public var displayName: String {
+        liveTitle ?? name
+    }
 
     public var isReachable: Bool {
         FileManager.default.fileExists(atPath: url.path(percentEncoded: false))

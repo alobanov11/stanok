@@ -8,8 +8,13 @@ final class GhosttySurfaceView: NSView {
 
     private static let resizeInterval: CFTimeInterval = 0.03
 
-    override var acceptsFirstResponder: Bool { true }
-    var handle: ghostty_surface_t? { surface }
+    override var acceptsFirstResponder: Bool {
+        true
+    }
+
+    var handle: ghostty_surface_t? {
+        surface
+    }
 
     private var backingScale: CGFloat {
         let frame = convertToBacking(bounds)
@@ -30,6 +35,7 @@ final class GhosttySurfaceView: NSView {
     private var surface: ghostty_surface_t?
     private var link: CADisplayLink?
     private var isVisible = false
+    private var visibilityApplied = false
     private var pendingSize = NSSize.zero
     private var appliedSize: (width: UInt32, height: UInt32) = (0, 0)
     private var resizeWork: DispatchWorkItem?
@@ -261,6 +267,9 @@ final class GhosttySurfaceView: NSView {
     }
 
     func setVisible(_ visible: Bool) {
+        guard !visibilityApplied || isVisible != visible else { return }
+
+        visibilityApplied = true
         isVisible = visible
         isHidden = !visible
         link?.isPaused = !visible

@@ -2,7 +2,9 @@ import Foundation
 
 public struct GitStatus: Equatable, Sendable {
 
-    public var hasChanges: Bool { added > 0 || removed > 0 }
+    public var hasChanges: Bool {
+        added > 0 || removed > 0
+    }
 
     public let branch: String?
     public let added: Int

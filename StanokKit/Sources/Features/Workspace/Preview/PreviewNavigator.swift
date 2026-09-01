@@ -7,7 +7,9 @@ final class PreviewNavigator {
     private static let transitionDuration = 0.18
     private static let maxStackSize = 20
 
-    var current: PreviewEntry? { stack.last }
+    var current: PreviewEntry? {
+        stack.last
+    }
 
     var previousName: String? {
         guard stack.count > 1 else { return nil }

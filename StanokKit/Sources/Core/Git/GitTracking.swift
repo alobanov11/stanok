@@ -4,7 +4,9 @@ public struct GitTracking: Equatable, Sendable {
 
     public static let none = GitTracking(ahead: 0, behind: 0)
 
-    public var hasDivergence: Bool { ahead > 0 || behind > 0 }
+    public var hasDivergence: Bool {
+        ahead > 0 || behind > 0
+    }
 
     public let ahead: Int
     public let behind: Int
