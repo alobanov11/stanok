@@ -2,7 +2,7 @@ import Foundation
 
 struct CodeToken: Sendable {
 
-    enum Kind: Sendable, Equatable {
+    enum Kind: Sendable, Equatable, Hashable {
 
         case plain
         case comment

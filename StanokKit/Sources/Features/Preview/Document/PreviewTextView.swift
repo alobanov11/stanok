@@ -13,6 +13,7 @@ struct PreviewTextView: NSViewRepresentable {
 
         var openLink: ((URL) -> Void)?
         var revision: String?
+        var fileKey: String?
 
         private var observer: NSObjectProtocol?
 
@@ -43,6 +44,7 @@ struct PreviewTextView: NSViewRepresentable {
     }
 
     let document: PreviewDocument
+    let fileKey: String
     let mode: Mode
     let gutter: CodeGutterRuler.Source?
     let topInset: CGFloat
@@ -87,12 +89,21 @@ struct PreviewTextView: NSViewRepresentable {
 
         configure(scroll, text: text)
 
-        guard context.coordinator.revision != document.revision else { return }
+        let opened = context.coordinator.fileKey != fileKey
+        context.coordinator.fileKey = fileKey
 
-        context.coordinator.revision = document.revision
-        text.textStorage?.setAttributedString(document.text)
-        scroll.tile()
-        scroll.verticalRulerView?.needsDisplay = true
+        if context.coordinator.revision != document.revision {
+            context.coordinator.revision = document.revision
+            text.textStorage?.setAttributedString(document.text)
+            scroll.tile()
+            scroll.verticalRulerView?.needsDisplay = true
+        }
+
+        guard opened else { return }
+
+        text.setSelectedRange(NSRange(location: 0, length: 0))
+        scroll.contentView.scroll(to: .zero)
+        scroll.reflectScrolledClipView(scroll.contentView)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {

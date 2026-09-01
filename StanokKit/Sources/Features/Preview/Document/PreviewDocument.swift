@@ -1,6 +1,6 @@
 import AppKit
 
-struct PreviewDocument {
+struct PreviewDocument: @unchecked Sendable {
 
     static let sourceLine = NSAttributedString.Key("stanok.sourceLine")
 

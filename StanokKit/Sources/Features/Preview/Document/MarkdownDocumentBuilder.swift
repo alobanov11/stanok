@@ -132,7 +132,7 @@ private extension MarkdownDocumentBuilder {
                     string: token.text,
                     attributes: [
                         .font: font,
-                        .foregroundColor: NSColor(CodeTheme.color(token.kind))
+                        .foregroundColor: CodeTheme.nsColor(token.kind)
                     ]
                 ))
             }

@@ -48,9 +48,7 @@ struct PreviewContentView: View {
         [
             fileRevision,
             "\(markdownSize)", markdownFamily, "\(markdownSpacing)",
-            "\(codeSize)", resolvedCodeFamily,
-            folded.sorted().map(String.init).joined(separator: ","),
-            expanded.sorted().map(String.init).joined(separator: ",")
+            "\(codeSize)", resolvedCodeFamily
         ].joined(separator: "|")
     }
 
@@ -93,12 +91,13 @@ struct PreviewContentView: View {
     var body: some View {
         PreviewTextView(
             document: document,
+            fileKey: fileRevision,
             mode: isCode ? .code : .reading,
             gutter: gutter,
             topInset: topInset,
             openLink: { openURL($0) }
         )
-        .task(id: revision) { rebuild() }
+        .task(id: revision) { await rebuild() }
         .onReceive(NotificationCenter.default.publisher(for: ConfigFile.changed)) { _ in
             terminalFamily = ConfigFile.value(for: "font-family") ?? ""
         }
@@ -111,7 +110,15 @@ struct PreviewContentView: View {
 
 private extension PreviewContentView {
 
-    func rebuild() {
+    var documentRevision: String {
+        [
+            revision,
+            folded.sorted().map(String.init).joined(separator: ","),
+            expanded.sorted().map(String.init).joined(separator: ",")
+        ].joined(separator: "|")
+    }
+
+    func rebuild() async {
         if builtFor != fileRevision {
             builtFor = fileRevision
             folds = .empty
@@ -119,35 +126,64 @@ private extension PreviewContentView {
             expanded = []
         }
 
+        let wanted = documentRevision
+        guard let built = await build(revision: wanted) else {
+            document = .empty
+            return
+        }
+
+        guard wanted == documentRevision else { return }
+
+        document = built
+    }
+
+    func build(revision: String) async -> PreviewDocument? {
         switch preview.content {
         case let .markdown(blocks):
-            document = MarkdownDocumentBuilder.document(
-                blocks: blocks,
-                size: markdownSize,
-                family: markdownFamily,
-                lineSpacing: markdownSpacing,
-                codeSize: codeSize,
-                codeFamily: resolvedCodeFamily,
-                revision: revision
-            )
+            let size = markdownSize
+            let family = markdownFamily
+            let spacing = markdownSpacing
+            let codeSize = codeSize
+            let codeFamily = resolvedCodeFamily
+
+            return await Task.detached(priority: .userInitiated) {
+                MarkdownDocumentBuilder.document(
+                    blocks: blocks,
+                    size: size,
+                    family: family,
+                    lineSpacing: spacing,
+                    codeSize: codeSize,
+                    codeFamily: codeFamily,
+                    revision: revision
+                )
+            }.value
 
         case let .code(lines):
             if folds.isEmpty {
                 folds = CodeFoldMap(folds: CodeFolding.folds(for: lines))
             }
 
-            document = CodeDocumentBuilder.document(
-                lines: lines,
-                folds: folds,
-                folded: folded,
-                changes: preview.changes,
-                expanded: expanded,
-                font: codeFont,
-                revision: revision
-            )
+            let folds = folds
+            let folded = folded
+            let expanded = expanded
+            let changes = preview.changes
+            let size = codeSize
+            let family = resolvedCodeFamily
+
+            return await Task.detached(priority: .userInitiated) {
+                CodeDocumentBuilder.document(
+                    lines: lines,
+                    folds: folds,
+                    folded: folded,
+                    changes: changes,
+                    expanded: expanded,
+                    font: PreviewTypographyFonts.code(size: size, family: family),
+                    revision: revision
+                )
+            }.value
 
         default:
-            document = .empty
+            return nil
         }
     }
 
@@ -157,6 +193,8 @@ private extension PreviewContentView {
         } else {
             folded.insert(line)
         }
+
+        Task { await rebuild() }
     }
 
     func showChange(_ line: Int) {
@@ -165,5 +203,7 @@ private extension PreviewContentView {
         } else {
             expanded.insert(line)
         }
+
+        Task { await rebuild() }
     }
 }
