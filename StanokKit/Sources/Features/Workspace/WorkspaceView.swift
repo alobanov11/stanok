@@ -186,11 +186,11 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var processTracker = TabProcessTracker()
 
-    @Environment(\.agentChanges)
-    private var agentChanges
+    @Environment(\.touchedRepositories)
+    private var touchedRepositories
 
     @State
-    private var ownChanges = AgentChangesModel()
+    private var ownRepositories = TouchedRepositoriesModel()
 
     public var body: some View {
         HStack(spacing: 0) {
@@ -243,7 +243,7 @@ public struct WorkspaceView<Terminal: View>: View {
         )
         .modifier(SessionPersistence(store: store))
         .onChange(of: inspectorGitRoot, initial: true) { _, root in
-            (agentChanges ?? ownChanges).focus(on: root)
+            (touchedRepositories ?? ownRepositories).focus(on: root)
         }
         .onChange(of: gitSnapshot) { _, _ in
             // Почему: коммит из терминала не трогает файл, но рибоны в превью уже не о том дереве
@@ -391,12 +391,12 @@ private extension WorkspaceView {
 
     func pollAgentChanges() async {
         while !Task.isCancelled, needsAgentChanges {
-            await (agentChanges ?? ownChanges).refresh()
+            await (touchedRepositories ?? ownRepositories).refresh()
             try? await Task.sleep(for: .seconds(20))
         }
 
         // Почему: закрытая панель не должна дочитывать репозитории в фоне
-        (agentChanges ?? ownChanges).stop()
+        (touchedRepositories ?? ownRepositories).stop()
     }
 
     func pollCommits() async {
@@ -534,7 +534,7 @@ private extension WorkspaceView {
             fileTreeModel: inspector.fileTree(for: folder),
             changeTreeModel: inspector.changeTree(for: gitRoot),
             branchTreeModel: inspector.branchTree(for: gitRoot),
-            agentChanges: agentChanges ?? ownChanges,
+            touchedRepositories: touchedRepositories ?? ownRepositories,
             branchActions: branchActions,
             branchCommits: branchCommits,
             inspector: inspector,

@@ -1,11 +1,11 @@
 import SwiftUI
 
-struct AgentRepositoriesTree: View {
+struct OtherRepositoriesTree: View {
 
     @ViewBuilder
     private var content: some View {
         if !model.repositories.isEmpty {
-            SectionHeader(title: "Агенты")
+            SectionHeader(title: "Изменения в других репозиториях")
 
             ForEach(model.repositories) { repository in
                 row(repository)
@@ -29,7 +29,7 @@ struct AgentRepositoriesTree: View {
         content
     }
 
-    let model: AgentChangesModel
+    let model: TouchedRepositoriesModel
     let inspector: InspectorState
     let branches: GitBranchStore
     let commits: BranchCommitStore
@@ -38,7 +38,7 @@ struct AgentRepositoriesTree: View {
     @State
     private var opened: Set<String> = []
 
-    private func row(_ repository: AgentRepositoryChanges) -> some View {
+    private func row(_ repository: TouchedRepository) -> some View {
         FileRow(
             name: repository.name,
             url: URL(filePath: repository.root),

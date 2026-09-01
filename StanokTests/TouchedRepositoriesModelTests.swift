@@ -4,12 +4,12 @@ import Testing
 import StanokKit
 
 @MainActor
-struct AgentChangesModelTests {
+struct TouchedRepositoriesModelTests {
 
     @Test
     func aCancelledCallerDoesNotAbandonTheRefresh() async throws {
         let source = HeldTouchesSource()
-        let model = AgentChangesModel()
+        let model = TouchedRepositoriesModel()
         model.use(source)
 
         let call = Task { await model.refresh() }
@@ -26,7 +26,7 @@ struct AgentChangesModelTests {
     @Test
     func aSecondRefreshJoinsTheOneInFlight() async throws {
         let source = HeldTouchesSource()
-        let model = AgentChangesModel()
+        let model = TouchedRepositoriesModel()
         model.use(source)
 
         let first = Task { await model.refresh() }

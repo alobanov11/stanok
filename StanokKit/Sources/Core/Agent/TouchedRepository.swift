@@ -1,6 +1,6 @@
 import Foundation
 
-public struct AgentRepositoryChanges: Identifiable, Sendable {
+public struct TouchedRepository: Identifiable, Sendable {
 
     public var id: String {
         root

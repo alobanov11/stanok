@@ -14,7 +14,7 @@ struct RootView: View {
     private var agents = AgentSessionRegistry()
 
     @State
-    private var agentChanges = AgentChangesModel()
+    private var touchedRepositories = TouchedRepositoriesModel()
 
     var body: some View {
         content
@@ -24,7 +24,7 @@ struct RootView: View {
             .task {
                 DefaultConfig.seed()
                 AgentProviders.registerAll(into: agents)
-                agentChanges.use(AgentProviders.touchesSource())
+                touchedRepositories.use(AgentProviders.touchesSource())
                 do {
                     runtime = try GhosttyRuntime()
                 } catch {
@@ -58,7 +58,7 @@ struct RootView: View {
                 .id(request.session.id)
             }
             .environment(\.agentSessionRegistry, agents)
-            .environment(\.agentChanges, agentChanges)
+            .environment(\.touchedRepositories, touchedRepositories)
             .fontDesign(.rounded)
         } else if let failure {
             ContentUnavailableView(

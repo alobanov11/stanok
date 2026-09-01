@@ -57,8 +57,8 @@ struct FilePanel: View {
                     onReview: hasGitReview ? { onReview(.git) } : nil
                 )
 
-                AgentRepositoriesTree(
-                    model: agentChanges,
+                OtherRepositoriesTree(
+                    model: touchedRepositories,
                     inspector: inspector,
                     branches: branches,
                     commits: branchCommits,
@@ -75,7 +75,7 @@ struct FilePanel: View {
     let fileTreeModel: FileTreeModel
     let changeTreeModel: ChangeTreeModel
     let branchTreeModel: BranchTreeModel
-    let agentChanges: AgentChangesModel
+    let touchedRepositories: TouchedRepositoriesModel
     let branchActions: BranchActions
     let branchCommits: BranchCommitStore
     let inspector: InspectorState

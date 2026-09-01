@@ -2,14 +2,14 @@ import Foundation
 
 @MainActor
 @Observable
-public final class AgentChangesModel {
+public final class TouchedRepositoriesModel {
 
     private enum Limit {
 
         static let touchedPerRepository = 60
     }
 
-    public private(set) var repositories: [AgentRepositoryChanges] = []
+    public private(set) var repositories: [TouchedRepository] = []
 
     public private(set) var isLoading = false
 
@@ -71,7 +71,7 @@ public final class AgentChangesModel {
     }
 }
 
-private extension AgentChangesModel {
+private extension TouchedRepositoriesModel {
 
     func reload() async throws {
         guard let source else { return }
@@ -91,7 +91,7 @@ private extension AgentChangesModel {
     nonisolated static func build(
         touched: (files: [AgentTouchedFile], directories: Set<String>),
         focused: String?
-    ) async throws -> [AgentRepositoryChanges] {
+    ) async throws -> [TouchedRepository] {
         var roots: [String: Date] = [:]
         var byRoot: [String: [AgentTouchedFile]] = [:]
         var knownRoots: [String: String?] = [:]
@@ -149,8 +149,8 @@ private extension AgentChangesModel {
         roots: [String: Date],
         touched: [String: [AgentTouchedFile]],
         focused: String?
-    ) async throws -> [AgentRepositoryChanges] {
-        var found: [AgentRepositoryChanges] = []
+    ) async throws -> [TouchedRepository] {
+        var found: [TouchedRepository] = []
 
         for (root, touchedAt) in roots {
             try Task.checkCancellation()
@@ -164,7 +164,7 @@ private extension AgentChangesModel {
 
             guard !changes.isEmpty || !untouched.isEmpty else { continue }
 
-            found.append(AgentRepositoryChanges(
+            found.append(TouchedRepository(
                 root: root,
                 changes: changes,
                 touchedOnly: Array(untouched),
@@ -177,9 +177,9 @@ private extension AgentChangesModel {
 
     // Почему: репозиторий открытого терминала читают первым, остальные идут ровным списком
     nonisolated static func ordered(
-        _ items: [AgentRepositoryChanges],
+        _ items: [TouchedRepository],
         focused: String?
-    ) -> [AgentRepositoryChanges] {
+    ) -> [TouchedRepository] {
         items.sorted {
             let left = $0.root == focused ? 0 : 1
             let right = $1.root == focused ? 0 : 1
