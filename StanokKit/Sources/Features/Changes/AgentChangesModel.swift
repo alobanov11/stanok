@@ -73,9 +73,22 @@ private extension AgentChangesModel {
     func reload() async throws {
         guard let source else { return }
 
-        let touched = await source.touched(scope: focused)
+        let scope = focused
+        let touched = await source.touched(scope: scope)
         try Task.checkCancellation()
 
+        let collected = try await Self.build(touched: touched, focused: scope)
+        try Task.checkCancellation()
+
+        repositories = collected
+        checkedAt = Date()
+    }
+
+    // Почему: разбор путей и сборка деревьев не должны занимать главный поток
+    nonisolated static func build(
+        touched: (files: [AgentTouchedFile], directories: Set<String>),
+        focused: String?
+    ) async throws -> [AgentRepositoryChanges] {
         var roots: [String: Date] = [:]
         var byRoot: [String: [AgentTouchedFile]] = [:]
         var knownRoots: [String: String?] = [:]
@@ -85,7 +98,8 @@ private extension AgentChangesModel {
             try Task.checkCancellation()
             // Почему: внутри .build и node_modules лежат чужие репозитории зависимостей
             guard !IgnoredPaths.contains(relativePath: directory) else { continue }
-            guard let root = await root(of: directory, known: &knownRoots, found: &discovered) else { continue }
+            guard let root = await Self.root(of: directory, known: &knownRoots, found: &discovered)
+            else { continue }
 
             roots[root] = roots[root] ?? .distantPast
         }
@@ -95,7 +109,8 @@ private extension AgentChangesModel {
 
             let directory = file.url.deletingLastPathComponent().path(percentEncoded: false)
             guard !IgnoredPaths.contains(relativePath: directory) else { continue }
-            guard let root = await root(of: directory, known: &knownRoots, found: &discovered) else { continue }
+            guard let root = await Self.root(of: directory, known: &knownRoots, found: &discovered)
+            else { continue }
 
             byRoot[root, default: []].append(file)
             roots[root] = max(roots[root] ?? .distantPast, file.touchedAt)
@@ -104,14 +119,11 @@ private extension AgentChangesModel {
         try Task.checkCancellation()
 
         let scoped = focused.map { root in roots.filter { $0.key == root } } ?? roots
-        let collected = try await collect(roots: scoped, touched: byRoot)
-        try Task.checkCancellation()
 
-        repositories = collected
-        checkedAt = Date()
+        return try await collect(roots: scoped, touched: byRoot, focused: focused)
     }
 
-    func root(
+    nonisolated static func root(
         of directory: String,
         known: inout [String: String?],
         found: inout Set<String>
@@ -130,9 +142,10 @@ private extension AgentChangesModel {
         return root
     }
 
-    func collect(
+    nonisolated static func collect(
         roots: [String: Date],
-        touched: [String: [AgentTouchedFile]]
+        touched: [String: [AgentTouchedFile]],
+        focused: String?
     ) async throws -> [AgentRepositoryChanges] {
         var found: [AgentRepositoryChanges] = []
 
@@ -156,11 +169,11 @@ private extension AgentChangesModel {
             ))
         }
 
-        return Self.ordered(found, focused: focused)
+        return ordered(found, focused: focused)
     }
 
     // Почему: репозиторий открытого терминала читают первым, остальные идут ровным списком
-    static func ordered(
+    nonisolated static func ordered(
         _ items: [AgentRepositoryChanges],
         focused: String?
     ) -> [AgentRepositoryChanges] {
@@ -172,7 +185,7 @@ private extension AgentChangesModel {
         }
     }
 
-    static func resolved(_ url: URL) -> String {
+    nonisolated static func resolved(_ url: URL) -> String {
         url.resolvingSymlinksInPath().path(percentEncoded: false)
     }
 }

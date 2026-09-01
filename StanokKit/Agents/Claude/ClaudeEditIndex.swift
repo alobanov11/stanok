@@ -67,35 +67,41 @@ private extension ClaudeEditIndex {
         let prefix = scope.map { ClaudeProjectPathEncoder.encode($0) }
         let keys: [URLResourceKey] = [.contentModificationDateKey, .isRegularFileKey]
         let deadline = Date().addingTimeInterval(-Limit.freshness)
-        guard
-            let walker = FileManager.default.enumerator(
-                at: root,
-                includingPropertiesForKeys: keys
-            )
-        else { return [] }
+        // Почему: обходим только каталоги проекта, иначе каждый проход статит тысячи чужих логов
+        let places = prefix.map { Self.directories(under: root, matching: $0) } ?? [root]
 
         var found: [(path: String, modified: Date)] = []
-        for case let url as URL in walker where url.pathExtension == "jsonl" {
-            if let prefix, !Self.belongs(url, to: prefix, under: root) { continue }
-
-            let values = try? url.resourceValues(forKeys: Set(keys))
+        for place in places {
             guard
-                values?.isRegularFile == true,
-                let modified = values?.contentModificationDate,
-                modified >= deadline
+                let walker = FileManager.default.enumerator(
+                    at: place,
+                    includingPropertiesForKeys: keys
+                )
             else { continue }
 
-            found.append((url.path(percentEncoded: false), modified))
+            for case let url as URL in walker where url.pathExtension == "jsonl" {
+                let values = try? url.resourceValues(forKeys: Set(keys))
+                guard
+                    values?.isRegularFile == true,
+                    let modified = values?.contentModificationDate,
+                    modified >= deadline
+                else { continue }
+
+                found.append((url.path(percentEncoded: false), modified))
+            }
         }
 
         return found.sorted { $0.modified > $1.modified }.map(\.path)
     }
 
-    static func belongs(_ url: URL, to prefix: String, under root: URL) -> Bool {
-        let directory = url.deletingLastPathComponent()
-        guard directory != root else { return false }
+    static func directories(under root: URL, matching prefix: String) -> [URL] {
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
 
-        return directory.lastPathComponent.hasPrefix(prefix)
+        return contents.filter { $0.lastPathComponent.hasPrefix(prefix) }
     }
 
     static func identity(of path: String) -> Identity? {
