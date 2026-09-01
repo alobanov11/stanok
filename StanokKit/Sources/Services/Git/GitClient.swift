@@ -53,6 +53,13 @@ public enum GitClient {
         return sha
     }
 
+    public static func parent(at url: URL) async -> String? {
+        let path = url.path(percentEncoded: false)
+        guard let sha = await run(["rev-parse", "HEAD^"], at: path), !sha.isEmpty else { return nil }
+
+        return sha
+    }
+
     // Почему: правку читают и после коммита, поэтому показываем всё с точки отсчёта
     public static func commits(
         since base: String,

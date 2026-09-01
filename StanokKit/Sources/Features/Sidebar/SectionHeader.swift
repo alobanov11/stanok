@@ -22,7 +22,8 @@ struct SectionHeader: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.top, 14)
+        .padding(.bottom, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 

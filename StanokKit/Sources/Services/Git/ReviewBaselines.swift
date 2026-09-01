@@ -19,8 +19,16 @@ actor ReviewBaselines {
     private var entries: [String: Entry] = [:]
 
     // Почему: правку читают и после коммита, поэтому точка отсчёта держится до затишья
-    func base(for root: String, head: String, isClean: Bool, now: Date = Date()) -> String {
-        var entry = entries[root] ?? Entry(base: head, cleanSince: isClean ? now : nil)
+    func base(
+        for root: String,
+        head: String,
+        parent: String?,
+        isClean: Bool,
+        now: Date = Date()
+    ) -> String {
+        // Почему: репозиторий может быть чистым с самого начала, и тогда читают последний коммит
+        let start = isClean ? parent ?? head : head
+        var entry = entries[root] ?? Entry(base: start, cleanSince: isClean ? now : nil)
 
         if !isClean {
             entry.cleanSince = nil
@@ -28,7 +36,7 @@ actor ReviewBaselines {
             entry.cleanSince = now
         } else if let since = entry.cleanSince {
             if now.timeIntervalSince(since) > Limit.expiry {
-                entry = Entry(base: head, cleanSince: now)
+                entry = Entry(base: parent ?? head, cleanSince: now)
             }
         } else {
             entry.cleanSince = now

@@ -32,6 +32,12 @@ public struct AgentRepositoryChanges: Identifiable, Sendable {
         self.commits = commits
 
         var files: [String: GitFileStatus?] = [:]
+        for commit in commits.reversed() {
+            for change in commit.changes {
+                files[change.path] = change.status
+            }
+        }
+
         for change in changes {
             files[change.path] = change.status
         }

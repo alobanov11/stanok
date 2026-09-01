@@ -196,7 +196,13 @@ private extension AgentChangesModel {
         let url = URL(filePath: root)
         guard let head = await GitClient.head(at: url) else { return [] }
 
-        let base = await ReviewBaselines.shared.base(for: root, head: head, isClean: isClean)
+        let parent = await GitClient.parent(at: url)
+        let base = await ReviewBaselines.shared.base(
+            for: root,
+            head: head,
+            parent: parent,
+            isClean: isClean
+        )
         guard base != head else { return [] }
 
         return await GitClient.commits(since: base, upTo: head, at: url)

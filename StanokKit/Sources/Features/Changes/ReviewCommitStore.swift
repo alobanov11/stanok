@@ -16,7 +16,13 @@ final class ReviewCommitStore {
         let url = URL(filePath: root)
         guard let head = await GitClient.head(at: url) else { return }
 
-        let base = await ReviewBaselines.shared.base(for: root, head: head, isClean: isClean)
+        let parent = await GitClient.parent(at: url)
+        let base = await ReviewBaselines.shared.base(
+            for: root,
+            head: head,
+            parent: parent,
+            isClean: isClean
+        )
         let found = base == head ? [] : await GitClient.commits(since: base, upTo: head, at: url)
         guard !Task.isCancelled else { return }
 
