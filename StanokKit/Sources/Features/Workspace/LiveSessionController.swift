@@ -8,6 +8,7 @@ struct LiveSessionController {
     let processTracker: TabProcessTracker
     let live: Binding<[TerminalSession.ID]>
     let selection: Binding<TerminalSession.ID?>
+    let navigators: PreviewNavigators
 
     func activate(_ id: TerminalSession.ID) {
         guard let root = store.root(of: id) else { return }
@@ -43,6 +44,7 @@ struct LiveSessionController {
     }
 
     func close(_ session: TerminalSession) {
+        let wasSelected = selection.wrappedValue == session.id
         let fallback = neighbour(of: session)
 
         live.wrappedValue.removeAll { $0 == session.id }
@@ -50,12 +52,14 @@ struct LiveSessionController {
         dispatcher.forget(session.id)
 
         withAnimation(.smooth(duration: 0.22)) {
-            store.removeSession(session.id)
+            if let heir = store.removeSession(session.id) {
+                navigators.inherit(heir, from: session.id)
+            }
 
-            if selection.wrappedValue == session.id { selection.wrappedValue = fallback }
+            if wasSelected { selection.wrappedValue = fallback }
         }
 
-        store.select(fallback)
+        if wasSelected { store.select(fallback) }
     }
 
     private func neighbour(of session: TerminalSession) -> TerminalSession.ID? {

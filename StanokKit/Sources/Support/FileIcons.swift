@@ -8,7 +8,7 @@ enum FileIcons {
 
     static func icon(for url: URL, isDirectory: Bool) -> NSImage {
         let ext = url.pathExtension.lowercased()
-        let key = ext.isEmpty ? (isDirectory ? "/directory" : "/file") : ext
+        let key = isDirectory ? "/directory" : (ext.isEmpty ? "/file" : ext)
 
         if let cached = cache[key] { return cached }
 

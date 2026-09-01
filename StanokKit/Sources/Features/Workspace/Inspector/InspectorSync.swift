@@ -30,5 +30,8 @@ struct InspectorSync: ViewModifier {
             .onChange(of: folders, initial: true) { _, folders in
                 state.prune(folders: folders, gitRoots: gitRoots)
             }
+            .onChange(of: gitRoots) { _, gitRoots in
+                state.prune(folders: folders, gitRoots: gitRoots)
+            }
     }
 }

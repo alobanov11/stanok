@@ -19,4 +19,8 @@ public final class AppResourceMonitor {
     public func start() {
         monitor.observe(pid)
     }
+
+    public func stop() {
+        monitor.stopObserving(pid)
+    }
 }

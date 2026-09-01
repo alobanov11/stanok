@@ -13,10 +13,9 @@ public struct TerminalScrollbar: Equatable, Sendable {
     }
 
     public var position: Double {
-        let travel = total - length
-        guard travel > 0 else { return 0 }
+        guard total > length else { return 0 }
 
-        return min(Double(offset) / Double(travel), 1)
+        return min(Double(offset) / Double(total - length), 1)
     }
 
     public let total: UInt64

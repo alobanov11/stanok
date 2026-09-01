@@ -14,8 +14,10 @@ enum IgnoredPaths {
         ".zig-cache", "zig-out",
         "_build", ".gradle", ".m2", ".bundle", ".terraform",
         ".cache", ".ccache", ".stack-work", ".dart_tool", "obj",
-        ".idea", ".gems", "vendor/bundle"
+        ".idea", ".gems"
     ]
+
+    static let directoryPairs: [[String]] = [["vendor", "bundle"]]
 
     static let homeDirectories: Set<String> = [
         "Library", "Applications", ".Trash", "Movies", "Music", "Pictures", "Public"
@@ -33,8 +35,19 @@ enum IgnoredPaths {
 
     static func contains(_ url: URL) -> Bool {
         if url.pathComponents.contains(where: directories.contains) { return true }
+        if containsPair(url.pathComponents) { return true }
 
         return isInsideExcludedHomeDirectory(url)
+    }
+
+    private static func containsPair(_ components: [String]) -> Bool {
+        directoryPairs.contains { pair in
+            guard components.count >= pair.count else { return false }
+
+            return (0...(components.count - pair.count)).contains { start in
+                Array(components[start..<(start + pair.count)]) == pair
+            }
+        }
     }
 
     private static func isInsideExcludedHomeDirectory(_ url: URL) -> Bool {

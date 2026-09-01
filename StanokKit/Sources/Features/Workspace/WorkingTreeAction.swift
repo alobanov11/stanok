@@ -12,7 +12,7 @@ enum WorkingTreeAction: Identifiable {
     var command: String {
         switch self {
         case .stash: "git stash push -u"
-        case .discard: "git restore . && git clean -fd"
+        case .discard: "git restore --staged --worktree -- . && git clean -fd"
         }
     }
 
@@ -27,7 +27,7 @@ enum WorkingTreeAction: Identifiable {
                 + " Вернуть — git stash pop."
 
         case .discard:
-            "Правки, удаления и новые файлы, ещё не добавленные в git,"
+            "Правки, удаления, добавленное в индекс и новые файлы"
                 + " пропадут безвозвратно. Файлы из .gitignore останутся."
         }
     }

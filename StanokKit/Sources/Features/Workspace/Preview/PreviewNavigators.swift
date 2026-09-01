@@ -18,6 +18,12 @@ final class PreviewNavigators {
         return navigator
     }
 
+    func inherit(_ root: UUID, from previous: UUID) {
+        guard let navigator = byRoot.removeValue(forKey: previous) else { return }
+
+        byRoot[root] = navigator
+    }
+
     func prune(roots: Set<UUID>) {
         byRoot = byRoot.filter { roots.contains($0.key) }
     }

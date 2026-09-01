@@ -64,7 +64,7 @@ private extension MarkdownDocumentBuilder {
 
         case .bullet, .numbered:
             let marker = ListMetrics.markerText(block.kind)
-            let depth = ListMetrics.depth(of: block.kind)
+            let indent = ListMetrics.indent(depth: ListMetrics.depth(of: block.kind))
             let text = NSMutableAttributedString(
                 string: "\(marker)\t",
                 attributes: [
@@ -76,8 +76,13 @@ private extension MarkdownDocumentBuilder {
                 block.text,
                 font: PreviewTypographyFonts.reading(size: size, family: family),
                 spacing: lineSpacing,
-                indent: CGFloat(depth + 1) * 18
+                indent: indent
             ))
+            text.addAttribute(
+                .paragraphStyle,
+                value: listStyle(spacing: lineSpacing, indent: indent),
+                range: NSRange(location: 0, length: text.length)
+            )
             return text
 
         case let .continuation(depth):
@@ -85,7 +90,7 @@ private extension MarkdownDocumentBuilder {
                 block.text,
                 font: PreviewTypographyFonts.reading(size: size, family: family),
                 spacing: lineSpacing,
-                indent: CGFloat(depth + 1) * 18
+                indent: ListMetrics.indent(depth: depth)
             )
 
         case let .code(lines):
@@ -144,6 +149,15 @@ private extension MarkdownDocumentBuilder {
             range: NSRange(location: 0, length: text.length)
         )
         return text
+    }
+
+    static func listStyle(spacing: Double, indent: CGFloat) -> NSParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = spacing
+        style.headIndent = indent
+        style.tabStops = [NSTextTab(textAlignment: .left, location: indent)]
+
+        return style
     }
 
     static func styled(

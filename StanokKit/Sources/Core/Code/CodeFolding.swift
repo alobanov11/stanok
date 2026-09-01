@@ -4,8 +4,9 @@ enum CodeFolding {
 
     static func folds(for lines: [[CodeToken]]) -> [CodeFold] {
         let braced = braces(in: lines)
+        let indented = indentation(in: lines)
 
-        return braced.isEmpty ? indentation(in: lines) : braced
+        return braced.count * 2 >= indented.count ? braced : indented
     }
 
     static func indent(_ tokens: [CodeToken]) -> Int? {
@@ -29,7 +30,7 @@ private extension CodeFolding {
                         open.append((index, open.count))
                     } else if character == "}" {
                         guard let last = open.popLast() else { continue }
-                        guard index > last.line else { continue }
+                        guard index - 1 > last.line else { continue }
 
                         folds.append(CodeFold(header: last.line, end: index - 1, depth: last.depth))
                     }

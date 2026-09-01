@@ -25,6 +25,15 @@ struct SidebarToolbar: View {
             let started = AppResourceMonitor()
             started.start()
             monitor = started
+
+            defer {
+                started.stop()
+                monitor = nil
+            }
+
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+            }
         }
     }
 

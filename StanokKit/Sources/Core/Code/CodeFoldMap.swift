@@ -12,13 +12,15 @@ struct CodeFoldMap: Sendable {
     private let byLine: [Int: CodeFold]
 
     init(folds: [CodeFold]) {
+        let usable = folds.filter { $0.end > $0.header }
+
         self.byHeader = Dictionary(
-            folds.map { ($0.header, $0) },
-            uniquingKeysWith: { first, _ in first }
+            usable.map { ($0.header, $0) },
+            uniquingKeysWith: { first, next in next.end > first.end ? next : first }
         )
 
         var owners: [Int: CodeFold] = [:]
-        for fold in folds.sorted(by: { $0.depth < $1.depth }) {
+        for fold in usable.sorted(by: { $0.depth < $1.depth }) {
             for line in (fold.header + 1)...fold.end {
                 owners[line] = fold
             }

@@ -86,7 +86,8 @@ public struct WorkspaceView<Terminal: View>: View {
             dispatcher: dispatcher,
             processTracker: processTracker,
             live: $live,
-            selection: $selection
+            selection: $selection,
+            navigators: navigators
         )
     }
 
@@ -117,8 +118,9 @@ public struct WorkspaceView<Terminal: View>: View {
         navigator.current != nil && !isPreviewSplit
     }
 
-    @State
-    private var model = WorkspaceModel()
+    private var isClosingLiveSession: Binding<Bool> {
+        Binding(get: { closeRequest != nil }, set: { if !$0 { closeRequest = nil } })
+    }
 
     @State
     private var store = SessionStore()
@@ -149,6 +151,9 @@ public struct WorkspaceView<Terminal: View>: View {
 
     @State
     private var mainWidth: CGFloat = 0
+
+    @State
+    private var closeRequest: TerminalSession?
 
     @State
     private var workingTreeAction: WorkingTreeAction?
@@ -272,6 +277,16 @@ public struct WorkspaceView<Terminal: View>: View {
                 perform: perform
             )
         )
+        .confirmationDialog(
+            "Закрыть терминал?",
+            isPresented: isClosingLiveSession,
+            presenting: closeRequest
+        ) { session in
+            Button("Закрыть", role: .destructive) { liveSessions.close(session) }
+            Button("Отмена", role: .cancel) {}
+        } message: { _ in
+            Text("В терминале ещё работает процесс — он будет прерван.")
+        }
     }
 
     @ViewBuilder
@@ -393,14 +408,19 @@ private extension WorkspaceView {
                 isVisible: isShown,
                 isFocused: isFocused,
                 insertRequest: dispatcher.insertRequest(for: session.id),
-                onCommandFinished: { run in
-                    model.record(run)
+                onCommandFinished: { _ in
                     dispatcher.markAtPrompt(session.id)
                     Task { await git.refresh(session) }
                 },
                 onOpenURL: { linkRouter.openTerminalLink($0, in: session) },
                 onTitleChanged: { store.setLiveTitle($0.isEmpty ? nil : $0, for: session.id) },
-                onCloseRequested: { _ in liveSessions.close(session) },
+                onCloseRequested: { processAlive in
+                    if processAlive {
+                        closeRequest = session
+                    } else {
+                        liveSessions.close(session)
+                    }
+                },
                 onPwdChanged: { WorkingDirectoryTracker.report($0, for: session.id, into: store) },
                 onFocused: { selection = session.id }
             )
@@ -456,8 +476,13 @@ private extension WorkspaceView {
     }
 
     func refreshPanes() async {
-        for pane in visiblePanes {
-            await git.refresh(pane)
+        var seen: Set<String> = []
+        let unique = visiblePanes.filter { seen.insert($0.url.path(percentEncoded: false)).inserted }
+
+        let refreshes = unique.map { pane in Task { await git.refresh(pane) } }
+
+        for refresh in refreshes {
+            await refresh.value
         }
     }
 

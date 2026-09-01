@@ -75,16 +75,15 @@ public final class SessionStore {
         save()
     }
 
-    public func removeSession(_ sessionID: TerminalSession.ID) {
-        guard let session = session(for: sessionID) else { return }
+    @discardableResult
+    public func removeSession(_ sessionID: TerminalSession.ID) -> TerminalSession.ID? {
+        guard let session = session(for: sessionID) else { return nil }
 
-        if session.parentID == nil {
-            removeRoot(session)
-        } else {
-            removePane(session)
-        }
+        let heir = session.parentID == nil ? removeRoot(session) : nil
+        if session.parentID != nil { removePane(session) }
 
         save()
+        return heir
     }
 
     public func root(of sessionID: TerminalSession.ID) -> TerminalSession? {
@@ -176,7 +175,8 @@ private extension SessionStore {
         )
     }
 
-    func removeRoot(_ root: TerminalSession) {
+    @discardableResult
+    func removeRoot(_ root: TerminalSession) -> TerminalSession.ID? {
         let remaining = root.layout?.removing(root.id)
         let position = sessions.firstIndex { $0.id == root.id }
         sessions.removeAll { $0.id == root.id }
@@ -187,7 +187,7 @@ private extension SessionStore {
             let heirIndex = sessions.firstIndex(where: { $0.id == heirID })
         else {
             sessions.removeAll { $0.parentID == root.id }
-            return
+            return nil
         }
 
         sessions[heirIndex].parentID = nil
@@ -203,6 +203,8 @@ private extension SessionStore {
         }
 
         regroup(sessions.filter { $0.parentID == nil }.map(\.id))
+
+        return heirID
     }
 
     func pruned(_ layout: SplitLayout?, soleLeaf: UUID) -> SplitLayout? {
