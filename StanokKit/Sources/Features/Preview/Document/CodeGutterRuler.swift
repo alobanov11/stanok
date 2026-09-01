@@ -25,10 +25,16 @@ final class CodeGutterRuler: NSRulerView {
 
     var source: Source? {
         didSet {
-            ruleThickness = source.map {
+            let thickness = source.map {
                 $0.width + Metric.gap + Metric.foldGap + Metric.chevron
                     + Metric.gap + Metric.ribbon + Metric.ribbonGap
             } ?? 0
+
+            guard thickness != ruleThickness else { return }
+
+            ruleThickness = thickness
+            // Почему: без перекладки текст остаётся под гаттером и первые символы срезаны
+            scrollView?.tile()
         }
     }
 
@@ -137,11 +143,17 @@ private extension CodeGutterRuler {
         let fold = source.folds.fold(startingAt: line) ?? source.folds.owner(of: line)
         guard let fold else { return }
 
-        let lit = hovered == fold.header || source.folded.contains(fold.header)
         let x = foldColumn(source) + (Metric.chevron - Metric.ribbon) / 2
         let rect = NSRect(x: x, y: top, width: Metric.ribbon, height: height)
 
-        NSColor.white.withAlphaComponent(lit ? 0.32 : 0.14).setFill()
+        if source.folded.contains(fold.header) {
+            NSColor.controlAccentColor.withAlphaComponent(0.9).setFill()
+        } else if hovered == fold.header {
+            NSColor.white.withAlphaComponent(0.55).setFill()
+        } else {
+            NSColor.white.withAlphaComponent(0.14).setFill()
+        }
+
         NSBezierPath(
             roundedRect: rect.insetBy(dx: 0, dy: line == fold.header || line == fold.end ? 1 : 0),
             xRadius: Metric.ribbon / 2,
@@ -160,7 +172,13 @@ private extension CodeGutterRuler {
             height: change == .removed ? 3 : height
         )
 
-        NSColor.controlAccentColor.withAlphaComponent(expanded ? 1 : 0.75).setFill()
+        // Почему: раскрытые удаления и обычная правка должны различаться на глаз
+        if expanded {
+            NSColor.systemRed.withAlphaComponent(0.9).setFill()
+        } else {
+            NSColor.controlAccentColor.withAlphaComponent(0.75).setFill()
+        }
+
         NSBezierPath(
             roundedRect: box,
             xRadius: Metric.ribbon / 2,
