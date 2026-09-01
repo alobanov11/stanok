@@ -259,7 +259,7 @@ public struct WorkspaceView<Terminal: View>: View {
             Task { await navigator.refreshChanges() }
         }
         .task(id: needsAgentChanges) {
-            while !Task.isCancelled {
+            while !Task.isCancelled, needsAgentChanges {
                 await (agentChanges ?? ownChanges).refresh()
                 try? await Task.sleep(for: .seconds(20))
             }

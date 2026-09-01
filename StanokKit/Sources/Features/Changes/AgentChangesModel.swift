@@ -18,6 +18,9 @@ public final class AgentChangesModel {
     @ObservationIgnored
     private var source: (any AgentTouchesSource)?
 
+    @ObservationIgnored
+    private var running: Task<Void, Never>?
+
     public nonisolated init() {}
 
     public func use(_ source: any AgentTouchesSource) {
@@ -25,19 +28,25 @@ public final class AgentChangesModel {
     }
 
     public func refresh() async {
-        // Почему: панель и цикл ревью просыпаются вместе, второй проход только дублировал бы работу
-        guard !isLoading else { return }
+        // Почему: проход живёт отдельно от вызывающего, иначе закрытая панель обрывает его на полпути
+        if let running {
+            await running.value
+            return
+        }
 
         isLoading = true
-        await reload()
+
+        let task = Task { await reload() }
+        running = task
+        await task.value
+        running = nil
+        isLoading = false
     }
 }
 
 private extension AgentChangesModel {
 
     func reload() async {
-        defer { isLoading = false }
-
         guard let source else { return }
 
         let touched = await source.touched()

@@ -53,7 +53,7 @@ struct AgentChangesPanel: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onAppear { chosen = chosen ?? selected }
+            .onAppear { chosen = selected }
             .onChange(of: selected) { _, url in
                 if url != chosen { chosen = url }
             }
