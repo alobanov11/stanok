@@ -114,9 +114,9 @@ private extension TerminalHeader {
     }
 
     func counters(_ status: GitStatus) -> some View {
-        let added = attributed("\(status.added)", .green)
+        let added = attributed("\(status.added)", DiffPalette.added)
         let separator = attributed(" / ", .secondary)
-        let removed = attributed("\(status.removed)", .red)
+        let removed = attributed("\(status.removed)", DiffPalette.removed)
 
         return Text(added + separator + removed)
             .font(.system(size: 11))

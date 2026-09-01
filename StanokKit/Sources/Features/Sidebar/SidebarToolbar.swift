@@ -46,6 +46,16 @@ struct SidebarToolbar: View {
             TextField("Поиск", text: $filterText)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11))
+
+            if !filterText.isEmpty {
+                Button { filterText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Очистить поиск")
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
