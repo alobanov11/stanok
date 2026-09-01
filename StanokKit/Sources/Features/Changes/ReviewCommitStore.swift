@@ -55,7 +55,8 @@ final class ReviewCommitStore {
         let url = URL(filePath: root)
         guard let head = await GitClient.head(at: url) else { return }
 
-        let parent = await GitClient.parent(at: url)
+        // Почему: сбой git не должен сдвинуть точку отсчёта на текущий коммит
+        guard let parent = await GitClient.parent(at: url) else { return }
         let base = await ReviewBaselines.shared.base(
             for: root,
             head: head,

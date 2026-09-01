@@ -58,11 +58,17 @@ public enum GitClient {
         return sha
     }
 
-    public static func parent(at url: URL) async -> String? {
+    // Почему: у корневого коммита родителя нет, и это не то же самое, что сбой git
+    public static func parent(at url: URL) async -> String?? {
         let path = url.path(percentEncoded: false)
-        guard let sha = await run(["rev-parse", "HEAD^"], at: path), !sha.isEmpty else { return nil }
+        let outcome = await runRaw(["rev-parse", "--verify", "--quiet", "HEAD^"], at: path)
 
-        return sha
+        guard let outcome else { return .some(nil) }
+
+        let sha = String(data: outcome, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        return sha.isEmpty ? .some(nil) : .some(sha)
     }
 
     // Почему: правку читают и после коммита, поэтому показываем всё с точки отсчёта

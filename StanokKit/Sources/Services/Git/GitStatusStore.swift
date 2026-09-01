@@ -6,6 +6,7 @@ public final class GitStatusStore {
 
     private var cache: [String: GitSnapshot] = [:]
     private var scans: [String: Int] = [:]
+    private var generations: [String: Int] = [:]
     private var rootByPath: [String: String] = [:]
     private var inFlight: Set<String> = []
     private var pending: Set<String> = []
@@ -29,7 +30,12 @@ public final class GitStatusStore {
         root.flatMap { scans[$0] } ?? 0
     }
 
+    // Почему: незавершённый скан не должен вернуть вычищенный репозиторий обратно
     public func prune(roots: Set<String>) {
+        for (path, root) in rootByPath where !roots.contains(root) {
+            generations[path, default: 0] += 1
+        }
+
         cache = cache.filter { roots.contains($0.key) }
         scans = scans.filter { roots.contains($0.key) }
         rootByPath = rootByPath.filter { roots.contains($0.value) }
@@ -57,11 +63,14 @@ public final class GitStatusStore {
 
         repeat {
             pending.remove(path)
-            await store(GitClient.probe(for: session.url), at: path)
+            let started = generations[path, default: 0]
+            await store(GitClient.probe(for: session.url), at: path, generation: started)
         } while pending.contains(path)
     }
 
-    func store(_ probe: GitClient.Probe, at path: String) {
+    func store(_ probe: GitClient.Probe, at path: String, generation started: Int) {
+        guard generations[path, default: 0] == started else { return }
+
         switch probe {
         case .notRepository:
             if rootByPath[path] != nil { rootByPath[path] = nil }

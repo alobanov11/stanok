@@ -462,9 +462,14 @@ private extension WorkspaceView {
         let navigation = navigator.generation
 
         Task {
-            await branchReviews.load(root: root, branch: ref.fullName, isCurrent: ref.isCurrent)
+            let ready = await branchReviews.load(
+                root: root,
+                branch: ref.fullName,
+                isCurrent: ref.isCurrent
+            )
 
-            guard branchRequest == generation, navigator.generation == navigation else { return }
+            guard ready, branchRequest == generation, navigator.generation == navigation
+            else { return }
 
             navigator.openReview(.branch(
                 root: root,

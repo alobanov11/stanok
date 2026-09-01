@@ -30,6 +30,8 @@ final class BranchReviewStore {
     @ObservationIgnored
     private var running: [String: Int] = [:]
 
+    private var revisions: [String: Int] = [:]
+
     @ObservationIgnored
     private var loading: [String: Task<Void, Never>] = [:]
 
@@ -41,17 +43,19 @@ final class BranchReviewStore {
         entries[Self.key(root, branch, isCurrent)]
     }
 
-    func load(root: String, branch: String, isCurrent: Bool) async {
+    @discardableResult
+    func load(root: String, branch: String, isCurrent: Bool) async -> Bool {
         let key = Self.key(root, branch, isCurrent)
 
         let started = generations[key, default: 0]
 
-        guard needsLoad(key) else { return }
+        guard needsLoad(key) else { return true }
 
         // Почему: ждать имеет смысл только загрузку своего поколения, старую — нет
         if let task = loading[key], running[key] == started {
             await task.value
-            return
+
+            return entries[key] != nil
         }
 
         let task = Task { [weak self] in
@@ -77,14 +81,37 @@ final class BranchReviewStore {
             loading[key] = nil
             running[key] = nil
         }
+
+        // Почему: пока грузились, состояние могли объявить устаревшим — идём ещё раз
+        await repeatIfStale(key: key, root: root, branch: branch, isCurrent: isCurrent, was: started)
+
+        return entries[key] != nil
     }
 
     // Почему: показанное ревью держится до успешной замены, иначе панель мигает пустотой
     func forget(root: String) {
-        for key in entries.keys where key.hasPrefix(root + "\n") {
+        let keys = Set(entries.keys).union(loading.keys)
+
+        for key in keys where key.hasPrefix(root + "\n") {
             generations[key, default: 0] += 1
             entries[key]?.isStale = true
         }
+    }
+
+    func revision(root: String, branch: String, isCurrent: Bool) -> Int {
+        revisions[Self.key(root, branch, isCurrent)] ?? 0
+    }
+
+    private func repeatIfStale(
+        key: String,
+        root: String,
+        branch: String,
+        isCurrent: Bool,
+        was started: Int
+    ) async {
+        guard generations[key, default: 0] != started else { return }
+
+        await load(root: root, branch: branch, isCurrent: isCurrent)
     }
 
     private func needsLoad(_ key: String) -> Bool {
@@ -97,6 +124,7 @@ final class BranchReviewStore {
         guard generations[key, default: 0] == started else { return }
 
         entries[key] = review
+        revisions[key, default: 0] += 1
 
         guard entries.count > Limit.cached else { return }
 
@@ -106,6 +134,8 @@ final class BranchReviewStore {
 
         for key in stale {
             entries.removeValue(forKey: key)
+            generations.removeValue(forKey: key)
+            revisions.removeValue(forKey: key)
         }
     }
 }
