@@ -70,18 +70,11 @@ struct PreviewTextView: NSViewRepresentable {
         }
     }
 
+    // Почему: высота строки берётся из метрик шрифта, чтобы не будить раскладку при измерении
     static func lineHeight(of scroll: NSScrollView) -> CGFloat? {
-        guard
-            let text = scroll.documentView as? NSTextView,
-            let layout = text.textLayoutManager,
-            let first = layout.textLayoutFragment(for: layout.documentRange.location)
-        else { return nil }
+        guard let text = scroll.documentView as? NSTextView, let font = text.font else { return nil }
 
-        // Почему: без раскладки самого фрагмента его высота ещё нулевая
-        layout.ensureLayout(for: first.rangeInElement)
-
-        let height = layout.textLayoutFragment(for: layout.documentRange.location)?
-            .layoutFragmentFrame.height ?? 0
+        let height = NSLayoutManager().defaultLineHeight(for: font)
 
         return height > 0 ? height : nil
     }
@@ -176,7 +169,8 @@ struct PreviewTextView: NSViewRepresentable {
     }
 
     func fixedHeight(of nsView: NSScrollView) -> CGFloat? {
-        guard let contentLines, let line = Self.lineHeight(of: nsView) else { return nil }
+        guard let contentLines, contentLines > 0, let line = Self.lineHeight(of: nsView)
+        else { return nil }
 
         let inset = (nsView.documentView as? NSTextView)?.textContainerInset.height ?? 0
 
@@ -253,8 +247,12 @@ struct PreviewTextView: NSViewRepresentable {
         scroll.hasVerticalRuler = true
 
         if let ruler = scroll.verticalRulerView as? CodeGutterRuler {
+            let before = ruler.stamp
             ruler.source = gutter
-            ruler.needsDisplay = true
+
+            // Почему: лишняя перерисовка гаттера обходит фрагменты текста на каждом кадре
+            if ruler.stamp != before { ruler.needsDisplay = true }
+
             return
         }
 

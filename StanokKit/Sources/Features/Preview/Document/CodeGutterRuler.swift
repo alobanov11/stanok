@@ -23,6 +23,16 @@ final class CodeGutterRuler: NSRulerView {
         static let chevron: CGFloat = 9
     }
 
+    var stamp: String {
+        guard let source else { return "" }
+
+        return [
+            "\(source.changes.kinds.count)", "\(source.changes.removed.count)",
+            "\(source.folded.count)", "\(source.expanded.count)",
+            "\(source.width)", source.font.fontName, "\(source.font.pointSize)"
+        ].joined(separator: "|")
+    }
+
     var source: Source? {
         didSet {
             let thickness = source.map {

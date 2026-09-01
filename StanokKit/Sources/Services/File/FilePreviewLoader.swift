@@ -138,16 +138,17 @@ enum FilePreviewLoader {
             return preview(content, truncated: false)
 
         case let .text(text):
-            if markdownExtensions.contains(url.pathExtension.lowercased()) {
-                let baseURL = url.deletingLastPathComponent()
-                let blocks = MarkdownParser.blocks(from: text, baseURL: baseURL)
-
-                return preview(.markdown(blocks), truncated: false)
-            }
-
             let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
             let truncated = lines.count > Limit.lines
             let shown = truncated ? lines.prefix(Limit.lines).joined(separator: "\n") : text
+
+            if markdownExtensions.contains(url.pathExtension.lowercased()) {
+                let baseURL = url.deletingLastPathComponent()
+                // Почему: разметка тоже режется, иначе мегабайтный файл раскладывается целиком
+                let blocks = MarkdownParser.blocks(from: shown, baseURL: baseURL)
+
+                return preview(.markdown(blocks), truncated: truncated)
+            }
 
             return preview(
                 .code(CodeHighlighter.lines(shown, language: url.pathExtension.lowercased())),

@@ -13,14 +13,7 @@ struct ReviewFileCard: View {
     private var revision: String {
         guard isExpanded else { return "" }
 
-        let values = try? file.url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
-
-        return [
-            file.url.path(percentEncoded: false),
-            file.status?.letter ?? "-",
-            "\(values?.fileSize ?? 0)",
-            "\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"
-        ].joined(separator: "|")
+        return [file.id, file.status?.letter ?? "-", stamp].joined(separator: "|")
     }
 
     private var header: some View {
@@ -112,6 +105,7 @@ struct ReviewFileCard: View {
             // Почему: свёрнутая карточка не должна держать документ целого файла
             if !isOpen { preview = nil }
         }
+        .task(id: file.id + "|\(isExpanded)") { refreshStamp() }
         .task(id: revision) { await load() }
     }
 
@@ -126,6 +120,9 @@ struct ReviewFileCard: View {
     @State
     private var isHovering = false
 
+    @State
+    private var stamp = ""
+
     private func notice(_ text: String) -> some View {
         Text(text)
             .font(Typography.caption)
@@ -135,8 +132,20 @@ struct ReviewFileCard: View {
             .frame(height: Metric.notice)
     }
 
+    // Почему: анимировать высоту документа в тысячи строк — это буря раскладок при прокрутке
     private func toggle() {
-        withAnimation(.smooth(duration: 0.18)) { isExpanded.toggle() }
+        isExpanded.toggle()
+    }
+
+    // Почему: чтение атрибутов файла в body висело на главном потоке при каждой прокрутке
+    private func refreshStamp() {
+        guard isExpanded else { return }
+
+        let keys: Set<URLResourceKey> = [.fileSizeKey, .contentModificationDateKey]
+        let values = try? file.url.resourceValues(forKeys: keys)
+        let modified = values?.contentModificationDate?.timeIntervalSince1970 ?? 0
+
+        stamp = "\(values?.fileSize ?? 0)|\(modified)"
     }
 
     private func load() async {
