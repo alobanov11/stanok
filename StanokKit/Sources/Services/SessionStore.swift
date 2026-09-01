@@ -12,6 +12,8 @@ public final class SessionStore {
 
     public private(set) var sessions: [TerminalSession] = []
 
+    public private(set) var unreachable: Set<TerminalSession.ID> = []
+
     public private(set) var selectedSessionID: TerminalSession.ID?
 
     private let file: URL
@@ -133,6 +135,17 @@ public final class SessionStore {
         sessions[index].url = identity
         sessions[index].liveDirectory = reported
         saveScheduler.schedule(currentSnapshot())
+    }
+
+    public func refreshReachability() async {
+        let paths = sessions.map { ($0.id, $0.url.path(percentEncoded: false)) }
+        let missing = await Task.detached(priority: .utility) {
+            Set(paths.filter { !FileManager.default.fileExists(atPath: $0.1) }.map(\.0))
+        }.value
+
+        guard missing != unreachable else { return }
+
+        unreachable = missing
     }
 
     public func flushPendingSave() {

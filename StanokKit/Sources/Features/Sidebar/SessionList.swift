@@ -150,7 +150,7 @@ private extension SessionList {
             icon: "apple.terminal",
             title: session.displayName,
             isSelected: session.id == selection,
-            isMuted: !session.isReachable,
+            isMuted: store.unreachable.contains(session.id),
             isLive: live.contains(session.id),
             indent: indent,
             isDropTarget: isDropTarget,

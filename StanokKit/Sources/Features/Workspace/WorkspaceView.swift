@@ -241,6 +241,12 @@ public struct WorkspaceView<Terminal: View>: View {
             )
         )
         .modifier(SessionPersistence(store: store))
+        .task {
+            while !Task.isCancelled {
+                await store.refreshReachability()
+                try? await Task.sleep(for: .seconds(15))
+            }
+        }
     }
 
     private var toggle: some View {

@@ -16,10 +16,6 @@ public struct TerminalSession: Identifiable, Codable, Equatable {
         liveTitle ?? name
     }
 
-    public var isReachable: Bool {
-        FileManager.default.fileExists(atPath: url.path(percentEncoded: false))
-    }
-
     public var name: String
     public var url: URL
     public var workspace: WorkspaceState

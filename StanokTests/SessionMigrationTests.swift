@@ -288,7 +288,8 @@ struct SessionMigrationTests {
 
         #expect(sessions.count == 1)
         #expect(sessions.first?.url == unmounted)
-        #expect(sessions.first?.isReachable == false)
+        let path = try #require(sessions.first?.url.path(percentEncoded: false))
+        #expect(!FileManager.default.fileExists(atPath: path))
     }
 
     @Test
