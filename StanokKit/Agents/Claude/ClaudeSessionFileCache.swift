@@ -6,6 +6,13 @@ import Darwin
 
 actor ClaudeSessionFileCache {
 
+    enum Lookup: Sendable {
+
+        case ready(Resolution)
+        case missing(Identity)
+        case gone
+    }
+
     struct Resolution: Equatable, Sendable {
 
         let sessionID: String?
@@ -15,7 +22,7 @@ actor ClaudeSessionFileCache {
         let modifiedAt: Date
     }
 
-    private struct Identity: Equatable {
+    struct Identity: Equatable, Sendable {
 
         let device: Int32
         let inode: UInt64
@@ -40,11 +47,30 @@ actor ClaudeSessionFileCache {
 
     private enum Limits {
 
-        static let headCap = 128 * 1024
-        static let tailCap = 128 * 1024
+        static let headCap = 16 * 1024
+        static let tailCap = 64 * 1024
     }
 
     private var entries: [String: Entry] = [:]
+
+    // Почему: чтение вне актора, иначе тысячи логов разбираются строго по одному
+    nonisolated static func scanned(
+        _ path: String,
+        identity: Identity
+    ) -> ClaudeSessionRecordScanner.Result? {
+        let targetLength = min(identity.size, Limits.headCap)
+        guard targetLength > 0 else { return .empty }
+
+        guard let headBytes = Self.readRange(path, from: 0, upTo: targetLength) else { return nil }
+
+        let result = ClaudeSessionRecordScanner.scan(headBytes)
+        guard result.title == nil, identity.size > Limits.headCap else { return result }
+
+        let tailStart = max(identity.size - Limits.tailCap, targetLength)
+        let tail = Self.readRange(path, from: tailStart, upTo: identity.size) ?? Data()
+
+        return result.filling(from: ClaudeSessionRecordScanner.scan(tail))
+    }
 
     private static func readRange(_ path: String, from offset: Int, upTo length: Int) -> Data? {
         guard length > offset, let handle = FileHandle(forReadingAtPath: path) else { return nil }
@@ -75,10 +101,26 @@ actor ClaudeSessionFileCache {
         )
     }
 
-    func resolve(path: String) -> Resolution? {
+    // Почему: разбор идёт в вызывающей задаче, актор только хранит и отдаёт готовое
+    nonisolated func resolve(path: String) async -> Resolution? {
+        switch await lookup(path: path) {
+        case .gone:
+            return nil
+
+        case let .ready(resolution):
+            return resolution
+
+        case let .missing(identity):
+            let scanned = Self.scanned(path, identity: identity)
+
+            return await fill(path: path, identity: identity, result: scanned)
+        }
+    }
+
+    func lookup(path: String) -> Lookup {
         guard let info = Self.stat(path), info.isRegular else {
             entries.removeValue(forKey: path)
-            return nil
+            return .gone
         }
 
         let identity = Identity(
@@ -89,36 +131,30 @@ actor ClaudeSessionFileCache {
         )
 
         if let existing = entries[path], existing.identity == identity {
-            return resolution(from: existing.result, modifiedAt: identity.modifiedAt)
+            return .ready(resolution(from: existing.result, modifiedAt: identity.modifiedAt))
         }
 
-        guard let result = scanned(path, identity: identity) else {
+        return .missing(identity)
+    }
+
+    func fill(
+        path: String,
+        identity: Identity,
+        result: ClaudeSessionRecordScanner.Result?
+    ) -> Resolution? {
+        guard let result else {
             return entries[path].map {
                 resolution(from: $0.result, modifiedAt: $0.identity.modifiedAt)
             }
         }
 
         entries[path] = Entry(identity: identity, result: result)
+
         return resolution(from: result, modifiedAt: identity.modifiedAt)
     }
 
     func purge(keeping validPaths: Set<String>) {
         entries = entries.filter { validPaths.contains($0.key) }
-    }
-
-    private func scanned(_ path: String, identity: Identity) -> ClaudeSessionRecordScanner.Result? {
-        let targetLength = min(identity.size, Limits.headCap)
-        guard targetLength > 0 else { return .empty }
-
-        guard let headBytes = Self.readRange(path, from: 0, upTo: targetLength) else { return nil }
-
-        let result = ClaudeSessionRecordScanner.scan(headBytes)
-        guard result.title == nil, identity.size > Limits.headCap else { return result }
-
-        let tailStart = max(identity.size - Limits.tailCap, targetLength)
-        let tail = Self.readRange(path, from: tailStart, upTo: identity.size) ?? Data()
-
-        return result.filling(from: ClaudeSessionRecordScanner.scan(tail))
     }
 
     private func resolution(
