@@ -80,6 +80,7 @@ struct ReviewPanel: View {
 
                         ReviewFileCard(
                             file: file,
+                            revision: revision,
                             cache: cache,
                             onOpen: onOpen,
                             isExpanded: expansion(for: file)
@@ -98,6 +99,7 @@ struct ReviewPanel: View {
     let leadingInset: CGFloat
     let previousName: String?
     let onBack: () -> Void
+    let revision: String
     let onOpen: (URL) -> Void
 
     private func expansion(for file: ReviewFile) -> Binding<Bool> {
@@ -120,6 +122,8 @@ struct ReviewPanel: View {
 
     // Почему: каждая раскрытая карточка держит документ файла, поэтому их число ограничено
     private func open(_ id: String) {
+        let present = Set(files.map(\.id))
+        order = order.filter { present.contains($0) }
         expanded.insert(id)
         collapsed.remove(id)
         order.removeAll { $0 == id }
@@ -146,6 +150,8 @@ struct ReviewPanel: View {
         }
 
         initial = files.first { $0.status != .deleted }?.id
+
+        if let initial { open(initial) }
     }
 
     private func groupName(at index: Int) -> String? {

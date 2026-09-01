@@ -19,6 +19,9 @@ enum GitLineChanges {
             return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
         }
 
+        // Почему: для коммита рабочая копия — другая ревизия, подмешивать её нельзя
+        guard source == .worktree else { return .none }
+
         return await untracked(directory: directory, path: path)
     }
 

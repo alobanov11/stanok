@@ -111,10 +111,13 @@ struct ReviewFileCard: View {
             // Почему: свёрнутая карточка не должна держать документ целого файла
             if !isOpen { preview = nil }
         }
-        .task(id: file.id + "|\(file.status?.letter ?? "-")|\(isExpanded)") { await load() }
+        .task(id: file.id + "|\(file.status?.letter ?? "-")|\(isExpanded)|\(revision)") {
+            await load()
+        }
     }
 
     let file: ReviewFile
+    let revision: String
     let cache: PreviewCache
     let onOpen: (URL) -> Void
 

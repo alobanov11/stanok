@@ -30,6 +30,7 @@ final class PreviewNavigator {
     }
 
     private(set) var stack: [PreviewEntry] = []
+    private(set) var generation = UUID()
 
     private var activity: Activity?
     private var job: Task<Void, Never>?
@@ -94,7 +95,9 @@ final class PreviewNavigator {
         withAnimation(.smooth(duration: Self.transitionDuration)) { stack = [] }
     }
 
+    // Почему: любой переход меняет поколение, чтобы поздняя загрузка не открыла чужое
     private func cancel() {
+        generation = UUID()
         job?.cancel()
         job = nil
         activity = nil

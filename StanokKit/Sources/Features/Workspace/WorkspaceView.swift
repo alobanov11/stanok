@@ -253,6 +253,8 @@ public struct WorkspaceView<Terminal: View>: View {
             (touchedRepositories ?? ownRepositories).focus(on: root)
         }
         .onChange(of: gitSnapshot) { _, snapshot in
+            if let root = snapshot?.root { branchReviews.forget(root: root) }
+
             Task {
                 await commits.refresh(
                     root: snapshot?.root,
@@ -392,6 +394,13 @@ private extension WorkspaceView {
         filesMode == .git
     }
 
+    // Почему: карточки должны перечитать файлы, когда рабочее дерево изменилось
+    var reviewRevision: String {
+        guard let snapshot = gitSnapshot else { return "" }
+
+        return "\(snapshot.added)|\(snapshot.removed)|\(snapshot.changes.count)"
+    }
+
     func activate(_ session: TerminalSession.ID?) {
         guard let session else { return }
 
@@ -437,10 +446,13 @@ private extension WorkspaceView {
         let generation = UUID()
         branchRequest = generation
 
+        // Почему: пока грузились данные, человек мог уйти на файл или закрыть превью
+        let navigation = navigator.generation
+
         Task {
             await branchReviews.load(root: root, branch: ref.fullName, isCurrent: ref.isCurrent)
 
-            guard branchRequest == generation else { return }
+            guard branchRequest == generation, navigator.generation == navigation else { return }
 
             navigator.openReview(.branch(
                 root: root,
@@ -614,6 +626,7 @@ private extension WorkspaceView {
             leadingInset: leadingInset,
             previousName: navigator.previousName,
             onBack: stepBack,
+            revision: reviewRevision,
             onOpen: inspectorControls.open,
             onClose: closePreview
         )

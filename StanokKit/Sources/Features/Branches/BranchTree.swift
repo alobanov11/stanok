@@ -263,13 +263,13 @@ private extension BranchTree {
             return "Занято в другом worktree: \(path)"
         }
 
-        if ref.isCurrent { return "Текущая ветка" }
+        if ref.isCurrent { return "Текущая ветка · двойной клик — ревью" }
 
         if ref.kind == .remote {
-            return "Двойной клик — создать локальную ветку «\(ref.displayName)» и переключиться"
+            return "Клик — создать локальную «\(ref.displayName)», двойной — ревью"
         }
 
-        return "Двойной клик — переключиться на «\(ref.displayName)»"
+        return "Клик — переключиться на «\(ref.displayName)», двойной — ревью"
     }
 
     func createMessage(for ref: GitBranchRef) -> String {
