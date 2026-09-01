@@ -180,6 +180,17 @@ final class GhosttySurfaceView: NSView {
         return true
     }
 
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // Почему: ⌘-сочетания AppKit забирает себе, и строковые правки не доходят до шелла
+        guard window?.firstResponder === self, surface != nil, Self.isLineEditing(event) else {
+            return false
+        }
+
+        keyDown(with: event)
+
+        return true
+    }
+
     override func keyDown(with event: NSEvent) {
         onInput?()
         send(event, action: event.isARepeat ? GHOSTTY_ACTION_REPEAT : GHOSTTY_ACTION_PRESS)
@@ -430,6 +441,13 @@ private extension GhosttySurfaceView {
         else { return 0 }
 
         return scalar.value
+    }
+
+    static func isLineEditing(_ event: NSEvent) -> Bool {
+        let editing: Set<UInt16> = [51, 123, 124]
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+        return mods == .command && editing.contains(event.keyCode)
     }
 
     static func mods(from flags: NSEvent.ModifierFlags) -> ghostty_input_mods_e {

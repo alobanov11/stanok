@@ -24,7 +24,7 @@ public struct TerminalView: View {
             closeRequest: closeRequest,
             onCloseHandled: onCloseHandled,
             onFocused: onFocused,
-            onScrollbar: report,
+            onScrollbar: scrollController.report,
             scrollController: scrollController
         )
         .overlay(alignment: .trailing) {
@@ -47,7 +47,6 @@ public struct TerminalView: View {
     private let onInsertHandled: (UUID) -> Void
     private let onCloseHandled: (UUID) -> Void
     private let onFocused: () -> Void
-    private let onScrollbar: (TerminalScrollbar) -> Void
     private let closeRequest: UUID?
 
     public init(
@@ -66,8 +65,7 @@ public struct TerminalView: View {
         onInsertHandled: @escaping (UUID) -> Void = { _ in },
         closeRequest: UUID? = nil,
         onCloseHandled: @escaping (UUID) -> Void = { _ in },
-        onFocused: @escaping () -> Void = {},
-        onScrollbar: @escaping (TerminalScrollbar) -> Void = { _ in }
+        onFocused: @escaping () -> Void = {}
     ) {
         self.runtime = runtime
         self.workingDirectory = workingDirectory
@@ -85,11 +83,5 @@ public struct TerminalView: View {
         self.closeRequest = closeRequest
         self.onCloseHandled = onCloseHandled
         self.onFocused = onFocused
-        self.onScrollbar = onScrollbar
-    }
-
-    private func report(_ scrollbar: TerminalScrollbar) {
-        scrollController.report(scrollbar)
-        onScrollbar(scrollbar)
     }
 }

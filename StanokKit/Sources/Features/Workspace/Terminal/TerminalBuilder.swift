@@ -16,7 +16,6 @@ public struct TerminalRequest {
     public let closeRequest: UUID?
     public let onCloseHandled: (UUID) -> Void
     public let onFocused: () -> Void
-    public let onScrollbar: (TerminalScrollbar) -> Void
 }
 
 public typealias TerminalBuilder<Terminal: View> = (TerminalRequest) -> Terminal
