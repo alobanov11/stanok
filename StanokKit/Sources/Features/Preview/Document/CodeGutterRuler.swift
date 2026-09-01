@@ -111,9 +111,11 @@ final class CodeGutterRuler: NSRulerView {
             return
         }
 
-        guard source.changes.removed[line + 1] != nil else { return super.mouseDown(with: event) }
+        guard let anchor = removalAnchor(for: line, source: source) else {
+            return super.mouseDown(with: event)
+        }
 
-        source.showChange(line + 1)
+        source.showChange(anchor)
     }
 
     private func sourceLine(of fragment: NSTextLayoutFragment) -> Int? {
@@ -137,6 +139,28 @@ private extension CodeGutterRuler {
         guard let source else { return false }
 
         return x > foldColumn(source) && x < foldColumn(source) + Metric.chevron
+    }
+
+    // Почему: удаления привязаны к одной строке блока, а кликают по любой его полосе
+    func removalAnchor(for line: Int, source: Source) -> Int? {
+        let number = line + 1
+        if source.changes.removed[number] != nil { return number }
+
+        var above = number
+        while source.changes.kinds[above] != nil {
+            if source.changes.removed[above] != nil { return above }
+
+            above -= 1
+        }
+
+        var below = number
+        while source.changes.kinds[below] != nil {
+            if source.changes.removed[below] != nil { return below }
+
+            below += 1
+        }
+
+        return nil
     }
 
     func drawFoldRibbon(for line: Int, top: CGFloat, height: CGFloat, source: Source) {
