@@ -44,9 +44,8 @@ enum WorkspacePaths {
     static func filePanelMode(from raw: String?) -> FilePanelMode? {
         switch raw {
         case "all": return .all
-        case "changes": return .changes
-        case "branches": return .branches
-        case "agents": return .agents
+        // Почему: прежние вкладки веток, изменений и агентов теперь одна панель
+        case "git", "changes", "branches", "agents": return .git
         default: return nil
         }
     }
@@ -54,9 +53,7 @@ enum WorkspacePaths {
     static func rawValue(for mode: FilePanelMode?) -> String? {
         switch mode {
         case .all: return "all"
-        case .changes: return "changes"
-        case .branches: return "branches"
-        case .agents: return "agents"
+        case .git: return "git"
         case nil: return nil
         }
     }

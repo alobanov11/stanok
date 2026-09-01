@@ -5,23 +5,20 @@ public struct WorkspaceCommandActions {
 
     public let toggleSidebar: () -> Void
     public let toggleAllFiles: () -> Void
-    public let toggleChangedFiles: () -> Void
-    public let toggleAgentChanges: () -> Void
+    public let toggleGit: () -> Void
     public let newTerminalTab: (() -> Void)?
     public let closeTerminalTab: (() -> Void)?
 
     public init(
         toggleSidebar: @escaping () -> Void,
         toggleAllFiles: @escaping () -> Void,
-        toggleChangedFiles: @escaping () -> Void,
-        toggleAgentChanges: @escaping () -> Void,
+        toggleGit: @escaping () -> Void,
         newTerminalTab: (() -> Void)?,
         closeTerminalTab: (() -> Void)?
     ) {
         self.toggleSidebar = toggleSidebar
         self.toggleAllFiles = toggleAllFiles
-        self.toggleChangedFiles = toggleChangedFiles
-        self.toggleAgentChanges = toggleAgentChanges
+        self.toggleGit = toggleGit
         self.newTerminalTab = newTerminalTab
         self.closeTerminalTab = closeTerminalTab
     }
@@ -47,8 +44,7 @@ public struct WorkspaceCommandActions {
         return WorkspaceCommandActions(
             toggleSidebar: toggleSidebar,
             toggleAllFiles: { selectFilesMode(.all) },
-            toggleChangedFiles: { selectFilesMode(.changes) },
-            toggleAgentChanges: { selectFilesMode(.agents) },
+            toggleGit: { selectFilesMode(.git) },
             newTerminalTab: newTerminalTab,
             closeTerminalTab: closeTerminalTab
         )

@@ -11,11 +11,7 @@ struct FilePanel: View {
     }
 
     private var title: String {
-        switch mode {
-        case .all, .changes: "Файлы"
-        case .branches: "Ветки"
-        case .agents: "Агенты"
-        }
+        mode == .all ? "Файлы" : "Git"
     }
 
     private var header: some View {
@@ -26,18 +22,6 @@ struct FilePanel: View {
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 0)
-
-            if mode == .changes || mode == .agents {
-                Button(action: onReview) {
-                    Image(systemName: "rectangle.grid.1x2")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Смотреть все изменения")
-                .disabled(!hasReview)
-                .opacity(hasReview ? 1 : 0.4)
-            }
         }
         .padding(.horizontal, 14)
         .frame(height: WorkspaceLayout.headerHeight)
@@ -49,18 +33,37 @@ struct FilePanel: View {
         case .all:
             FileTree(model: fileTreeModel, snapshot: snapshot, selected: $selected, onOpen: onOpen)
 
-        case .changes:
-            ChangeTree(model: changeTreeModel, selected: $selected, onOpen: onOpen)
+        case .git:
+            git
+        }
+    }
 
-        case .agents:
-            AgentChangesPanel(model: agentChanges, selected: $selected, onOpen: onOpen)
+    private var git: some View {
+        ScrollView {
+            LazyVStack(spacing: 1) {
+                BranchTree(
+                    model: branchTreeModel,
+                    actions: branchActions,
+                    tracking: snapshot?.tracking ?? .none
+                )
 
-        case .branches:
-            BranchTree(
-                model: branchTreeModel,
-                actions: branchActions,
-                tracking: snapshot?.tracking ?? .none
-            )
+                ChangeTree(
+                    model: changeTreeModel,
+                    selected: $selected,
+                    onOpen: onOpen,
+                    onReview: hasGitReview ? { onReview(.git) } : nil
+                )
+
+                AgentChangesPanel(
+                    model: agentChanges,
+                    selected: $selected,
+                    onOpen: onOpen,
+                    onReview: hasAgentReview ? { onReview(.agents) } : nil
+                )
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
     }
 
@@ -76,6 +79,7 @@ struct FilePanel: View {
     var selected: URL?
 
     let onOpen: (URL) -> Void
-    let hasReview: Bool
-    let onReview: () -> Void
+    let hasGitReview: Bool
+    let hasAgentReview: Bool
+    let onReview: (ReviewKind) -> Void
 }

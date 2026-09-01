@@ -4,41 +4,21 @@ struct AgentChangesPanel: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.repositories.isEmpty {
-            placeholder
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 1) {
-                    ForEach(model.repositories) { repository in
-                        SectionHeader(title: repository.name)
+        if !model.repositories.isEmpty {
+            SectionHeader(title: "Агенты", action: onReview)
 
-                        ForEach(visible(repository, folders: folders), id: \.url) { node in
-                            row(repository, node: node, folders: folders)
-                        }
-                    }
+            ForEach(model.repositories) { repository in
+                if model.repositories.count > 1 { SectionHeader(title: repository.name) }
+
+                ForEach(visible(repository, folders: folders), id: \.url) { node in
+                    row(repository, node: node, folders: folders)
                 }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 10)
-                .frame(maxWidth: .infinity, alignment: .top)
             }
-        }
-    }
-
-    private var placeholder: some View {
-        VStack {
-            Spacer()
-
-            Text(model.isLoading ? "Смотрю, куда заходили агенты" : "Изменений нет")
-                .font(Typography.caption)
-                .foregroundStyle(.tertiary)
-
-            Spacer()
         }
     }
 
     var body: some View {
         content
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear { chosen = selected }
             .onChange(of: selected) { _, url in
                 if url != chosen { chosen = url }
@@ -57,6 +37,8 @@ struct AgentChangesPanel: View {
     private var expandedRaw = ""
 
     let onOpen: (URL) -> Void
+
+    var onReview: (() -> Void)?
 
     private var folders: Set<String> {
         Set(expandedRaw.split(separator: "\n").map(String.init))

@@ -8,29 +8,10 @@ struct ChangeTree: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.nodes.isEmpty {
-            placeholder
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 1) {
-                    ForEach(model.visible) { row($0) }
-                }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 10)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            }
-        }
-    }
+        if !model.nodes.isEmpty {
+            SectionHeader(title: "Изменения", action: onReview)
 
-    private var placeholder: some View {
-        VStack {
-            Spacer()
-
-            Text("Нет изменений")
-                .font(Typography.caption)
-                .foregroundStyle(.tertiary)
-
-            Spacer()
+            ForEach(model.visible) { row($0) }
         }
     }
 
@@ -40,6 +21,8 @@ struct ChangeTree: View {
     var selected: URL?
 
     let onOpen: (URL) -> Void
+
+    var onReview: (() -> Void)?
 
     private func row(_ node: GitTreeNode) -> some View {
         FileRow(

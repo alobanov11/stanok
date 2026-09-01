@@ -43,8 +43,7 @@ struct TerminalHeader: View {
     let filesMode: FilePanelMode?
     let isBusy: Bool
     let selectAll: () -> Void
-    let selectChanges: () -> Void
-    let selectBranches: () -> Void
+    let selectGit: () -> Void
     let stashChanges: () -> Void
     let discardChanges: () -> Void
     let split: (SplitDirection) -> Void
@@ -78,27 +77,27 @@ private extension TerminalHeader {
     }
 
     func branchBadge(_ branch: String) -> some View {
-        Button(action: selectBranches) {
+        Button(action: selectGit) {
             busyLabel(branch)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(background(for: .branches), in: .capsule)
+                .background(background(for: .git), in: .capsule)
                 .contentShape(.capsule)
         }
         .buttonStyle(.plain)
-        .help(filesMode == .branches ? "Скрыть ветки" : "Показать ветки")
+        .help(filesMode == .git ? "Скрыть git" : "Показать git")
     }
 
     func changesBadge(_ status: GitStatus) -> some View {
-        Button(action: selectChanges) {
+        Button(action: selectGit) {
             counters(status)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(background(for: .changes), in: .capsule)
+                .background(background(for: .git), in: .capsule)
                 .contentShape(.capsule)
         }
         .buttonStyle(.plain)
-        .help(filesMode == .changes ? "Скрыть изменения" : "Показать изменения")
+        .help(filesMode == .git ? "Скрыть git" : "Показать git")
         .contextMenu {
             Button(WorkingTreeAction.stash.command, action: stashChanges)
                 .disabled(!hasChanges || isBusy)

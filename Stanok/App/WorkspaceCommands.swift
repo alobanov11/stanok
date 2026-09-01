@@ -17,16 +17,10 @@ struct WorkspaceCommands: Commands {
             .keyboardShortcut("2", modifiers: .command)
             .disabled(actions == nil)
 
-            Button("Изменения") {
-                actions?.toggleChangedFiles()
+            Button("Git") {
+                actions?.toggleGit()
             }
             .keyboardShortcut("3", modifiers: .command)
-            .disabled(actions == nil)
-
-            Button("Изменения агентов") {
-                actions?.toggleAgentChanges()
-            }
-            .keyboardShortcut("4", modifiers: .command)
             .disabled(actions == nil)
         }
 

@@ -356,10 +356,7 @@ private extension WorkspaceView {
 
     @ViewBuilder
     var rightPanel: some View {
-        if filesMode == .agents {
-            agentsPanel
-                .transition(.move(edge: .trailing).combined(with: .opacity))
-        } else if let filesMode, let folder = inspectorFolder, let root = inspectorGitRoot {
+        if let filesMode, let folder = inspectorFolder, let root = inspectorGitRoot {
             filesPanel(filesMode, folder: folder, gitRoot: root)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
         }
@@ -372,24 +369,7 @@ private extension WorkspaceView {
     var needsAgentChanges: Bool {
         if case .review(.agents) = navigator.current { return true }
 
-        return filesMode == .agents
-    }
-
-    var agentsPanel: some View {
-        FilePanel(
-            mode: .agents,
-            fileTreeModel: inspector.fileTree(for: inspectorFolder ?? URL(filePath: "/")),
-            changeTreeModel: inspector.changeTree(for: inspectorGitRoot ?? ""),
-            branchTreeModel: inspector.branchTree(for: inspectorGitRoot ?? ""),
-            agentChanges: agentChanges ?? ownChanges,
-            branchActions: branchActions,
-            snapshot: gitSnapshot,
-            selected: inspectorControls.selectedFile,
-            onOpen: inspectorControls.open,
-            hasReview: hasReview(.agents),
-            onReview: { navigator.openReview(.agents) }
-        )
-        .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
+        return filesMode == .git
     }
 
     func activate(_ session: TerminalSession.ID?) {
@@ -399,7 +379,7 @@ private extension WorkspaceView {
     }
 
     func refreshBranches(for mode: FilePanelMode?) {
-        guard mode == .branches else { return }
+        guard mode == .git else { return }
 
         Task { await branchStore.refresh(selectedSession) }
     }
@@ -488,8 +468,7 @@ private extension WorkspaceView {
             filesMode: filesMode,
             isBusy: branchStore.isOperating(session) || isWorkingTreeBusy,
             selectAll: { selectFiles(.all, in: session) },
-            selectChanges: { selectFiles(.changes, in: session) },
-            selectBranches: { selectFiles(.branches, in: session) },
+            selectGit: { selectFiles(.git, in: session) },
             stashChanges: { requestWorkingTree(.stash, for: session) },
             discardChanges: { requestWorkingTree(.discard, for: session) },
             split: { direction in split(session, direction) },
@@ -547,8 +526,9 @@ private extension WorkspaceView {
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
             onOpen: inspectorControls.open,
-            hasReview: hasReview(.git),
-            onReview: { navigator.openReview(.git) }
+            hasGitReview: hasReview(.git),
+            hasAgentReview: hasReview(.agents),
+            onReview: { navigator.openReview($0) }
         )
         .modifier(WorkspacePanelStyle(width: WorkspaceLayout.filesWidth))
     }

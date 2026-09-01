@@ -15,19 +15,19 @@ struct FilePanelModeTransitionTests {
 
     @Test
     func requestingADifferentModeSwitchesWithoutAnimating() {
-        let transition = FilePanelModeTransition.resolve(current: .all, requested: .changes)
+        let transition = FilePanelModeTransition.resolve(current: .all, requested: .git)
 
-        #expect(transition == .switches(.changes))
-        #expect(transition.nextMode == .changes)
+        #expect(transition == .switches(.git))
+        #expect(transition.nextMode == .git)
         #expect(!transition.animates)
     }
 
     @Test
     func requestingAModeFromClosedOpensAndAnimates() {
-        let transition = FilePanelModeTransition.resolve(current: nil, requested: .changes)
+        let transition = FilePanelModeTransition.resolve(current: nil, requested: .git)
 
-        #expect(transition == .opens(.changes))
-        #expect(transition.nextMode == .changes)
+        #expect(transition == .opens(.git))
+        #expect(transition.nextMode == .git)
         #expect(transition.animates)
     }
 }

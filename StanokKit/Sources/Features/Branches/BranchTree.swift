@@ -44,18 +44,10 @@ struct BranchTree: View {
 
     @ViewBuilder
     private var content: some View {
-        switch model.state {
-        case .loading:
-            placeholder("Загрузка веток…")
+        if case .loaded = model.state, let root = model.root {
+            SectionHeader(title: "Ветки")
 
-        case .notRepository:
-            placeholder("Здесь нет git-репозитория")
-
-        case .empty:
-            placeholder("Нет веток")
-
-        case .loaded:
-            if let root = model.root { list(root) }
+            list(root)
         }
     }
 
@@ -105,34 +97,15 @@ struct BranchTree: View {
 
 private extension BranchTree {
 
+    @ViewBuilder
     func list(_ root: BranchNode) -> some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 1) {
-                if let listError = model.listError { errorBanner(listError) }
+        if let listError = model.listError { errorBanner(listError) }
 
-                ForEach(root.visibleDescendants) { row($0) }
+        ForEach(root.visibleDescendants) { row($0) }
+            .opacity(actions.isOperating ? 0.6 : 1)
+            .allowsHitTesting(!actions.isOperating)
 
-                if let worktreeError = model.worktreeError { errorBanner(worktreeError) }
-            }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 10)
-            .frame(maxWidth: .infinity, alignment: .top)
-        }
-        .opacity(actions.isOperating ? 0.6 : 1)
-        .allowsHitTesting(!actions.isOperating)
-    }
-
-    func placeholder(_ text: String) -> some View {
-        VStack {
-            Spacer()
-
-            Text(text)
-                .font(Typography.caption)
-                .foregroundStyle(.tertiary)
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        if let worktreeError = model.worktreeError { errorBanner(worktreeError) }
     }
 
     func errorBanner(_ message: String) -> some View {
