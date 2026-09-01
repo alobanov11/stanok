@@ -115,12 +115,11 @@ private extension TerminalScrollbarOverlay {
         let clamped = min(max(position, 0), 1)
         dragPosition = clamped
 
-        let span = Double(scrollbar.total > scrollbar.length ? scrollbar.total - scrollbar.length : 0)
-        let next = Int((clamped * span).rounded())
-        let current = target ?? Int(scrollbar.offset)
-        guard next != current else { return }
+        let span = scrollbar.total > scrollbar.length ? scrollbar.total - scrollbar.length : 0
+        let next = Int((clamped * Double(span)).rounded())
+        guard next != target else { return }
 
         target = next
-        controller.scroll(rows: next - current)
+        controller.scroll(toRow: next)
     }
 }

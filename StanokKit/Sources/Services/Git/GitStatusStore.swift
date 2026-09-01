@@ -47,13 +47,13 @@ public final class GitStatusStore {
             pending.remove(path)
             switch await GitClient.probe(for: session.url) {
             case .notRepository:
-                rootByPath[path] = nil
+                if rootByPath[path] != nil { rootByPath[path] = nil }
 
             case .failed:
                 break
 
             case let .snapshot(snapshot):
-                rootByPath[path] = snapshot.root
+                if rootByPath[path] != snapshot.root { rootByPath[path] = snapshot.root }
                 if cache[snapshot.root] != snapshot { cache[snapshot.root] = snapshot }
             }
         } while pending.contains(path)

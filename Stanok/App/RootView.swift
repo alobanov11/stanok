@@ -46,6 +46,7 @@ struct RootView: View {
                     onCloseRequested: request.onCloseRequested,
                     onPwdChanged: request.onPwdChanged,
                     onInput: request.onInput,
+                    onInsertHandled: request.onInsertHandled,
                     onFocused: request.onFocused
                 )
                 .id(request.session.id)

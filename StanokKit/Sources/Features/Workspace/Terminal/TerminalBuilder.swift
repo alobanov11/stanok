@@ -12,6 +12,7 @@ public struct TerminalRequest {
     public let onCloseRequested: (Bool) -> Void
     public let onPwdChanged: (String) -> Void
     public let onInput: () -> Void
+    public let onInsertHandled: (UUID) -> Void
     public let onFocused: () -> Void
 }
 

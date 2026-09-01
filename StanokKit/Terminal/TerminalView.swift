@@ -20,6 +20,7 @@ public struct TerminalView: View {
             onCloseRequested: onCloseRequested,
             onPwdChanged: onPwdChanged,
             onInput: onInput,
+            onInsertHandled: onInsertHandled,
             onFocused: onFocused,
             onScrollbar: scrollController.report,
             scrollController: scrollController
@@ -41,6 +42,7 @@ public struct TerminalView: View {
     private let onCloseRequested: (Bool) -> Void
     private let onPwdChanged: (String) -> Void
     private let onInput: () -> Void
+    private let onInsertHandled: (UUID) -> Void
     private let onFocused: () -> Void
 
     public init(
@@ -56,6 +58,7 @@ public struct TerminalView: View {
         onCloseRequested: @escaping (Bool) -> Void = { _ in },
         onPwdChanged: @escaping (String) -> Void = { _ in },
         onInput: @escaping () -> Void = {},
+        onInsertHandled: @escaping (UUID) -> Void = { _ in },
         onFocused: @escaping () -> Void = {}
     ) {
         self.runtime = runtime
@@ -70,6 +73,7 @@ public struct TerminalView: View {
         self.onCloseRequested = onCloseRequested
         self.onPwdChanged = onPwdChanged
         self.onInput = onInput
+        self.onInsertHandled = onInsertHandled
         self.onFocused = onFocused
     }
 }

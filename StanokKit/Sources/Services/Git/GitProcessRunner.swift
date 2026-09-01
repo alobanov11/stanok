@@ -15,11 +15,14 @@ enum GitProcessRunner {
     }
 
     static func run(_ arguments: [String]) async -> Result {
-        await withCheckedContinuation { continuation in
+        let environment = ToolEnvironment.current
+
+        return await withCheckedContinuation { continuation in
             GitProcessQueue.serial.async {
                 let process = Process()
                 process.executableURL = URL(filePath: "/usr/bin/env")
-                process.environment = ToolEnvironment.current
+                process.environment = environment
+                process.standardInput = FileHandle.nullDevice
                 process.arguments = ["git"] + arguments
 
                 let outputPipe = Pipe()

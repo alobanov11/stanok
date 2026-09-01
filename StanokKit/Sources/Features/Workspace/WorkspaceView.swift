@@ -61,7 +61,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var gitDirectories: [String] {
         guard let gitSnapshot else { return [] }
 
-        return Array(Set([gitSnapshot.gitDirectory, gitSnapshot.commonDirectory]))
+        return Array(Set([gitSnapshot.gitDirectory, gitSnapshot.commonDirectory])).sorted()
     }
 
     private var gitSnapshot: GitSnapshot? {
@@ -96,13 +96,14 @@ public struct WorkspaceView<Terminal: View>: View {
             processTracker: processTracker,
             live: $live,
             selection: $selection,
-            navigators: navigators
+            navigators: navigators,
+            confirmClose: { closeRequest = $0 }
         )
     }
 
     private var branchActions: BranchActions {
         BranchActions.make(
-            isOperating: branchStore.isOperating(selectedSession),
+            isOperating: branchStore.isOperating(selectedSession) || isWorkingTreeBusy,
             session: { selectedSession },
             branchStore: branchStore,
             afterSwitch: afterBranchSwitch,
@@ -208,7 +209,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .focusedValue(\.workspaceCommands, .make(
             toggleSidebar: toggleSidebar, selectFilesMode: inspectorControls.select,
             session: selectedSession, store: store,
-            selection: $selection, closeSession: liveSessions.close
+            selection: $selection, closeSession: liveSessions.requestClose
         ))
         .task { selectFirstIfNeeded() }
         .task(id: visiblePaneIDs) { await refreshPanes() }
@@ -257,7 +258,7 @@ public struct WorkspaceView<Terminal: View>: View {
             live: Set(live),
             insertAgentCommand: insertAgentCommand,
             copyAgentCommand: copyAgentCommand,
-            closeSession: liveSessions.close,
+            closeSession: liveSessions.requestClose,
             selection: $selection
         )
     }
@@ -265,11 +266,17 @@ public struct WorkspaceView<Terminal: View>: View {
     private var panes: some View {
         GeometryReader { proxy in
             let frames = paneFrames(in: proxy.size)
+            let resting = restingFrames(in: proxy.size)
 
             ZStack(alignment: .topLeading) {
                 ForEach(store.sessions) { session in
                     if live.contains(session.id) {
-                        pane(session, frame: frames[session.id], container: proxy.size)
+                        pane(
+                            session,
+                            frame: frames[session.id],
+                            resting: resting[session.id],
+                            container: proxy.size
+                        )
                     }
                 }
             }
@@ -288,7 +295,7 @@ public struct WorkspaceView<Terminal: View>: View {
             isPresented: isClosingLiveSession,
             presenting: closeRequest
         ) { session in
-            Button("Закрыть", role: .destructive) { liveSessions.close(session) }
+            Button("Закрыть", role: .destructive) { liveSessions.requestClose(session) }
             Button("Отмена", role: .cancel) {}
         } message: { _ in
             Text("В терминале ещё работает процесс — он будет прерван.")
@@ -341,8 +348,13 @@ public struct WorkspaceView<Terminal: View>: View {
 
 private extension WorkspaceView {
 
-    func pane(_ session: TerminalSession, frame: CGRect?, container: CGSize) -> some View {
-        let rect = frame ?? CGRect(origin: .zero, size: container)
+    func pane(
+        _ session: TerminalSession,
+        frame: CGRect?,
+        resting: CGRect?,
+        container: CGSize
+    ) -> some View {
+        let rect = frame ?? resting ?? CGRect(origin: .zero, size: container)
         let isShown = frame != nil && !isPreviewFullScreen
         let isFocused = isShown && session.id == selection
 
@@ -378,7 +390,7 @@ private extension WorkspaceView {
         TerminalActionsMenu(
             split: { direction in split(session, direction) },
             newTerminal: { addSession(at: session.url) },
-            close: { liveSessions.close(session) }
+            close: { liveSessions.requestClose(session) }
         )
         .padding(.horizontal, 4)
         .glassEffect(.regular.interactive(), in: .capsule)
@@ -400,7 +412,7 @@ private extension WorkspaceView {
             discardChanges: { requestWorkingTree(.discard, for: session) },
             split: { direction in split(session, direction) },
             newTerminal: { addSession(at: session.url) },
-            close: { liveSessions.close(session) }
+            close: { liveSessions.requestClose(session) }
         )
     }
 
@@ -430,6 +442,7 @@ private extension WorkspaceView {
                 },
                 onPwdChanged: { WorkingDirectoryTracker.report($0, for: session.id, into: store) },
                 onInput: { dispatcher.markBusy(session.id) },
+                onInsertHandled: { dispatcher.markInserted(session.id, request: $0) },
                 onFocused: { selection = session.id }
             )
         )
@@ -467,6 +480,23 @@ private extension WorkspaceView {
         guard let paneLayout else { return [:] }
 
         return SplitFrames.rects(for: paneLayout, in: size, gap: WorkspaceLayout.inset)
+    }
+
+    func restingFrames(in size: CGSize) -> [TerminalSession.ID: CGRect] {
+        var frames: [TerminalSession.ID: CGRect] = [:]
+
+        for root in store.roots where root.id != rootSession?.id {
+            let layout = root.layout ?? .leaf(root.id)
+            for (id, rect) in SplitFrames.rects(
+                for: layout,
+                in: size,
+                gap: WorkspaceLayout.inset
+            ) {
+                frames[id] = rect
+            }
+        }
+
+        return frames
     }
 
     func selectFiles(_ mode: FilePanelMode, in session: TerminalSession) {

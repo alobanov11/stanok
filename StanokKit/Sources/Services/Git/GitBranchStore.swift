@@ -52,7 +52,7 @@ final class GitBranchStore {
 
             if isCurrent {
                 let key = snapshot.root ?? path
-                rootByPath[path] = key
+                if rootByPath[path] != key { rootByPath[path] = key }
                 if cache[key] != snapshot {
                     cache[key] = snapshot
                 }

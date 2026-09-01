@@ -147,11 +147,14 @@ private extension GitClient {
     }
 
     static func runRaw(_ arguments: [String]) async -> Data? {
-        await withCheckedContinuation { continuation in
+        let environment = ToolEnvironment.current
+
+        return await withCheckedContinuation { continuation in
             GitProcessQueue.serial.async {
                 let process = Process()
                 process.executableURL = URL(filePath: "/usr/bin/env")
-                process.environment = ToolEnvironment.current
+                process.environment = environment
+                process.standardInput = FileHandle.nullDevice
                 process.arguments = ["git"] + arguments
 
                 let pipe = Pipe()

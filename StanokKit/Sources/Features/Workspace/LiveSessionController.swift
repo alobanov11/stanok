@@ -3,12 +3,15 @@ import SwiftUI
 @MainActor
 struct LiveSessionController {
 
+    private static let shells: Set<String> = ["zsh", "-zsh", "bash", "-bash", "fish", "sh", "login"]
+
     let store: SessionStore
     let dispatcher: TerminalCommandDispatcher
     let processTracker: TabProcessTracker
     let live: Binding<[TerminalSession.ID]>
     let selection: Binding<TerminalSession.ID?>
     let navigators: PreviewNavigators
+    let confirmClose: (TerminalSession) -> Void
 
     func activate(_ id: TerminalSession.ID) {
         guard let root = store.root(of: id) else { return }
@@ -36,11 +39,25 @@ struct LiveSessionController {
 
         for id in removed {
             processTracker.endTracking(id)
+            dispatcher.forget(id)
         }
 
         if let current = selection.wrappedValue, !known.contains(current) {
             selection.wrappedValue = nil
         }
+    }
+
+    func requestClose(_ session: TerminalSession) {
+        guard hasRunningCommand(session) else {
+            close(session)
+            return
+        }
+
+        confirmClose(session)
+    }
+
+    func hasRunningCommand(_ session: TerminalSession) -> Bool {
+        !processTracker.processNames(for: session.id).subtracting(Self.shells).isEmpty
     }
 
     func close(_ session: TerminalSession) {
@@ -80,6 +97,7 @@ struct LiveSessionController {
 
         for id in evicted {
             processTracker.endTracking(id)
+            dispatcher.forget(id)
         }
 
         live.wrappedValue.removeAll { evicted.contains($0) }

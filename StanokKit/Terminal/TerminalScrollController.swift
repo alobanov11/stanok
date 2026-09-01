@@ -16,8 +16,8 @@ final class TerminalScrollController {
     @ObservationIgnored
     private var hiding: Task<Void, Never>?
 
-    func scroll(rows: Int) {
-        scroll?(rows)
+    func scroll(toRow row: Int) {
+        scroll?(row)
     }
 
     func report(_ scrollbar: TerminalScrollbar) {

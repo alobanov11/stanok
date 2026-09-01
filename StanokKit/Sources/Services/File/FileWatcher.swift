@@ -16,14 +16,17 @@ public final class FileWatcher {
         private let lock = NSLock()
         private let scheduleDelivery: @Sendable () -> Void
         private let gitDirectories: [String]
+        private let root: String
 
         init(
             generation: Int,
             gitDirectories: [String],
+            root: String,
             scheduleDelivery: @escaping @Sendable () -> Void
         ) {
             self.generation = generation
             self.gitDirectories = gitDirectories
+            self.root = root
             self.scheduleDelivery = scheduleDelivery
         }
 
@@ -52,11 +55,12 @@ public final class FileWatcher {
                     continue
                 }
 
+                pendingGitChange = true
+
                 let url = URL(filePath: path)
-                guard !FileWatcher.isIgnored(url) else { continue }
+                guard !FileWatcher.isIgnored(url, under: root) else { continue }
 
                 pendingDirectories.insert(url.deletingLastPathComponent())
-                pendingGitChange = true
             }
 
             let alreadyScheduled = deliveryScheduled
@@ -103,6 +107,7 @@ public final class FileWatcher {
 
         static let directories = Duration.milliseconds(150)
         static let git = Duration.milliseconds(300)
+        static let gitCap: TimeInterval = 2
     }
 
     private enum PathFilters {
@@ -129,6 +134,7 @@ public final class FileWatcher {
     private var pendingDirectories: Set<URL> = []
     private var directoriesFlush: Task<Void, Never>?
     private var gitFlush: Task<Void, Never>?
+    private var gitFlushStartedAt: Date?
     private var nextGeneration = 0
     private var watchedRoot: URL?
 
@@ -151,8 +157,8 @@ public final class FileWatcher {
         FSEventStreamRelease(stream)
     }
 
-    private nonisolated static func isIgnored(_ url: URL) -> Bool {
-        IgnoredPaths.contains(url)
+    private nonisolated static func isIgnored(_ url: URL, under root: String) -> Bool {
+        IgnoredPaths.contains(url, under: URL(filePath: root))
     }
 
     private nonisolated static func isInside(_ path: String, gitDirectory: String) -> Bool {
@@ -187,6 +193,7 @@ public final class FileWatcher {
         let context = Context(
             generation: currentGeneration,
             gitDirectories: unique,
+            root: url.path(percentEncoded: false),
             scheduleDelivery: scheduleDelivery
         )
         self.context = context
@@ -294,6 +301,13 @@ private extension FileWatcher {
     }
 
     func scheduleGitFlush() {
+        if let gitFlushStartedAt, Date().timeIntervalSince(gitFlushStartedAt) >= FlushDelay.gitCap {
+            emitGitChange()
+            return
+        }
+
+        if gitFlushStartedAt == nil { gitFlushStartedAt = Date() }
+
         gitFlush?.cancel()
         gitFlush = Task { [weak self] in
             try? await Task.sleep(for: FlushDelay.git)
@@ -310,6 +324,7 @@ private extension FileWatcher {
     }
 
     func emitGitChange() {
+        gitFlushStartedAt = nil
         onGitChange()
     }
 }

@@ -24,6 +24,7 @@ final class GhosttySurfaceView: NSView {
 
     var onCommandFinished: ((CommandRun) -> Void)?
     var onInput: (() -> Void)?
+    var onInsertHandled: ((UUID) -> Void)?
     var onOpenURL: ((String) -> Void)?
     var onTitleChanged: ((String) -> Void)?
     var onCloseRequested: ((Bool) -> Void)?
@@ -34,7 +35,6 @@ final class GhosttySurfaceView: NSView {
     private var tracking: NSTrackingArea?
     private var desiredCursor = NSCursor.iBeam
     private var surface: ghostty_surface_t?
-    private var link: CADisplayLink?
     private var isVisible = false
     private var visibilityApplied = false
     private var isFocused = false
@@ -42,7 +42,6 @@ final class GhosttySurfaceView: NSView {
     private var appliedSize: (width: UInt32, height: UInt32) = (0, 0)
     private var resizeWork: DispatchWorkItem?
     private var lastResizeAt: CFTimeInterval = 0
-    private var heldModifierKeys: [UInt16: ghostty_input_mods_e] = [:]
     private var lastHandledInsertRequestID: UUID?
 
     init(app: ghostty_app_t, fontSize: Float, workingDirectory: URL?, processLabel: String) {
@@ -84,9 +83,6 @@ final class GhosttySurfaceView: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
 
-        link?.invalidate()
-        link = nil
-
         guard let window else { return }
 
         if isFocused {
@@ -100,10 +96,6 @@ final class GhosttySurfaceView: NSView {
         pendingSize = bounds.size
         applyPendingSize()
 
-        let link = displayLink(target: self, selector: #selector(render))
-        link.isPaused = !isVisible
-        link.add(to: .main, forMode: .common)
-        self.link = link
     }
 
     override func updateTrackingAreas() {
@@ -164,7 +156,6 @@ final class GhosttySurfaceView: NSView {
     override func resignFirstResponder() -> Bool {
         guard super.resignFirstResponder() else { return false }
 
-        heldModifierKeys.removeAll()
         if let surface {
             ghostty_surface_set_focus(surface, false)
         }
@@ -184,17 +175,10 @@ final class GhosttySurfaceView: NSView {
         guard let surface else { return }
 
         let keyCode = event.keyCode
-        let action: ghostty_input_action_e
-        if heldModifierKeys[keyCode] != nil {
-            heldModifierKeys[keyCode] = nil
-            action = GHOSTTY_ACTION_RELEASE
-        } else {
-            guard let category = Self.modifier(for: keyCode, flags: event.modifierFlags) else {
-                return
-            }
-            heldModifierKeys[keyCode] = category
-            action = GHOSTTY_ACTION_PRESS
-        }
+        guard let held = Self.modifier(for: keyCode, flags: event.modifierFlags) else { return }
+
+        let pressed = Self.mods(from: event.modifierFlags).rawValue & held.rawValue != 0
+        let action = pressed ? GHOSTTY_ACTION_PRESS : GHOSTTY_ACTION_RELEASE
 
         var key = ghostty_input_key_s()
         key.action = action
@@ -205,6 +189,16 @@ final class GhosttySurfaceView: NSView {
         key.unshifted_codepoint = 0
         key.text = nil
         _ = ghostty_surface_key(surface, key)
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        sendPosition(event)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        guard let surface, NSEvent.pressedMouseButtons == 0 else { return }
+
+        ghostty_surface_mouse_pos(surface, -1, -1, Self.mods(from: event.modifierFlags))
     }
 
     override func mouseDown(with event: NSEvent) {
@@ -255,11 +249,9 @@ final class GhosttySurfaceView: NSView {
         return Unmanaged<GhosttySurfaceView>.fromOpaque(userdata).takeUnretainedValue()
     }
 
-    func scroll(rows: Int) {
-        guard rows != 0 else { return }
-
-        // Почему: колесо ghostty умножает на cell_size и множитель, строки — нет
-        performBindingAction("scroll_page_lines:\(rows)")
+    func scroll(toRow row: Int) {
+        // Почему: колесо ghostty умножает дельту на cell_size и множитель, строка — нет
+        performBindingAction("scroll_to_row:\(max(row, 0))")
     }
 
     func updateScrollbar(_ scrollbar: TerminalScrollbar) {
@@ -272,7 +264,6 @@ final class GhosttySurfaceView: NSView {
         visibilityApplied = true
         isVisible = visible
         isHidden = !visible
-        link?.isPaused = !visible
 
         if visible {
             scheduleSize(bounds.size)
@@ -318,8 +309,6 @@ final class GhosttySurfaceView: NSView {
     func shutdown() {
         resizeWork?.cancel()
         resizeWork = nil
-        link?.invalidate()
-        link = nil
 
         if let surface {
             ghostty_surface_free(surface)
@@ -332,6 +321,7 @@ final class GhosttySurfaceView: NSView {
 
         lastHandledInsertRequestID = insertRequest.id
         insert(insertRequest.text)
+        onInsertHandled?(insertRequest.id)
     }
 
     private func momentumCode(_ phase: NSEvent.Phase) -> UInt32 {
@@ -396,13 +386,6 @@ private extension GhosttySurfaceView {
         return ghostty_input_mods_e(raw)
     }
 
-    @objc
-    func render() {
-        guard let surface, window?.occlusionState.contains(.visible) ?? false else { return }
-
-        ghostty_surface_draw(surface)
-    }
-
     func send(_ event: NSEvent, action: ghostty_input_action_e) {
         guard let surface else { return }
 
@@ -410,7 +393,9 @@ private extension GhosttySurfaceView {
         key.action = action
         key.keycode = UInt32(event.keyCode)
         key.mods = Self.mods(from: event.modifierFlags)
-        key.consumed_mods = GHOSTTY_MODS_NONE
+        key.consumed_mods = Self.mods(
+            from: event.modifierFlags.subtracting([.control, .command])
+        )
         key.composing = false
         key.unshifted_codepoint = Self.insertableText(
             from: event,

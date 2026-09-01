@@ -33,6 +33,34 @@ enum IgnoredPaths {
             .sorted()
     }
 
+    static func contains(relativePath: String) -> Bool {
+        let components = relativePath.split(separator: "/").map(String.init)
+        if components.contains(where: directories.contains) { return true }
+
+        return containsPair(components)
+    }
+
+    static func contains(_ url: URL, under root: URL) -> Bool {
+        let base = root.standardizedFileURL.path(percentEncoded: false)
+        let path = url.standardizedFileURL.path(percentEncoded: false)
+        let prefix = base.hasSuffix("/") ? base : base + "/"
+        guard path.hasPrefix(prefix) else { return contains(url) }
+
+        if contains(relativePath: String(path.dropFirst(prefix.count))) { return true }
+
+        return isExcludedHomeChild(url)
+    }
+
+    static func isExcludedHomeChild(_ url: URL) -> Bool {
+        let home = URL(filePath: NSHomeDirectory()).standardizedFileURL
+            .path(percentEncoded: false)
+        let parent = url.deletingLastPathComponent().standardizedFileURL
+            .path(percentEncoded: false)
+        guard parent == home else { return false }
+
+        return homeDirectories.contains(url.lastPathComponent)
+    }
+
     static func contains(_ url: URL) -> Bool {
         if url.pathComponents.contains(where: directories.contains) { return true }
         if containsPair(url.pathComponents) { return true }

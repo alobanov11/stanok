@@ -19,6 +19,7 @@ public final class AgentSessionRegistry {
     private enum GlobalRefresh {
 
         static let debounce = Duration.seconds(5)
+        static let maximumWait: TimeInterval = 20
     }
 
     public var registeredProviders: [ProviderInfo] {
@@ -39,6 +40,7 @@ public final class AgentSessionRegistry {
     private var globalPendingRefresh: Set<String> = []
     private var observedGlobalProviders: Set<String> = []
     private var visibilityObserver: (any NSObjectProtocol)?
+    private var lastGlobalRefreshAt: [String: Date] = [:]
     private var globalRefreshTasks: [String: Task<Void, Never>] = [:]
 
     public nonisolated init() {}
@@ -176,6 +178,12 @@ public final class AgentSessionRegistry {
     private func scheduleGlobalRefresh(providerID: String) {
         guard observedGlobalProviders.contains(providerID) else { return }
 
+        let waited = lastGlobalRefreshAt[providerID].map { Date().timeIntervalSince($0) }
+        if let waited, waited >= GlobalRefresh.maximumWait {
+            refreshGlobal(providerID: providerID)
+            return
+        }
+
         globalRefreshTasks[providerID]?.cancel()
         globalRefreshTasks[providerID] = Task { [weak self] in
             try? await Task.sleep(for: GlobalRefresh.debounce)
@@ -186,6 +194,7 @@ public final class AgentSessionRegistry {
     }
 
     private func refreshGlobal(providerID: String) {
+        lastGlobalRefreshAt[providerID] = Date()
         guard let provider = providers[providerID] else { return }
 
         guard !globalInFlight.contains(providerID) else {

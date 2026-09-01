@@ -147,7 +147,11 @@ private extension FileNode {
         }
 
         return contents
-            .filter { !IgnoredPaths.contains($0) }
+            .filter { child in
+                !IgnoredPaths.contains(
+                    relativePath: childRelativePath(child.lastPathComponent)
+                ) && !IgnoredPaths.isExcludedHomeChild(child)
+            }
             .map { child in
                 existing[child] ?? FileNode(
                     url: child,

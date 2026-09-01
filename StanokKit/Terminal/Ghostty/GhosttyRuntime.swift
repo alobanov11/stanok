@@ -248,9 +248,9 @@ private extension GhosttyRuntime {
 
         let question = message(for: request)
         DispatchQueue.main.async {
-            guard ask(question, detail: preview(of: text)) else { return }
+            let answer = ask(question, detail: preview(of: text)) ? text : ""
 
-            text.withCString { pointer in
+            answer.withCString { pointer in
                 ghostty_surface_complete_clipboard_request(surface, pointer, state, true)
             }
         }

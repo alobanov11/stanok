@@ -9,7 +9,8 @@ public enum UntrustedText {
         }
         let cleaned = String(String.UnicodeScalarView(filtered))
             .trimmingCharacters(in: .whitespaces)
-        guard cleaned.count > maxLength, maxLength > 0 else { return cleaned }
+        guard maxLength > 0 else { return "" }
+        guard cleaned.count > maxLength else { return cleaned }
 
         return String(cleaned.prefix(maxLength)) + "…"
     }

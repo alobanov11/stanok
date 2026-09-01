@@ -7,21 +7,28 @@ enum GitLineChanges {
         let path = url.path(percentEncoded: false)
 
         let diff = await GitProcessRunner.run([
-            "-C", directory, "diff", "HEAD", "-U0", "--no-color", "--", path
+            "--no-optional-locks", "-C", directory, "diff", "HEAD", "-U0", "--no-color", "--", path
         ])
 
         if diff.exitCode == 0, !diff.standardOutput.isEmpty {
             return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
         }
 
+        let insideWorkTree = await GitProcessRunner.run([
+            "--no-optional-locks", "-C", directory, "rev-parse", "--is-inside-work-tree"
+        ]).exitCode == 0
+
+        guard insideWorkTree else { return .none }
+
         let tracked = await GitProcessRunner.run([
-            "-C", directory, "ls-files", "--error-unmatch", "--", path
+            "--no-optional-locks", "-C", directory, "ls-files", "--error-unmatch", "--", path
         ]).exitCode == 0
 
         guard !tracked else { return .none }
 
         let fresh = await GitProcessRunner.run([
-            "-C", directory, "diff", "--no-index", "-U0", "--no-color", "--", "/dev/null", path
+            "--no-optional-locks", "-C", directory,
+            "diff", "--no-index", "-U0", "--no-color", "--", "/dev/null", path
         ])
 
         guard fresh.exitCode == 0 || fresh.exitCode == 1 else { return .none }

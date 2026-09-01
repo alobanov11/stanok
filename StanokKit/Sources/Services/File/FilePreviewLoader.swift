@@ -74,7 +74,7 @@ enum FilePreviewLoader {
             return preview(.markdown(MarkdownParser.blocks(from: text, baseURL: baseURL)))
         }
 
-        let lines = text.components(separatedBy: .newlines)
+        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         let truncated = lines.count > Limit.lines
         let shown = truncated ? lines.prefix(Limit.lines).joined(separator: "\n") : text
 
