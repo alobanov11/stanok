@@ -36,6 +36,14 @@ public enum GitClient {
         return root
     }
 
+    public static func changes(at url: URL) async -> [GitChange] {
+        let path = url.path(percentEncoded: false)
+        guard let data = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
+        else { return [] }
+
+        return GitStatusParser.parse(data)
+    }
+
     public static func probe(for url: URL) async -> Probe {
         let path = url.path(percentEncoded: false)
 

@@ -24,18 +24,22 @@ actor ClaudeEditIndex {
     enum Limit {
 
         static let freshness: TimeInterval = 14 * 86400
-        static let chunk = 32 * 1024 * 1024
+        static let firstChunk = 8 * 1024 * 1024
+        static let budget = 64 * 1024 * 1024
     }
 
     private var entries: [String: Entry] = [:]
 
-    func touched(under root: URL) -> ([AgentTouchedFile], Set<String>) {
+    func touched(under root: URL) async -> ([AgentTouchedFile], Set<String>) {
         let files = Self.sessionFiles(under: root)
         var directories: Set<String> = []
         var byPath: [String: Date] = [:]
+        var budget = Limit.budget
 
         for file in files {
-            guard let entry = scan(file) else { continue }
+            guard !Task.isCancelled else { break }
+
+            guard let entry = scan(file, budget: &budget) else { continue }
 
             if let directory = entry.directory { directories.insert(directory) }
 
@@ -44,9 +48,12 @@ actor ClaudeEditIndex {
             }
         }
 
-        entries = entries.filter { files.contains($0.key) }
+        let known = Set(files)
+        entries = entries.filter { known.contains($0.key) }
 
-        let touches = byPath.map { AgentTouchedFile(url: URL(filePath: $0.key), touchedAt: $0.value) }
+        let touches = byPath.map {
+            AgentTouchedFile(url: URL(filePath: $0.key), touchedAt: $0.value)
+        }
 
         return (touches.sorted { $0.touchedAt > $1.touchedAt }, directories)
     }
@@ -54,106 +61,112 @@ actor ClaudeEditIndex {
 
 private extension ClaudeEditIndex {
 
-    static func sessionFiles(under root: URL) -> Set<String> {
-        let manager = FileManager.default
+    static func sessionFiles(under root: URL) -> [String] {
+        let keys: [URLResourceKey] = [.contentModificationDateKey, .isRegularFileKey]
         let deadline = Date().addingTimeInterval(-Limit.freshness)
         guard
-            let walker = manager.enumerator(
+            let walker = FileManager.default.enumerator(
                 at: root,
-                includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey]
+                includingPropertiesForKeys: keys
             )
         else { return [] }
 
-        var found: Set<String> = []
+        var found: [(path: String, modified: Date)] = []
         for case let url as URL in walker where url.pathExtension == "jsonl" {
-            let values = try? url.resourceValues(forKeys: [.contentModificationDateKey])
-            guard let modified = values?.contentModificationDate, modified >= deadline else {
-                continue
-            }
+            let values = try? url.resourceValues(forKeys: Set(keys))
+            guard
+                values?.isRegularFile == true,
+                let modified = values?.contentModificationDate,
+                modified >= deadline
+            else { continue }
 
-            found.insert(url.path(percentEncoded: false))
+            found.append((url.path(percentEncoded: false), modified))
         }
 
-        return found
+        return found.sorted { $0.modified > $1.modified }.map(\.path)
     }
 
     static func identity(of path: String) -> Identity? {
-        var info = stat()
-        guard path.withCString({ lstat($0, &info) }) == 0 else { return nil }
+        var info = Foundation.stat()
+        guard path.withCString({ stat($0, &info) }) == 0 else { return nil }
 
         return Identity(inode: UInt64(info.st_ino), size: Int(info.st_size))
     }
 
-    func scan(_ path: String) -> Entry? {
+    func scan(_ path: String, budget: inout Int) -> Entry? {
         guard let identity = Self.identity(of: path) else {
             entries.removeValue(forKey: path)
             return nil
         }
 
-        if
-            let existing = entries[path], existing.identity.inode == identity.inode,
-            existing.scanned == identity.size {
-            return existing
+        var entry = entries[path]
+        // Почему: лог могли заменить или обрезать на месте, тогда прежний офсет уже не о том файле
+        if entry?.identity.inode != identity.inode || identity.size < (entry?.scanned ?? 0) {
+            entry = Entry(identity: identity, scanned: 0, touches: [:], directory: nil)
         }
 
-        var entry = entries[path] ?? Entry(
-            identity: identity,
-            scanned: 0,
-            touches: [:],
-            directory: nil
-        )
+        guard var entry else { return nil }
+        guard entry.scanned < identity.size, budget > 0 else { return entry }
 
-        if entry.identity.inode != identity.inode { entry = Entry(
-            identity: identity,
-            scanned: 0,
-            touches: [:],
-            directory: nil
-        ) }
+        let start = entry.scanned == 0
+            ? max(0, identity.size - Limit.firstChunk)
+            : entry.scanned
+        let length = min(identity.size - start, budget)
+        guard let chunk = Self.read(path, from: start, length: length) else { return entry }
 
-        // Почему: логи только дописываются, поэтому читаем лишь новый хвост
-        let from = max(entry.scanned, identity.size - Limit.chunk)
-        guard let text = Self.read(path, from: from, to: identity.size) else { return entry }
+        budget -= chunk.count
 
-        for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
-            Self.collect(String(line), into: &entry)
-        }
-
+        let consumed = Self.collect(chunk, skipsHead: start > entry.scanned, into: &entry)
         entry.identity = identity
-        entry.scanned = identity.size
+        entry.scanned = start + consumed
         entries[path] = entry
         return entry
     }
 
-    static func read(_ path: String, from offset: Int, to end: Int) -> String? {
-        guard end > offset, let handle = FileHandle(forReadingAtPath: path) else { return nil }
+    static func read(_ path: String, from offset: Int, length: Int) -> Data? {
+        guard length > 0, let handle = FileHandle(forReadingAtPath: path) else { return nil }
 
         defer { try? handle.close() }
 
         do {
             if offset > 0 { try handle.seek(toOffset: UInt64(offset)) }
-            guard let data = try handle.read(upToCount: end - offset) else { return nil }
 
-            return String(data: data, encoding: .utf8)
+            return try handle.read(upToCount: length)
         } catch {
             return nil
         }
     }
 
-    static func collect(_ line: String, into entry: inout Entry) {
-        guard line.contains("\"file_path\"") || entry.directory == nil else { return }
-        guard
-            let data = line.data(using: .utf8),
-            let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+    static func collect(_ chunk: Data, skipsHead: Bool, into entry: inout Entry) -> Int {
+        let newline = UInt8(ascii: "\n")
+        guard let last = chunk.lastIndex(of: newline) else { return 0 }
+
+        let head = skipsHead ? chunk.firstIndex(of: newline).map { $0 + 1 } : chunk.startIndex
+        let consumed = chunk.distance(from: chunk.startIndex, to: last) + 1
+        guard let head, head <= last else { return consumed }
+
+        for line in chunk[head...last].split(separator: newline) {
+            read(line: Data(line), into: &entry)
+        }
+
+        return consumed
+    }
+
+    static func read(line: Data, into entry: inout Entry) {
+        let interesting = line.holds("\"file_path\"") || line.holds("\"notebook_path\"")
+        guard interesting || entry.directory == nil else { return }
+
+        guard let record = try? JSONSerialization.jsonObject(with: line) as? [String: Any]
         else { return }
 
         if entry.directory == nil, let cwd = record["cwd"] as? String { entry.directory = cwd }
 
         guard
+            interesting,
+            let at = (record["timestamp"] as? String).flatMap(Self.date(from:)),
             let message = record["message"] as? [String: Any],
             let blocks = message["content"] as? [[String: Any]]
         else { return }
-
-        let at = (record["timestamp"] as? String).flatMap(Self.date(from:)) ?? Date()
 
         for block in blocks where block["type"] as? String == "tool_use" {
             guard
@@ -168,6 +181,13 @@ private extension ClaudeEditIndex {
 
     static func date(from raw: String) -> Date? {
         ISO8601DateFormatter.touches.date(from: raw)
+    }
+}
+
+private extension Data {
+
+    func holds(_ marker: String) -> Bool {
+        range(of: Data(marker.utf8)) != nil
     }
 }
 

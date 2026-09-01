@@ -4,6 +4,11 @@ import Foundation
 @Observable
 public final class AgentChangesModel {
 
+    private enum Limit {
+
+        static let touchedPerRepository = 60
+    }
+
     public private(set) var repositories: [AgentRepositoryChanges] = []
 
     public private(set) var isLoading = false
@@ -13,23 +18,18 @@ public final class AgentChangesModel {
     @ObservationIgnored
     private var source: (any AgentTouchesSource)?
 
-    @ObservationIgnored
-    private var refreshing: Task<Void, Never>?
-
     public nonisolated init() {}
 
     public func use(_ source: any AgentTouchesSource) {
         self.source = source
     }
 
-    public func refresh() {
-        guard refreshing == nil else { return }
-
+    public func refresh() async {
         isLoading = true
-        refreshing = Task { [weak self] in
-            await self?.reload()
-            self?.refreshing = nil
-        }
+
+        defer { isLoading = false }
+
+        await reload()
     }
 }
 
@@ -41,49 +41,82 @@ private extension AgentChangesModel {
         guard let source else { return }
 
         let touched = await source.touched()
+        guard !Task.isCancelled else { return }
+
         var roots: [String: Date] = [:]
         var byRoot: [String: [AgentTouchedFile]] = [:]
+        var knownRoots: [String: String?] = [:]
 
-        for directory in touched.directories {
-            guard let root = await GitClient.root(for: URL(filePath: directory)) else { continue }
+        for directory in touched.directories.sorted() {
+            guard !Task.isCancelled else { return }
+            guard let root = await root(of: directory, known: &knownRoots) else { continue }
 
             roots[root] = roots[root] ?? .distantPast
         }
 
         for file in touched.files {
-            let directory = file.url.deletingLastPathComponent()
-            guard let root = await GitClient.root(for: directory) else { continue }
+            guard !Task.isCancelled else { return }
+
+            let directory = file.url.deletingLastPathComponent().path(percentEncoded: false)
+            guard let root = await root(of: directory, known: &knownRoots) else { continue }
 
             byRoot[root, default: []].append(file)
             roots[root] = max(roots[root] ?? .distantPast, file.touchedAt)
         }
 
+        guard !Task.isCancelled else { return }
+
+        repositories = await collect(roots: roots, touched: byRoot)
+        checkedAt = Date()
+    }
+
+    func root(of directory: String, known: inout [String: String?]) async -> String? {
+        if let cached = known[directory] { return cached }
+
+        // Почему: каталог под уже известным корнем не стоит отдельного процесса git
+        if
+            let inherited = known.values.compactMap(\.self).first(where: {
+                directory == $0 || directory.hasPrefix($0.hasSuffix("/") ? $0 : $0 + "/")
+            }) {
+            known[directory] = inherited
+            return inherited
+        }
+
+        let root = await GitClient.root(for: URL(filePath: directory))
+        known[directory] = root
+        return root
+    }
+
+    func collect(
+        roots: [String: Date],
+        touched: [String: [AgentTouchedFile]]
+    ) async -> [AgentRepositoryChanges] {
         var found: [AgentRepositoryChanges] = []
+
         for (root, touchedAt) in roots {
-            let changes = await changes(at: root)
+            guard !Task.isCancelled else { break }
+
+            let changes = await GitClient.changes(at: URL(filePath: root))
             let changed = Set(changes.map { root + "/" + $0.path })
-            let untouched = (byRoot[root] ?? [])
-                .filter { !changed.contains($0.url.path(percentEncoded: false)) }
+            let untouched = (touched[root] ?? [])
+                .filter { !changed.contains(Self.resolved($0.url)) }
                 .sorted { $0.touchedAt > $1.touchedAt }
+                .prefix(Limit.touchedPerRepository)
 
             guard !changes.isEmpty || !untouched.isEmpty else { continue }
 
             found.append(AgentRepositoryChanges(
                 root: root,
                 changes: changes,
-                touchedOnly: untouched,
+                touchedOnly: Array(untouched),
                 touchedAt: touchedAt
             ))
         }
 
-        repositories = found.sorted { $0.touchedAt > $1.touchedAt }
-        checkedAt = Date()
+        return found.sorted { $0.touchedAt > $1.touchedAt }
     }
 
-    func changes(at root: String) async -> [GitChange] {
-        guard case let .snapshot(snapshot) = await GitClient.probe(for: URL(filePath: root))
-        else { return [] }
-
-        return snapshot.changes
+    static func resolved(_ url: URL) -> String {
+        url.resolvingSymlinksInPath().path(percentEncoded: false)
     }
 }

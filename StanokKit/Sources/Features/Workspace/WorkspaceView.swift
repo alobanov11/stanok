@@ -187,6 +187,9 @@ public struct WorkspaceView<Terminal: View>: View {
     @Environment(\.agentChanges)
     private var agentChanges
 
+    @State
+    private var ownChanges = AgentChangesModel()
+
     public var body: some View {
         HStack(spacing: 0) {
             if isSidebarExpanded {
@@ -371,7 +374,7 @@ private extension WorkspaceView {
             fileTreeModel: inspector.fileTree(for: inspectorFolder ?? URL(filePath: "/")),
             changeTreeModel: inspector.changeTree(for: inspectorGitRoot ?? ""),
             branchTreeModel: inspector.branchTree(for: inspectorGitRoot ?? ""),
-            agentChanges: agentChanges ?? AgentChangesModel(),
+            agentChanges: agentChanges ?? ownChanges,
             branchActions: branchActions,
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
@@ -492,7 +495,7 @@ private extension WorkspaceView {
             fileTreeModel: inspector.fileTree(for: folder),
             changeTreeModel: inspector.changeTree(for: gitRoot),
             branchTreeModel: inspector.branchTree(for: gitRoot),
-            agentChanges: agentChanges ?? AgentChangesModel(),
+            agentChanges: agentChanges ?? ownChanges,
             branchActions: branchActions,
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,

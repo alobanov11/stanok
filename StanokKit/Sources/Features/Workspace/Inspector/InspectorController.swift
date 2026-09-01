@@ -51,7 +51,7 @@ struct InspectorController {
         state.select(url, in: session.url)
         persist(session.id, WorkspacePaths.relativePath(for: url, in: session.url))
 
-        if mode != .changes {
+        if mode != .changes, mode != .agents {
             showAllFiles()
         }
     }

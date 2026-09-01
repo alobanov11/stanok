@@ -13,11 +13,21 @@ struct AgentChangesPanel: View {
                         SectionHeader(title: repository.name)
 
                         ForEach(repository.changes, id: \.path) { change in
-                            row(repository, path: change.path, status: change.status)
+                            row(
+                                repository,
+                                path: change.path,
+                                url: URL(filePath: repository.root).appending(path: change.path),
+                                status: change.status
+                            )
                         }
 
                         ForEach(repository.touchedOnly, id: \.url) { file in
-                            row(repository, path: relative(file.url, in: repository), status: nil)
+                            row(
+                                repository,
+                                path: relative(file.url, in: repository),
+                                url: file.url,
+                                status: nil
+                            )
                         }
                     }
                 }
@@ -43,7 +53,7 @@ struct AgentChangesPanel: View {
     var body: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .task { model.refresh() }
+            .task { await model.refresh() }
     }
 
     let model: AgentChangesModel
@@ -56,11 +66,10 @@ struct AgentChangesPanel: View {
     private func row(
         _ repository: AgentRepositoryChanges,
         path: String,
+        url: URL,
         status: GitFileStatus?
     ) -> some View {
-        let url = URL(filePath: repository.root).appending(path: path)
-
-        return FileRow(
+        FileRow(
             name: path,
             url: url,
             isDirectory: false,

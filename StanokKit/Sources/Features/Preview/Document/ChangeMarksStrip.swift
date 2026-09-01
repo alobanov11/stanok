@@ -10,7 +10,7 @@ struct ChangeMarksStrip: View {
     }
 
     private var marks: [(position: Double, weight: Double)] {
-        guard lines.count > 1 else { return [] }
+        guard !lines.isEmpty else { return [] }
 
         let span = Double(lines.count)
         var runs: [(start: Int, length: Int)] = []
@@ -29,7 +29,9 @@ struct ChangeMarksStrip: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
+        let marks = marks
+
+        return GeometryReader { proxy in
             ForEach(Array(marks.enumerated()), id: \.offset) { _, mark in
                 Capsule()
                     .fill(Color(nsColor: .controlAccentColor).opacity(0.85))
