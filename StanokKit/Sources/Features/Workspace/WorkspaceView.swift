@@ -243,7 +243,7 @@ public struct WorkspaceView<Terminal: View>: View {
             // Почему: коммит из терминала не трогает файл, но рибоны в превью уже не о том дереве
             Task { await navigator.refreshChanges() }
         }
-        .task(id: needsAgentChanges) { await pollAgentChanges() }
+        .task(id: agentChangesKey) { await pollAgentChanges() }
         .task { await pollReachability() }
     }
 
@@ -365,6 +365,10 @@ private extension WorkspaceView {
         }
     }
 
+    var agentChangesKey: String {
+        "\(needsAgentChanges)|\(inspectorGitRoot ?? "")"
+    }
+
     var needsAgentChanges: Bool {
         if case .review(.agents) = navigator.current { return true }
 
@@ -405,6 +409,9 @@ private extension WorkspaceView {
             await (agentChanges ?? ownChanges).refresh()
             try? await Task.sleep(for: .seconds(20))
         }
+
+        // Почему: закрытая панель не должна дочитывать репозитории в фоне
+        (agentChanges ?? ownChanges).stop()
     }
 
     func pollReachability() async {

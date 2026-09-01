@@ -39,11 +39,14 @@ public final class AgentChangesModel {
         // Почему: область поиска сменилась, идущий проход собирает уже не тот репозиторий
         focused = root
         repositories = []
+        stop()
+    }
+
+    public func stop() {
         running?.cancel()
         running = nil
         runningToken = UUID()
-
-        Task { await refresh() }
+        isLoading = false
     }
 
     public func refresh() async {

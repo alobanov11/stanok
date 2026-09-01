@@ -25,6 +25,7 @@ actor ClaudeEditIndex {
     enum Limit {
 
         static let freshness: TimeInterval = 14 * 86400
+        static let touchesPerSession = 400
         static let firstChunk = 8 * 1024 * 1024
         static let budget = 64 * 1024 * 1024
     }
@@ -139,6 +140,7 @@ private extension ClaudeEditIndex {
             length: length,
             size: identity.size
         )
+        Self.trim(&entry)
         entries[path] = entry
 
         return entry
@@ -159,6 +161,17 @@ private extension ClaudeEditIndex {
         let cutByBudget = length < size - start && chunk < Limit.firstChunk
 
         return consumed > 0 || reachedEnd || cutByBudget ? consumed : chunk
+    }
+
+    // Почему: индекс живёт всю сессию, а один лог способен тронуть тысячи путей
+    static func trim(_ entry: inout Entry) {
+        guard entry.touches.count > Limit.touchesPerSession else { return }
+
+        let newest = entry.touches
+            .sorted { $0.value > $1.value }
+            .prefix(Limit.touchesPerSession)
+
+        entry.touches = Dictionary(uniqueKeysWithValues: newest.map { ($0.key, $0.value) })
     }
 
     static func rewritten(_ entry: Entry, into identity: Identity) -> Bool {

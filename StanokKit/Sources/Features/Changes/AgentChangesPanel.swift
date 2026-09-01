@@ -12,8 +12,8 @@ struct AgentChangesPanel: View {
                     ForEach(model.repositories) { repository in
                         SectionHeader(title: repository.name)
 
-                        ForEach(visible(repository), id: \.url) { node in
-                            row(repository, node: node)
+                        ForEach(visible(repository, folders: folders), id: \.url) { node in
+                            row(repository, node: node, folders: folders)
                         }
                     }
                 }
@@ -58,16 +58,19 @@ struct AgentChangesPanel: View {
 
     let onOpen: (URL) -> Void
 
-    private var expanded: Set<String> {
+    private var folders: Set<String> {
         Set(expandedRaw.split(separator: "\n").map(String.init))
     }
 
-    private func visible(_ repository: AgentRepositoryChanges) -> [GitTreeNode] {
+    private func visible(
+        _ repository: AgentRepositoryChanges,
+        folders: Set<String>
+    ) -> [GitTreeNode] {
         var rows: [GitTreeNode] = []
 
         func append(_ node: GitTreeNode) {
             rows.append(node)
-            guard node.isDirectory, isExpanded(repository, node) else { return }
+            guard node.isDirectory, folders.contains(key(repository, node)) else { return }
 
             for child in node.children {
                 append(child)
@@ -81,20 +84,20 @@ struct AgentChangesPanel: View {
         return rows
     }
 
-    private func isExpanded(_ repository: AgentRepositoryChanges, _ node: GitTreeNode) -> Bool {
-        expanded.contains(key(repository, node))
-    }
-
     private func key(_ repository: AgentRepositoryChanges, _ node: GitTreeNode) -> String {
         repository.root + "|" + node.relativePath
     }
 
-    private func row(_ repository: AgentRepositoryChanges, node: GitTreeNode) -> some View {
+    private func row(
+        _ repository: AgentRepositoryChanges,
+        node: GitTreeNode,
+        folders: Set<String>
+    ) -> some View {
         FileRow(
             name: node.name,
             url: node.url,
             isDirectory: node.isDirectory,
-            isExpanded: isExpanded(repository, node),
+            isExpanded: folders.contains(key(repository, node)),
             depth: node.depth - 1,
             status: node.status,
             isSelected: node.url == chosen,
@@ -106,10 +109,10 @@ struct AgentChangesPanel: View {
 
     private func select(_ repository: AgentRepositoryChanges, node: GitTreeNode) {
         guard !node.isDirectory else {
-            var folders = expanded
+            var opened = folders
             let key = key(repository, node)
-            if folders.contains(key) { folders.remove(key) } else { folders.insert(key) }
-            expandedRaw = folders.sorted().joined(separator: "\n")
+            if opened.contains(key) { opened.remove(key) } else { opened.insert(key) }
+            expandedRaw = opened.sorted().joined(separator: "\n")
             return
         }
 

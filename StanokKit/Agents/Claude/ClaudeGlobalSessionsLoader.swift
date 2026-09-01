@@ -3,8 +3,9 @@ import StanokKit
 
 final class ClaudeGlobalSessionsLoader: Sendable {
 
+    private static let parallelism = 8
+
     private let cache = ClaudeSessionFileCache()
-    private let gate = ConcurrencyGate(limit: 8)
 
     private static func session(
         for url: URL,
@@ -95,22 +96,29 @@ final class ClaudeGlobalSessionsLoader: Sendable {
         await cache.purge(keeping: paths)
 
         let cache = cache
-        let gate = gate
-        let results = await withTaskGroup(
-            of: AgentSession?.self
-        ) { group in
-            for file in sessionFiles {
-                group.addTask {
-                    await gate.withPermit {
-                        await Self.session(for: file.url, id: file.id, cache: cache)
-                    }
-                }
+        // Почему: задача на каждый лог — это тысячи повисших продолжений ради восьми рабочих
+        let results = await withTaskGroup(of: AgentSession?.self) { group in
+            var next = sessionFiles.startIndex
+            var collected: [AgentSession] = []
+
+            func add() {
+                guard next < sessionFiles.endIndex else { return }
+
+                let file = sessionFiles[next]
+                next = sessionFiles.index(after: next)
+                group.addTask { await Self.session(for: file.url, id: file.id, cache: cache) }
             }
 
-            var collected: [AgentSession] = []
-            for await result in group {
-                if let result { collected.append(result) }
+            for _ in 0..<Self.parallelism {
+                add()
             }
+
+            while let result = await group.next() {
+                if let result { collected.append(result) }
+
+                add()
+            }
+
             return collected
         }
 
