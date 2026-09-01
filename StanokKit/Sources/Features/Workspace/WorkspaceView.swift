@@ -168,9 +168,6 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var processTracker = TabProcessTracker()
 
-    @State
-    private var cwdTracker = WorkingDirectoryTracker()
-
     public var body: some View {
         HStack(spacing: 0) {
             if isSidebarExpanded {
@@ -404,7 +401,7 @@ private extension WorkspaceView {
                 onOpenURL: { linkRouter.openTerminalLink($0, in: session) },
                 onTitleChanged: { store.setLiveTitle($0.isEmpty ? nil : $0, for: session.id) },
                 onCloseRequested: { _ in liveSessions.close(session) },
-                onPwdChanged: { cwdTracker.report($0, for: session.id, into: store) },
+                onPwdChanged: { WorkingDirectoryTracker.report($0, for: session.id, into: store) },
                 onFocused: { selection = session.id }
             )
         )

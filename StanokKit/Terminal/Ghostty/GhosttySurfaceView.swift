@@ -111,7 +111,10 @@ final class GhosttySurfaceView: NSView {
         if let tracking { removeTrackingArea(tracking) }
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect],
+            options: [
+                .mouseMoved, .mouseEnteredAndExited, .cursorUpdate,
+                .activeInKeyWindow, .inVisibleRect
+            ],
             owner: self
         )
         addTrackingArea(area)
@@ -237,7 +240,7 @@ final class GhosttySurfaceView: NSView {
 
         var mods: Int32 = 0
         if event.hasPreciseScrollingDeltas { mods = 1 }
-        if !event.momentumPhase.isEmpty { mods |= 2 }
+        mods |= Int32(momentumCode(event.momentumPhase)) << 1
         ghostty_surface_mouse_scroll(surface, event.scrollingDeltaX, event.scrollingDeltaY, mods)
     }
 
@@ -248,12 +251,6 @@ final class GhosttySurfaceView: NSView {
     static func from(userdata: UnsafeMutableRawPointer?) -> GhosttySurfaceView? {
         guard let userdata else { return nil }
         return Unmanaged<GhosttySurfaceView>.fromOpaque(userdata).takeUnretainedValue()
-    }
-
-    func updateConfig(_ config: ghostty_config_t) {
-        guard let surface else { return }
-
-        ghostty_surface_update_config(surface, config)
     }
 
     func scroll(rows: Int) {
@@ -308,8 +305,9 @@ final class GhosttySurfaceView: NSView {
     }
 
     func setCursorShape(_ shape: ghostty_action_mouse_shape_e) {
-        guard !isHidden, let cursor = GhosttyCursorShape.cursor(for: shape) else { return }
+        guard !isHidden else { return }
 
+        let cursor = GhosttyCursorShape.cursor(for: shape)
         desiredCursor = cursor
         cursor.set()
     }
@@ -331,6 +329,18 @@ final class GhosttySurfaceView: NSView {
 
         lastHandledInsertRequestID = insertRequest.id
         insert(insertRequest.text)
+    }
+
+    private func momentumCode(_ phase: NSEvent.Phase) -> UInt32 {
+        switch phase {
+        case .began: GHOSTTY_MOUSE_MOMENTUM_BEGAN.rawValue
+        case .stationary: GHOSTTY_MOUSE_MOMENTUM_STATIONARY.rawValue
+        case .changed: GHOSTTY_MOUSE_MOMENTUM_CHANGED.rawValue
+        case .ended: GHOSTTY_MOUSE_MOMENTUM_ENDED.rawValue
+        case .cancelled: GHOSTTY_MOUSE_MOMENTUM_CANCELLED.rawValue
+        case .mayBegin: GHOSTTY_MOUSE_MOMENTUM_MAY_BEGIN.rawValue
+        default: GHOSTTY_MOUSE_MOMENTUM_NONE.rawValue
+        }
     }
 }
 
@@ -486,15 +496,21 @@ private extension GhosttySurfaceView {
     func insert(_ text: String) {
         guard surface != nil, !text.isEmpty else { return }
 
-        let previous = NSPasteboard.general.string(forType: .string)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        let pasteboard = NSPasteboard.general
+        let saved = pasteboard.pasteboardItems?.map { item -> NSPasteboardItem in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) { copy.setData(data, forType: type) }
+            }
+            return copy
+        } ?? []
+
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
         performBindingAction("paste_from_clipboard")
 
-        NSPasteboard.general.clearContents()
-        if let previous {
-            NSPasteboard.general.setString(previous, forType: .string)
-        }
+        pasteboard.clearContents()
+        if !saved.isEmpty { pasteboard.writeObjects(saved) }
     }
 
     @objc

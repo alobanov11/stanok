@@ -20,34 +20,29 @@ public final class GhosttyRuntime {
         weak var runtime: GhosttyRuntime?
     }
 
+    @ObservationIgnored
+    private static var isInitialized = false
+
     private(set) var config: GhosttyConfig
 
     @ObservationIgnored
-    let app: ghostty_app_t
-
-    @ObservationIgnored
-    private let surfaces = NSHashTable<GhosttySurfaceView>.weakObjects()
+    nonisolated(unsafe) let app: ghostty_app_t
 
     @ObservationIgnored
     private let wakeupContext = WakeupContext()
 
     public init() throws {
-        let status = ghostty_init(0, nil)
-        guard status == 0 else { throw Failure.initialization(status) }
+        try Self.initializeOnce()
 
-        guard let handle = ghostty_config_new() else { throw Failure.configuration }
-        ghostty_config_load_default_files(handle)
-        ghostty_config_load_recursive_files(handle)
+        guard let handle = Self.loadConfig() else { throw Failure.configuration }
 
-        let ownConfig = AppPaths.ghosttyConfig
-        if FileManager.default.fileExists(atPath: ownConfig.path(percentEncoded: false)) {
-            ownConfig.path(percentEncoded: false)
-                .withCString { ghostty_config_load_file(handle, $0) }
-            Log.terminal.info("loaded \(ownConfig.path(percentEncoded: false))")
+        let config = GhosttyConfig(handle: handle)
+        if !config.diagnostics.isEmpty {
+            Log.terminal.error(
+                "config diagnostics: \(config.diagnostics.joined(separator: "; "))"
+            )
         }
-
-        ghostty_config_finalize(handle)
-        self.config = GhosttyConfig(handle: handle)
+        self.config = config
 
         var runtime = ghostty_runtime_config_s()
         runtime.userdata = Unmanaged.passUnretained(wakeupContext).toOpaque()
@@ -81,7 +76,10 @@ public final class GhosttyRuntime {
                 let openURL = action.action.open_url
                 guard let pointer = openURL.url else { return false }
 
-                let link = String(cString: pointer)
+                let link = String(
+                    decoding: UnsafeRawBufferPointer(start: pointer, count: Int(openURL.len)),
+                    as: UTF8.self
+                )
                 GhosttyRuntime.assertMainThread()
                 return MainActor.assumeIsolated {
                     guard
@@ -163,19 +161,32 @@ public final class GhosttyRuntime {
         wakeupContext.runtime = self
     }
 
+    deinit {
+        ghostty_app_free(app)
+    }
+
     static func loadConfig() -> ghostty_config_t? {
         guard let handle = ghostty_config_new() else { return nil }
 
         ghostty_config_load_default_files(handle)
-        ghostty_config_load_recursive_files(handle)
 
         let own = AppPaths.ghosttyConfig
         if FileManager.default.fileExists(atPath: own.path(percentEncoded: false)) {
             own.path(percentEncoded: false).withCString { ghostty_config_load_file(handle, $0) }
         }
 
+        ghostty_config_load_recursive_files(handle)
         ghostty_config_finalize(handle)
         return handle
+    }
+
+    static func initializeOnce() throws {
+        guard !isInitialized else { return }
+
+        let status = ghostty_init(0, nil)
+        guard status == 0 else { throw Failure.initialization(status) }
+
+        isInitialized = true
     }
 
     private nonisolated static func assertMainThread() {
@@ -193,20 +204,12 @@ public final class GhosttyRuntime {
             Log.terminal.error(
                 "config reload rejected: \(candidate.diagnostics.joined(separator: "; "))"
             )
-            ghostty_config_free(handle)
             return
         }
 
         ghostty_app_update_config(app, handle)
-        for view in surfaces.allObjects {
-            view.updateConfig(handle)
-        }
         config = candidate
         Log.terminal.info("config reloaded")
-    }
-
-    func register(_ view: GhosttySurfaceView) {
-        surfaces.add(view)
     }
 
     func tick() {

@@ -9,6 +9,11 @@ enum GitProcessRunner {
         let standardError: String
     }
 
+    private final class Buffer: @unchecked Sendable {
+
+        var data = Data()
+    }
+
     static func run(_ arguments: [String]) async -> Result {
         await withCheckedContinuation { continuation in
             GitProcessQueue.serial.async {
@@ -24,11 +29,18 @@ enum GitProcessRunner {
 
                 do {
                     try process.run()
+
+                    let errors = Buffer()
+                    let group = DispatchGroup()
+                    DispatchQueue.global(qos: .utility).async(group: group) {
+                        errors.data = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                    }
+
                     let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-                    let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                    group.wait()
                     process.waitUntilExit()
 
-                    let errorText = (String(data: errorData, encoding: .utf8) ?? "")
+                    let errorText = (String(data: errors.data, encoding: .utf8) ?? "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
 
                     continuation.resume(returning: Result(

@@ -10,9 +10,23 @@ enum GitLineChanges {
             "-C", directory, "diff", "HEAD", "-U0", "--no-color", "--", path
         ])
 
-        guard diff.exitCode == 0 else { return .none }
+        if diff.exitCode == 0, !diff.standardOutput.isEmpty {
+            return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
+        }
 
-        return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
+        let tracked = await GitProcessRunner.run([
+            "-C", directory, "ls-files", "--error-unmatch", "--", path
+        ]).exitCode == 0
+
+        guard !tracked else { return .none }
+
+        let fresh = await GitProcessRunner.run([
+            "-C", directory, "diff", "--no-index", "-U0", "--no-color", "--", "/dev/null", path
+        ])
+
+        guard fresh.exitCode == 0 || fresh.exitCode == 1 else { return .none }
+
+        return parse(String(data: fresh.standardOutput, encoding: .utf8) ?? "")
     }
 
     static func parse(_ diff: String) -> GitFileChanges {
@@ -22,6 +36,11 @@ enum GitLineChanges {
 
         for raw in diff.split(separator: "\n", omittingEmptySubsequences: false) {
             let line = String(raw)
+
+            if line.hasPrefix("diff --git") {
+                anchor = nil
+                continue
+            }
 
             if line.hasPrefix("@@") {
                 guard let hunk = hunk(from: line) else { continue }
@@ -40,7 +59,7 @@ enum GitLineChanges {
                 continue
             }
 
-            guard let anchor, line.hasPrefix("-"), !line.hasPrefix("---") else { continue }
+            guard let anchor, line.hasPrefix("-") else { continue }
 
             removed[anchor, default: []].append(String(line.dropFirst()))
         }

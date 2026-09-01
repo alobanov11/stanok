@@ -29,17 +29,16 @@ private extension DarwinProcessTableReader {
     }
 
     static func listAllPIDs() -> [Int32] {
-        let requiredSize = proc_listallpids(nil, 0)
-        guard requiredSize > 0 else { return [] }
+        let requiredCount = proc_listallpids(nil, 0)
+        guard requiredCount > 0 else { return [] }
 
-        var pids = [Int32](repeating: 0, count: Int(requiredSize) * 2)
-        let bytesUsed = pids.withUnsafeMutableBytes { buffer in
+        var pids = [Int32](repeating: 0, count: Int(requiredCount) * 2)
+        let writtenCount = pids.withUnsafeMutableBytes { buffer in
             proc_listallpids(buffer.baseAddress, Int32(buffer.count))
         }
-        guard bytesUsed > 0 else { return [] }
+        guard writtenCount > 0 else { return [] }
 
-        let count = min(Int(bytesUsed) / MemoryLayout<Int32>.size, pids.count)
-        return Array(pids.prefix(count))
+        return Array(pids.prefix(min(Int(writtenCount), pids.count)))
     }
 
     static func readEntry(pid: Int32) -> ProcessTableEntry? {

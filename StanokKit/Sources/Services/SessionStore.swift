@@ -19,7 +19,7 @@ public final class SessionStore {
     private lazy var saveScheduler = SaveScheduler<SessionFile>(
         delay: .milliseconds(400)
     ) { [weak self] snapshot in
-        self?.persistVerified(snapshot)
+        self?.persistVerified(snapshot) ?? false
     }
 
     public init(file: URL = AppPaths.sessions, legacyFile: URL = AppPaths.repositories) {
@@ -178,6 +178,7 @@ private extension SessionStore {
 
     func removeRoot(_ root: TerminalSession) {
         let remaining = root.layout?.removing(root.id)
+        let position = sessions.firstIndex { $0.id == root.id }
         sessions.removeAll { $0.id == root.id }
 
         guard
@@ -195,6 +196,13 @@ private extension SessionStore {
         for index in sessions.indices where sessions[index].parentID == root.id {
             sessions[index].parentID = heirID
         }
+
+        if let position {
+            let heir = sessions.remove(at: heirIndex)
+            sessions.insert(heir, at: min(position, sessions.count))
+        }
+
+        regroup(sessions.filter { $0.parentID == nil }.map(\.id))
     }
 
     func pruned(_ layout: SplitLayout?, soleLeaf: UUID) -> SplitLayout? {
@@ -333,7 +341,19 @@ private extension SessionStore {
         SessionFile(sessions: sessions, selectedSessionID: selectedSessionID)
     }
 
-    func persistVerified(_ snapshot: SessionFile) {
+    @discardableResult
+    func persistVerified(_ snapshot: SessionFile) -> Bool {
+        var temporary: URL?
+
+        defer {
+            if
+                let temporary, FileManager.default.fileExists(
+                    atPath: temporary.path(percentEncoded: false)
+                ) {
+                try? FileManager.default.removeItem(at: temporary)
+            }
+        }
+
         do {
             try FileManager.default.createDirectory(
                 at: file.deletingLastPathComponent(),
@@ -344,25 +364,29 @@ private extension SessionStore {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(snapshot)
 
-            let temporary = file.deletingLastPathComponent()
+            let target = file.deletingLastPathComponent()
                 .appending(path: "\(file.lastPathComponent).tmp-\(UUID().uuidString)")
-            try data.write(to: temporary, options: .atomic)
+            temporary = target
+            try data.write(to: target, options: .atomic)
 
             let roundTripped = try JSONDecoder().decode(
                 SessionFile.self,
-                from: Data(contentsOf: temporary)
+                from: Data(contentsOf: target)
             )
             guard roundTripped == snapshot else {
                 fatalError("stanok: sessions.json failed round-trip verification, refusing to save")
             }
 
             if FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) {
-                _ = try FileManager.default.replaceItemAt(file, withItemAt: temporary)
+                _ = try FileManager.default.replaceItemAt(file, withItemAt: target)
             } else {
-                try FileManager.default.moveItem(at: temporary, to: file)
+                try FileManager.default.moveItem(at: target, to: file)
             }
+
+            return true
         } catch {
             Log.terminal.error("cannot save sessions: \(error.localizedDescription)")
+            return false
         }
     }
 }

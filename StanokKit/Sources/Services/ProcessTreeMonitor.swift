@@ -9,6 +9,7 @@ public final class ProcessTreeMonitor {
     public private(set) var processNames: [Int32: Set<String>] = [:]
 
     private var observedRoots: Set<Int32> = []
+    private var generation = 0
     private var previousSnapshot: ProcessTableSnapshot?
     private var previousCapturedAt: Date?
     private var pollTask: Task<Void, Never>?
@@ -46,31 +47,34 @@ private extension ProcessTreeMonitor {
     func startIfNeeded() {
         guard pollTask == nil else { return }
 
+        generation += 1
+        let started = generation
         pollTask = Task { [weak self] in
-            await self?.runLoop()
+            while !Task.isCancelled {
+                guard let self, generation == started else { return }
+
+                await tick(generation: started)
+                try? await Task.sleep(for: interval)
+            }
         }
     }
 
     func stop() {
+        generation += 1
         pollTask?.cancel()
         pollTask = nil
         previousSnapshot = nil
         previousCapturedAt = nil
     }
 
-    func runLoop() async {
-        while !Task.isCancelled {
-            await tick()
-            try? await Task.sleep(for: interval)
-        }
-    }
-
-    func tick() async {
+    func tick(generation started: Int) async {
         let roots = observedRoots
         guard !roots.isEmpty else { return }
 
         let now = Date()
         let current = await reader.snapshot()
+        guard generation == started, observedRoots == roots else { return }
+
         var next: [Int32: ProcessTreeUsage] = [:]
         let elapsed = previousCapturedAt.map { now.timeIntervalSince($0) } ?? 0
 

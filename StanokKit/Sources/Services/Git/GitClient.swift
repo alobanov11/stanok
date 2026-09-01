@@ -16,6 +16,7 @@ public enum GitClient {
             branch: snapshot.branch,
             added: snapshot.added,
             removed: snapshot.removed,
+            isDirty: !snapshot.changes.isEmpty,
             tracking: snapshot.tracking
         )
     }
@@ -37,9 +38,8 @@ public enum GitClient {
 
         let numstat = await run(diffArguments, at: path) ?? ""
         let (diffAdded, removed) = parseNumstat(numstat)
-        let untracked = await untrackedAddedLines(at: path, root: url)
-
         let statusData = await runRaw(["status", "--porcelain=v2", "-z", "-uall"], at: path)
+        let untracked = untrackedAddedLines(in: statusData, root: URL(filePath: root))
         let tracking = await GitTracking.parse(
             run(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], at: path)
         )
@@ -84,8 +84,8 @@ private extension GitClient {
         return (added, removed)
     }
 
-    static func untrackedAddedLines(at path: String, root: URL) async -> Int {
-        let output = await run(["status", "--porcelain=v2", "-z", "-uall"], at: path) ?? ""
+    static func untrackedAddedLines(in data: Data?, root: URL) -> Int {
+        let output = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
         let paths = output
             .split(separator: "\0", omittingEmptySubsequences: true)
             .compactMap { entry in entry.hasPrefix("? ") ? String(entry.dropFirst(2)) : nil }

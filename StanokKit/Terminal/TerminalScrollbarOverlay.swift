@@ -9,7 +9,6 @@ struct TerminalScrollbarOverlay: View {
         static let hitWidth: CGFloat = 16
         static let inset: CGFloat = 3
         static let minimumThumb: CGFloat = 28
-        static let idleDelay = Duration.seconds(1.2)
     }
 
     private var scrollbar: TerminalScrollbar? {
@@ -21,7 +20,7 @@ struct TerminalScrollbarOverlay: View {
     }
 
     private var isInteractive: Bool {
-        scrollbar?.isScrollable == true && (isShown || isHovering || grab != nil)
+        scrollbar?.isScrollable == true
     }
 
     private var isVisible: Bool {
@@ -33,6 +32,9 @@ struct TerminalScrollbarOverlay: View {
 
     @State
     private var grab: CGFloat?
+
+    @State
+    private var target: Int?
 
     var body: some View {
         GeometryReader { proxy in
@@ -93,7 +95,10 @@ private extension TerminalScrollbarOverlay {
 
                 scrollTo(position: travel > 0 ? (value.location.y - offset) / travel : 0, scrollbar)
             }
-            .onEnded { _ in grab = nil }
+            .onEnded { _ in
+                grab = nil
+                target = nil
+            }
     }
 
     func grabOffset(at point: CGFloat, thumbTop: CGFloat, thumb: CGFloat) -> CGFloat {
@@ -104,9 +109,11 @@ private extension TerminalScrollbarOverlay {
 
     func scrollTo(position: Double, _ scrollbar: TerminalScrollbar) {
         let span = Double(scrollbar.total - scrollbar.length)
-        let target = (min(max(position, 0), 1) * span).rounded()
-        let rows = Int(target) - Int(scrollbar.offset)
+        let next = Int((min(max(position, 0), 1) * span).rounded())
+        let current = target ?? Int(scrollbar.offset)
+        guard next != current else { return }
 
-        controller.scroll(rows: rows)
+        target = next
+        controller.scroll(rows: next - current)
     }
 }

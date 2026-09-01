@@ -5,30 +5,46 @@ enum FileOperations {
     enum Failure: LocalizedError {
 
         case intoItself
+        case badName
 
         var errorDescription: String? {
             switch self {
             case .intoItself: "Нельзя поместить папку внутрь себя"
+            case .badName: "Недопустимое имя"
             }
         }
     }
 
     static func createFile(named name: String, in directory: URL) throws {
-        try Data().write(to: directory.appending(path: name), options: .withoutOverwriting)
+        let target = try directory.appending(path: component(name))
+        try Data().write(to: target, options: .withoutOverwriting)
     }
 
     static func createDirectory(named name: String, in directory: URL) throws {
         try FileManager.default.createDirectory(
-            at: directory.appending(path: name),
+            at: directory.appending(path: component(name)),
             withIntermediateDirectories: false
         )
     }
 
     static func rename(_ url: URL, to name: String) throws {
-        let target = url.deletingLastPathComponent().appending(path: name)
+        let target = try url.deletingLastPathComponent().appending(path: component(name))
         guard target != url else { return }
 
         try FileManager.default.moveItem(at: url, to: target)
+    }
+
+    static func component(_ name: String) throws -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            !trimmed.isEmpty,
+            trimmed != ".",
+            trimmed != "..",
+            !trimmed.contains("/"),
+            !trimmed.contains("\0")
+        else { throw Failure.badName }
+
+        return trimmed
     }
 
     static func trash(_ url: URL) throws {

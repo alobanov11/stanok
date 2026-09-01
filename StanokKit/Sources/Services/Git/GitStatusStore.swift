@@ -14,7 +14,13 @@ public final class GitStatusStore {
     public func status(for session: TerminalSession?) -> GitStatus? {
         guard let snapshot = snapshot(for: session) else { return nil }
 
-        return GitStatus(branch: snapshot.branch, added: snapshot.added, removed: snapshot.removed)
+        return GitStatus(
+            branch: snapshot.branch,
+            added: snapshot.added,
+            removed: snapshot.removed,
+            isDirty: !snapshot.changes.isEmpty,
+            tracking: snapshot.tracking
+        )
     }
 
     public func snapshot(for session: TerminalSession?) -> GitSnapshot? {

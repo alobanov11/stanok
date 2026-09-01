@@ -8,9 +8,9 @@ final class SaveScheduler<State: Equatable> {
     private var task: Task<Void, Never>?
 
     private let delay: Duration
-    private let write: (State) -> Void
+    private let write: (State) -> Bool
 
-    init(delay: Duration = .milliseconds(400), write: @escaping (State) -> Void) {
+    init(delay: Duration = .milliseconds(400), write: @escaping (State) -> Bool) {
         self.delay = delay
         self.write = write
     }
@@ -39,7 +39,11 @@ final class SaveScheduler<State: Equatable> {
     private func commit() {
         guard let pendingWrite else { return }
 
-        write(pendingWrite)
+        guard write(pendingWrite) else {
+            lastKnown = nil
+            return
+        }
+
         self.pendingWrite = nil
     }
 }

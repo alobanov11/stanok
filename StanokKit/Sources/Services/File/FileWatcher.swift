@@ -42,7 +42,7 @@ public final class FileWatcher {
                     continue
                 }
 
-                if let gitDirectory, path.hasPrefix(gitDirectory) {
+                if let gitDirectory, FileWatcher.isInside(path, gitDirectory: gitDirectory) {
                     if FileWatcher.isRelevantGitEvent(path, gitDirectory: gitDirectory) {
                         pendingGitChange = true
                     }
@@ -105,7 +105,8 @@ public final class FileWatcher {
     private enum PathFilters {
 
         static let relevantGit: Set<String> = [
-            "HEAD", "index", "MERGE_HEAD", "ORIG_HEAD", "logs/HEAD"
+            "HEAD", "index", "MERGE_HEAD", "ORIG_HEAD", "logs/HEAD",
+            "FETCH_HEAD", "packed-refs", "config"
         ]
     }
 
@@ -119,7 +120,8 @@ public final class FileWatcher {
         Unmanaged<Context>.fromOpaque(info).takeUnretainedValue().record(list, flags: eventFlags)
     }
 
-    private var stream: FSEventStreamRef?
+    private nonisolated(unsafe) var stream: FSEventStreamRef?
+
     private var context: Context?
     private var pendingDirectories: Set<URL> = []
     private var directoriesFlush: Task<Void, Never>?
@@ -138,8 +140,20 @@ public final class FileWatcher {
         self.onGitChange = onGitChange
     }
 
+    deinit {
+        guard let stream else { return }
+
+        FSEventStreamStop(stream)
+        FSEventStreamInvalidate(stream)
+        FSEventStreamRelease(stream)
+    }
+
     private nonisolated static func isIgnored(_ url: URL) -> Bool {
         IgnoredPaths.contains(url)
+    }
+
+    private nonisolated static func isInside(_ path: String, gitDirectory: String) -> Bool {
+        path == gitDirectory || path.hasPrefix(gitDirectory + "/")
     }
 
     private nonisolated static func isRelevantGitEvent(

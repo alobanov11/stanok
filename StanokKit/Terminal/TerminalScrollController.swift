@@ -5,6 +5,8 @@ import StanokKit
 @Observable
 final class TerminalScrollController {
 
+    static let idleDelay = Duration.seconds(1.2)
+
     private(set) var scrollbar: TerminalScrollbar?
     private(set) var isShown = false
 
@@ -30,7 +32,7 @@ final class TerminalScrollController {
 
         hiding?.cancel()
         hiding = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.2))
+            try? await Task.sleep(for: Self.idleDelay)
             guard !Task.isCancelled else { return }
 
             self?.hide()

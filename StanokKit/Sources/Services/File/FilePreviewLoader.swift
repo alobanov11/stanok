@@ -12,7 +12,7 @@ enum FilePreviewLoader {
 
     static func load(_ url: URL) async -> FilePreview {
         var preview = await Task.detached(priority: .userInitiated) { read(url) }.value
-        guard case .code = preview.content else { return preview }
+        guard !Task.isCancelled, case .code = preview.content else { return preview }
 
         preview.changes = await GitLineChanges.load(for: url)
         return preview

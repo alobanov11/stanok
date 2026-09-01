@@ -13,10 +13,14 @@ final class GhosttyConfig {
         }
     }
 
-    let handle: ghostty_config_t
+    nonisolated(unsafe) let handle: ghostty_config_t
 
     init(handle: ghostty_config_t) {
         self.handle = handle
+    }
+
+    deinit {
+        ghostty_config_free(handle)
     }
 
     func float(_ key: String) -> Float? {
