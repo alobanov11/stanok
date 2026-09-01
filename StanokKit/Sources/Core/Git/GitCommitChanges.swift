@@ -2,8 +2,12 @@ import Foundation
 
 public struct GitCommitChanges: Equatable, Sendable {
 
+    public var short: String {
+        String(sha.prefix(7))
+    }
+
     public var title: String {
-        subject.isEmpty ? sha : "\(sha) · \(subject)"
+        subject.isEmpty ? short : "\(short) · \(subject)"
     }
 
     public let sha: String

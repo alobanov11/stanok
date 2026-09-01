@@ -24,6 +24,27 @@ enum FilePreviewLoader {
         return preview
     }
 
+    // Почему: текст коммита и его дифф должны быть одной ревизией, иначе номера строк врут
+    static func load(_ url: URL, in root: String, path: String, sha: String) async -> FilePreview {
+        let blob = await GitProcessRunner.run([
+            "--no-optional-locks", "-C", root, "show", "\(sha):\(path)"
+        ])
+
+        guard blob.exitCode == 0, let text = decode(blob.standardOutput) else {
+            return await load(url, source: .commit(sha))
+        }
+
+        var preview = await Task.detached(priority: .userInitiated) {
+            read(url, text: text)
+        }.value
+
+        guard !Task.isCancelled, case .code = preview.content else { return preview }
+
+        preview.changes = await GitLineChanges.load(for: url, source: .commit(sha))
+
+        return preview
+    }
+
     private static func decode(_ data: Data) -> String? {
         if data.starts(with: [0xFF, 0xFE]) {
             return String(data: data, encoding: .utf16LittleEndian)
@@ -61,6 +82,36 @@ enum FilePreviewLoader {
         guard let text = decode(data) else { return .rejected(.unreadable) }
 
         return .text(text)
+    }
+
+    private static func read(_ url: URL, text: String) -> FilePreview {
+        let size = Int64(text.utf8.count)
+
+        if markdownExtensions.contains(url.pathExtension.lowercased()) {
+            let blocks = MarkdownParser.blocks(from: text, baseURL: url.deletingLastPathComponent())
+
+            return FilePreview(
+                url: url,
+                content: .markdown(blocks),
+                size: size,
+                kind: "Файл",
+                modified: nil,
+                isTruncated: false
+            )
+        }
+
+        let lines = text.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        let truncated = lines.count > Limit.lines
+        let shown = truncated ? lines.prefix(Limit.lines).joined(separator: "\n") : text
+
+        return FilePreview(
+            url: url,
+            content: .code(CodeHighlighter.lines(shown, language: url.pathExtension.lowercased())),
+            size: size,
+            kind: "Файл",
+            modified: nil,
+            isTruncated: truncated
+        )
     }
 
     private static func read(_ url: URL) -> FilePreview {

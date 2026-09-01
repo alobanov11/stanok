@@ -47,38 +47,28 @@ public enum GitClient {
 
     public static func head(at url: URL) async -> String? {
         let path = url.path(percentEncoded: false)
-        guard let sha = await run(["rev-parse", "--short", "HEAD"], at: path), !sha.isEmpty
+        guard let sha = await run(["rev-parse", "HEAD"], at: path), !sha.isEmpty
         else { return nil }
 
         return sha
     }
 
     // Почему: правку читают и после коммита, поэтому показываем всё с точки отсчёта
-    public static func commits(since base: String, at url: URL) async -> [GitCommitChanges] {
+    public static func commits(
+        since base: String,
+        upTo head: String,
+        at url: URL
+    ) async -> [GitCommitChanges] {
         let path = url.path(percentEncoded: false)
-        guard
-            let log = await run(["log", "--format=%h%x1f%s", "\(base)..HEAD"], at: path),
-            !log.isEmpty
-        else { return [] }
+        let arguments = [
+            "log", "--name-status", "-z", "-M", "--first-parent", "--root",
+            "--max-count=\(Limit.reviewedCommits)",
+            "--format=%x1e%H%x1f%s%x1f", "\(base)..\(head)"
+        ]
 
-        var found: [GitCommitChanges] = []
-        for line in log.split(separator: "\n").prefix(Limit.reviewedCommits) {
-            let parts = line.split(separator: "\u{1f}", maxSplits: 1)
-            guard let sha = parts.first.map(String.init) else { continue }
+        guard let log = await runRaw(arguments, at: path), !log.isEmpty else { return [] }
 
-            let files = await runRaw(
-                ["diff-tree", "--no-commit-id", "--name-status", "-r", "--root", "-z", sha],
-                at: path
-            )
-
-            found.append(GitCommitChanges(
-                sha: sha,
-                subject: parts.count > 1 ? String(parts[1]) : "",
-                changes: files.map(GitCommitParser.parse) ?? []
-            ))
-        }
-
-        return found
+        return GitCommitParser.commits(log)
     }
 
     public static func probe(for url: URL) async -> Probe {

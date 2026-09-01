@@ -2,16 +2,33 @@ import Foundation
 
 enum GitCommitParser {
 
-    static func parse(_ data: Data) -> [GitChange] {
-        let fields = data.split(separator: UInt8(0))
-            .compactMap { String(data: Data($0), encoding: .utf8) }
-            .filter { !$0.isEmpty }
+    static func commits(_ data: Data) -> [GitCommitChanges] {
+        data.split(separator: 0x1E).compactMap { record in
+            // Почему: заголовок склеен через \u{1f}, дальше идут поля name-status через \0
+            let fields = Data(record).split(separator: 0)
+                .map { String(decoding: $0, as: UTF8.self) }
+                .filter { !$0.isEmpty }
 
+            guard let header = fields.first else { return nil }
+
+            let parts = header.split(separator: "\u{1f}", omittingEmptySubsequences: false)
+            guard let sha = parts.first.map(String.init), !sha.isEmpty else { return nil }
+
+            return GitCommitChanges(
+                sha: sha,
+                subject: parts.count > 1 ? String(parts[1]) : "",
+                changes: changes(in: Array(fields.dropFirst()))
+            )
+        }
+    }
+
+    static func changes(in fields: [String]) -> [GitChange] {
         var changes: [GitChange] = []
         var index = fields.startIndex
 
         while index < fields.endIndex {
-            let letter = fields[index]
+            // Почему: после заголовка git ставит перевод строки перед первой буквой статуса
+            let letter = fields[index].trimmingCharacters(in: .whitespacesAndNewlines)
             index = fields.index(after: index)
             guard index < fields.endIndex else { break }
 
@@ -23,7 +40,9 @@ enum GitCommitParser {
             var path = first
             var original: String?
 
-            if renamed, index < fields.endIndex {
+            if renamed {
+                guard index < fields.endIndex else { break }
+
                 original = first
                 path = fields[index]
                 index = fields.index(after: index)

@@ -199,7 +199,7 @@ private extension AgentChangesModel {
         let base = await ReviewBaselines.shared.base(for: root, head: head, isClean: isClean)
         guard base != head else { return [] }
 
-        return await GitClient.commits(since: base, at: url)
+        return await GitClient.commits(since: base, upTo: head, at: url)
     }
 
     nonisolated static func resolved(_ url: URL) -> String {

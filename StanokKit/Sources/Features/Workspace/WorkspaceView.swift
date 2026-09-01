@@ -247,12 +247,7 @@ public struct WorkspaceView<Terminal: View>: View {
             Task { await navigator.refreshChanges() }
         }
         .task(id: agentChangesKey) { await pollAgentChanges() }
-        .task(id: gitSnapshot) {
-            await commits.refresh(
-                root: gitSnapshot?.root,
-                isClean: gitSnapshot?.changes.isEmpty == true
-            )
-        }
+        .task(id: gitSnapshot) { await pollCommits() }
         .task { await pollReachability() }
     }
 
@@ -401,6 +396,17 @@ private extension WorkspaceView {
 
         // Почему: закрытая панель не должна дочитывать репозитории в фоне
         (agentChanges ?? ownChanges).stop()
+    }
+
+    func pollCommits() async {
+        while !Task.isCancelled {
+            await commits.refresh(
+                root: gitSnapshot?.root,
+                isClean: gitSnapshot?.changes.isEmpty == true
+            )
+
+            try? await Task.sleep(for: .seconds(60))
+        }
     }
 
     func pollReachability() async {

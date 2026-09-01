@@ -17,9 +17,9 @@ final class ReviewCommitStore {
         guard let head = await GitClient.head(at: url) else { return }
 
         let base = await ReviewBaselines.shared.base(for: root, head: head, isClean: isClean)
-        let found = base == head ? [] : await GitClient.commits(since: base, at: url)
+        let found = base == head ? [] : await GitClient.commits(since: base, upTo: head, at: url)
         guard !Task.isCancelled else { return }
 
-        commits[root] = found
+        commits = [root: found]
     }
 }
