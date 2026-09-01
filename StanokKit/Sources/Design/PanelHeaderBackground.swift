@@ -2,23 +2,18 @@ import SwiftUI
 
 struct PanelHeaderBackground: View {
 
-    private static let fade: CGFloat = 18
-
     var body: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .mask {
-                VStack(spacing: 0) {
-                    Color.black
-
-                    LinearGradient(
-                        colors: [.black, .black.opacity(0)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: Self.fade)
-                }
-            }
-            .allowsHitTesting(false)
+        // Почему: размытие обрывается видимой линией, поэтому текст гасим градиентом
+        LinearGradient(
+            stops: [
+                .init(color: .black.opacity(0.72), location: 0),
+                .init(color: .black.opacity(0.62), location: 0.45),
+                .init(color: .black.opacity(0.28), location: 0.78),
+                .init(color: .black.opacity(0), location: 1)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .allowsHitTesting(false)
     }
 }
