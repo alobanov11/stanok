@@ -111,7 +111,7 @@ struct SessionList: View {
 
     private var chats: some View {
         ForEach(agentSessionRegistry.registeredProviders) { provider in
-            AgentChatListSection(
+            ChatListSection(
                 providerID: provider.id,
                 title: provider.displayName,
                 filter: chatFilter,

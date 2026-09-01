@@ -7,13 +7,13 @@ import Darwin
 
 actor ClaudeEditIndex {
 
-    fileprivate struct Identity: Equatable {
+    struct Identity: Equatable {
 
         let inode: UInt64
         let size: Int
     }
 
-    fileprivate struct Entry {
+    struct Entry {
 
         var identity: Identity
         var scanned: Int
@@ -21,7 +21,7 @@ actor ClaudeEditIndex {
         var directory: String?
     }
 
-    fileprivate enum Limit {
+    enum Limit {
 
         static let freshness: TimeInterval = 14 * 86400
         static let chunk = 32 * 1024 * 1024

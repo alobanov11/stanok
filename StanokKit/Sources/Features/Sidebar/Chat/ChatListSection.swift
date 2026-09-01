@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AgentChatListSection: View {
+struct ChatListSection: View {
 
     private var state: AgentSessionsLoadState {
         registry.allSessions(providerID: providerID)
@@ -48,12 +48,16 @@ struct AgentChatListSection: View {
         if filtered.isEmpty {
             statusRow("Ничего не найдено")
         } else {
-            ForEach(filtered) { session in
-                AgentChatRow(session: session)
-                    .gesture(
-                        TapGesture(count: 2).onEnded { onInsert(session) }
-                            .exclusively(before: TapGesture().onEnded { onCopy(session) })
-                    )
+            ForEach(AgentSessionGrouping.byDay(filtered)) { day in
+                ChatDayHeader(title: day.title)
+
+                ForEach(day.sessions) { session in
+                    ChatRow(session: session)
+                        .gesture(
+                            TapGesture(count: 2).onEnded { onInsert(session) }
+                                .exclusively(before: TapGesture().onEnded { onCopy(session) })
+                        )
+                }
             }
         }
     }

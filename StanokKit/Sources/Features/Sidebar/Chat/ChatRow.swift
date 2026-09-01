@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AgentChatRow: View {
+struct ChatRow: View {
 
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
