@@ -132,9 +132,6 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     @State
-    private var store = SessionStore()
-
-    @State
     private var selection: TerminalSession.ID?
 
     @AppStorage(WorkspaceDefaults.Keys.isSidebarExpanded)
@@ -334,6 +331,7 @@ public struct WorkspaceView<Terminal: View>: View {
         }
     }
 
+    private let store = SessionStore.shared
     private let terminal: TerminalBuilder<Terminal>
 
     public init(@ViewBuilder terminal: @escaping TerminalBuilder<Terminal>) {

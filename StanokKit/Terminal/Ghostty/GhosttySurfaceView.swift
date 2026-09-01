@@ -398,7 +398,8 @@ private extension GhosttySurfaceView {
 
     @objc
     func render() {
-        guard let surface else { return }
+        guard let surface, window?.occlusionState.contains(.visible) ?? false else { return }
+
         ghostty_surface_draw(surface)
     }
 

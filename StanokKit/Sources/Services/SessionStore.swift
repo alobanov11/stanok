@@ -4,6 +4,8 @@ import Foundation
 @Observable
 public final class SessionStore {
 
+    public static let shared = SessionStore()
+
     public var roots: [TerminalSession] {
         sessions.filter { $0.parentID == nil }
     }
