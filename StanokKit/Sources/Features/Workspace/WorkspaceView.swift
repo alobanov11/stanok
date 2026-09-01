@@ -157,7 +157,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var navigators = PreviewNavigators()
 
     @State
-    private var commits = LastCommitStore()
+    private var commits = ReviewCommitStore()
 
     @State
     private var mainWidth: CGFloat = 0
@@ -547,35 +547,23 @@ private extension WorkspaceView {
         case .git:
             guard let snapshot = gitSnapshot else { return [] }
 
-            let root = URL(filePath: snapshot.root)
-            let commit = snapshot.changes.isEmpty ? commits.commit(for: snapshot.root) : nil
-
-            return (commit?.changes ?? snapshot.changes).map {
-                ReviewFile(
-                    url: root.appending(path: $0.path),
-                    path: $0.path,
-                    status: $0.status,
-                    root: snapshot.root,
-                    groupName: commit.map { "Коммит \($0.title)" },
-                    source: commit == nil ? .worktree : .commit
-                )
-            }
+            return ReviewFiles.build(
+                root: snapshot.root,
+                changes: snapshot.changes,
+                commits: commits.commits(for: snapshot.root),
+                repository: nil
+            )
 
         case .agents:
-            return (agentChanges ?? ownChanges).repositories.flatMap { repository in
-                let commit = repository.changes.isEmpty ? repository.commit : nil
-                let name = commit.map { "\(repository.name) · коммит \($0.title)" }
+            let model: AgentChangesModel = agentChanges ?? ownChanges
 
-                return (commit?.changes ?? repository.changes).map {
-                    ReviewFile(
-                        url: URL(filePath: repository.root).appending(path: $0.path),
-                        path: $0.path,
-                        status: $0.status,
-                        root: repository.root,
-                        groupName: name ?? repository.name,
-                        source: commit == nil ? .worktree : .commit
-                    )
-                }
+            return model.repositories.flatMap { repository in
+                ReviewFiles.build(
+                    root: repository.root,
+                    changes: repository.changes,
+                    commits: repository.commits,
+                    repository: repository.name
+                )
             }
         }
     }

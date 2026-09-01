@@ -14,7 +14,7 @@ public struct AgentRepositoryChanges: Identifiable, Sendable {
     public let changes: [GitChange]
     public let touchedOnly: [AgentTouchedFile]
     public let touchedAt: Date
-    public let commit: GitCommitChanges?
+    public let commits: [GitCommitChanges]
 
     let nodes: [GitTreeNode]
 
@@ -23,13 +23,13 @@ public struct AgentRepositoryChanges: Identifiable, Sendable {
         changes: [GitChange],
         touchedOnly: [AgentTouchedFile],
         touchedAt: Date,
-        commit: GitCommitChanges? = nil
+        commits: [GitCommitChanges] = []
     ) {
         self.root = root
         self.changes = changes
         self.touchedOnly = touchedOnly
         self.touchedAt = touchedAt
-        self.commit = commit
+        self.commits = commits
 
         var files: [String: GitFileStatus?] = [:]
         for change in changes {

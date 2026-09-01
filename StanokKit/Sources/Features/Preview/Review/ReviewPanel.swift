@@ -10,17 +10,17 @@ struct ReviewPanel: View {
     }
 
     private var stamp: String {
-        kind.rawValue + "\n" + files.map { $0.url.path(percentEncoded: false) }.joined(separator: "\n")
+        kind.rawValue + "\n" + files.map(\.id).joined(separator: "\n")
     }
 
     @State
-    private var expanded: Set<URL> = []
+    private var expanded: Set<String> = []
 
     @State
-    private var collapsed: Set<URL> = []
+    private var collapsed: Set<String> = []
 
     @State
-    private var initial: URL?
+    private var initial: String?
 
     var body: some View {
         content
@@ -89,24 +89,24 @@ struct ReviewPanel: View {
     private func expansion(for file: ReviewFile) -> Binding<Bool> {
         Binding(
             get: {
-                if collapsed.contains(file.url) { return false }
+                if collapsed.contains(file.id) { return false }
 
-                return expanded.contains(file.url) || file.url == initial
+                return expanded.contains(file.id) || file.id == initial
             },
             set: { isOpen in
                 if isOpen {
-                    expanded.insert(file.url)
-                    collapsed.remove(file.url)
+                    expanded.insert(file.id)
+                    collapsed.remove(file.id)
                 } else {
-                    expanded.remove(file.url)
-                    collapsed.insert(file.url)
+                    expanded.remove(file.id)
+                    collapsed.insert(file.id)
                 }
             }
         )
     }
 
     private func adopt() {
-        let present = Set(files.map(\.url))
+        let present = Set(files.map(\.id))
         expanded.formIntersection(present)
         collapsed.formIntersection(present)
 
@@ -118,13 +118,13 @@ struct ReviewPanel: View {
             return
         }
 
-        initial = files.first { $0.status != .deleted }?.url
+        initial = files.first { $0.status != .deleted }?.id
     }
 
     private func groupName(at index: Int) -> String? {
         guard let name = files[index].groupName else { return nil }
         guard index > 0 else { return name }
 
-        return files[index - 1].root == files[index].root ? nil : name
+        return files[index - 1].groupName == name ? nil : name
     }
 }

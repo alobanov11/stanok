@@ -2,8 +2,8 @@ import Foundation
 
 public struct ReviewFile: Identifiable, Sendable, Equatable {
 
-    public var id: URL {
-        url
+    public var id: String {
+        source.key + "|" + url.path(percentEncoded: false)
     }
 
     public var name: String {

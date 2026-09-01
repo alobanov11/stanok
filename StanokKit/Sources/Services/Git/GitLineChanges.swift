@@ -5,9 +5,11 @@ enum GitLineChanges {
     static func load(for url: URL, source: ReviewSource = .worktree) async -> GitFileChanges {
         let directory = url.deletingLastPathComponent().path(percentEncoded: false)
         let path = url.path(percentEncoded: false)
-        let arguments = source == .commit
-            ? ["show", "--format=", "-U0", "--no-color", "HEAD", "--", path]
-            : ["diff", "HEAD", "-U0", "--no-color", "--", path]
+        let arguments = if case let .commit(sha) = source {
+            ["show", "--format=", "-U0", "--no-color", sha, "--", path]
+        } else {
+            ["diff", "HEAD", "-U0", "--no-color", "--", path]
+        }
 
         let diff = await GitProcessRunner.run(
             ["--no-optional-locks", "-C", directory] + arguments

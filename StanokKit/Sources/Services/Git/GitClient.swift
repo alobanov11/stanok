@@ -14,6 +14,7 @@ public enum GitClient {
         static let untrackedFileSize = 1_000_000
         static let untrackedEntryCap = 2000
         static let binarySniffSize = 8192
+        static let reviewedCommits = 20
     }
 
     public static func status(for url: URL) async -> GitStatus? {
@@ -44,27 +45,40 @@ public enum GitClient {
         return GitStatusParser.parse(data)
     }
 
-    // Почему: когда дерево чистое, ревью показывает последний коммит, а не пустоту
-    public static func lastCommit(at url: URL) async -> GitCommitChanges? {
+    public static func head(at url: URL) async -> String? {
         let path = url.path(percentEncoded: false)
-        guard
-            let head = await run(["log", "-1", "--format=%h%n%s"], at: path),
-            !head.isEmpty
+        guard let sha = await run(["rev-parse", "--short", "HEAD"], at: path), !sha.isEmpty
         else { return nil }
 
-        let parts = head.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
-        guard let sha = parts.first.map(String.init) else { return nil }
+        return sha
+    }
 
-        let files = await runRaw(
-            ["diff-tree", "--no-commit-id", "--name-status", "-r", "--root", "-z", "HEAD"],
-            at: path
-        )
+    // Почему: правку читают и после коммита, поэтому показываем всё с точки отсчёта
+    public static func commits(since base: String, at url: URL) async -> [GitCommitChanges] {
+        let path = url.path(percentEncoded: false)
+        guard
+            let log = await run(["log", "--format=%h%x1f%s", "\(base)..HEAD"], at: path),
+            !log.isEmpty
+        else { return [] }
 
-        return GitCommitChanges(
-            sha: sha,
-            subject: parts.count > 1 ? String(parts[1]) : "",
-            changes: files.map(GitCommitParser.parse) ?? []
-        )
+        var found: [GitCommitChanges] = []
+        for line in log.split(separator: "\n").prefix(Limit.reviewedCommits) {
+            let parts = line.split(separator: "\u{1f}", maxSplits: 1)
+            guard let sha = parts.first.map(String.init) else { continue }
+
+            let files = await runRaw(
+                ["diff-tree", "--no-commit-id", "--name-status", "-r", "--root", "-z", sha],
+                at: path
+            )
+
+            found.append(GitCommitChanges(
+                sha: sha,
+                subject: parts.count > 1 ? String(parts[1]) : "",
+                changes: files.map(GitCommitParser.parse) ?? []
+            ))
+        }
+
+        return found
     }
 
     public static func probe(for url: URL) async -> Probe {
