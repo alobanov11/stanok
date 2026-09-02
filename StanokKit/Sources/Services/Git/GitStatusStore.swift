@@ -33,7 +33,7 @@ public final class GitStatusStore {
     }
 
     // Почему: незавершённый скан живой сессии — не мусор, инвалидируем только ушедшие пути
-    public func prune(paths: Set<String>, roots: Set<String>) {
+    public func prune(paths: Set<String>) {
         live = paths
 
         for path in Set(rootByPath.keys).union(inFlight) where !paths.contains(path) {
@@ -42,9 +42,12 @@ public final class GitStatusStore {
             pending.remove(path)
         }
 
-        cache = cache.filter { roots.contains($0.key) }
-        scans = scans.filter { roots.contains($0.key) }
         rootByPath = rootByPath.filter { paths.contains($0.key) }
+
+        // Почему: корни живых путей вычисляем сами, иначе чистка выбрасывает свой же снимок
+        let alive = Set(rootByPath.values)
+        cache = cache.filter { alive.contains($0.key) }
+        scans = scans.filter { alive.contains($0.key) }
         generations = generations.filter { inFlight.contains($0.key) }
     }
 

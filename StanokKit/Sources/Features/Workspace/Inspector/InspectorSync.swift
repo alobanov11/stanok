@@ -40,12 +40,22 @@ struct InspectorSync: ViewModifier {
             }
             .onChange(of: folders, initial: true) { _, folders in
                 state.prune(folders: folders, gitRoots: gitRoots)
-                status.prune(paths: paths, roots: gitRoots)
+                status.prune(paths: paths)
+                refill()
             }
             .onChange(of: gitRoots) { _, gitRoots in
                 state.prune(folders: folders, gitRoots: gitRoots)
                 // Почему: снимки закрытых репозиториев иначе живут до конца сессии
-                status.prune(paths: paths, roots: gitRoots)
+                status.prune(paths: paths)
+                refill()
             }
+    }
+
+    // Почему: после чистки дерево пересоздаётся пустым и без этого ждёт следующего снимка
+    private func refill() {
+        guard let gitRoot else { return }
+
+        state.changeTree(for: gitRoot).apply(snapshot)
+        state.branchTree(for: gitRoot).apply(branchSnapshot)
     }
 }
