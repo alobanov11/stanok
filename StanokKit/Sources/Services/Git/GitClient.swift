@@ -246,7 +246,7 @@ private extension GitClient {
     // Почему: один раннер на всех, чтобы отменённое чтение освобождало очередь git
     static func runRaw(_ arguments: [String]) async -> Data? {
         let outcome = await GitProcessRunner.run(arguments)
-        guard outcome.exitCode == 0 else { return nil }
+        guard outcome.exitCode == 0, !outcome.isTruncated else { return nil }
 
         return outcome.standardOutput
     }

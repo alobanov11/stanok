@@ -6,6 +6,7 @@ enum GitLineChanges {
 
         static let diff = 2 * 1024 * 1024
         static let removedPerAnchor = 500
+        static let lines = 5000
     }
 
     static func load(
@@ -32,7 +33,7 @@ enum GitLineChanges {
 
         // Почему: гигантский дифф незачем поднимать в память ради полос на полях
         if diff.exitCode == 0, !diff.standardOutput.isEmpty {
-            guard diff.standardOutput.count <= Limit.diff else { return .none }
+            guard !diff.isTruncated else { return .none }
 
             return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
         }

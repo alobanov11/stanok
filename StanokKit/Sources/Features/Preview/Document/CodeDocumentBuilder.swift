@@ -134,17 +134,21 @@ enum CodeDocumentBuilder {
         return PreviewDocument(text: builder.text, lines: builder.rendered, revision: revision)
     }
 
-    // Почему: в ревью читают правку, а не файл, поэтому оставляем куски вокруг изменений
+    // Почему: свёрнут может быть внешний блок при раскрытом внутреннем, идём по всей цепочке
     static func visibleLine(_ line: Int, folds: CodeFoldMap, folded: Set<Int>) -> Int {
         var current = line
+        var shown = line
 
-        while let owner = folds.owner(of: current), folded.contains(owner.header) {
+        while let owner = folds.owner(of: current) {
+            if folded.contains(owner.header) { shown = owner.header }
+
             current = owner.header
         }
 
-        return current
+        return shown
     }
 
+    // Почему: в ревью читают правку, а не файл, поэтому оставляем куски вокруг изменений
     static func aroundChanges(
         _ shown: [Int],
         changes: GitFileChanges,

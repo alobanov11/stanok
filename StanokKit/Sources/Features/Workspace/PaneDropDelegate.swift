@@ -12,10 +12,11 @@ struct PaneDropDelegate: DropDelegate {
 
     let swap: (TerminalSession.ID, TerminalSession.ID) -> Void
 
+    // Почему: чужой текстовый drop не должен тасовать терминалы, тянуть можно только свои
     func validateDrop(info: DropInfo) -> Bool {
-        guard let dragged else { return false }
+        guard let dragged, dragged != target else { return false }
 
-        return dragged != target
+        return true
     }
 
     func dropEntered(info: DropInfo) {
@@ -28,6 +29,10 @@ struct PaneDropDelegate: DropDelegate {
         guard highlighted == target else { return }
 
         highlighted = nil
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        validateDrop(info: info) ? DropProposal(operation: .move) : DropProposal(operation: .cancel)
     }
 
     func performDrop(info: DropInfo) -> Bool {

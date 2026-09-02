@@ -544,7 +544,15 @@ private extension WorkspaceView {
             // Почему: под шапкой лежит живой первый ряд, а не переполнение скролла
             .padding(.top, isLeading ? WorkspaceLayout.headerHeight : 0)
             .overlay(alignment: .top) {
-                if isLeading { header(session) }
+                if isLeading {
+                    // Почему: тянем за шапку, иначе перетаскивание конфликтует с выделением текста
+                    header(session)
+                        .onDrag {
+                            dragged = session.id
+
+                            return NSItemProvider(object: session.id.uuidString as NSString)
+                        }
+                }
             }
             .overlay(alignment: .topTrailing) {
                 if !isLeading { floatingMenu(session) }
@@ -558,12 +566,6 @@ private extension WorkspaceView {
                     )
                     .strokeBorder(Color.accentColor.opacity(0.8), lineWidth: 2)
                 }
-            }
-            // Почему: тянем за шапку, а бросаем на любую точку соседней панели
-            .onDrag {
-                dragged = session.id
-
-                return NSItemProvider(object: session.id.uuidString as NSString)
             }
             .onDrop(
                 of: [.text],

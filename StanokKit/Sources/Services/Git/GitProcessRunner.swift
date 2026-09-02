@@ -7,11 +7,14 @@ enum GitProcessRunner {
         let exitCode: Int32
         let standardOutput: Data
         let standardError: String
+
+        var isTruncated = false
     }
 
     enum Limit {
 
         static let output = 8 * 1024 * 1024
+        static let errors = 64 * 1024
     }
 
     private final class Buffer: @unchecked Sendable {
@@ -61,6 +64,11 @@ enum GitProcessRunner {
         }
     }
 
+    // Почему: у git есть глобальные флаги со значениями, подкоманда идёт уже за ними
+    static let valued: Set<String> = [
+        "-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--super-prefix"
+    ]
+
     // Почему: читающие команды можно обрывать, меняющие дерево — только доводить до конца
     static let readOnly: Set<String> = [
         "status", "diff", "diff-tree", "show", "log", "rev-parse", "rev-list", "ls-files",
@@ -82,15 +90,15 @@ enum GitProcessRunner {
         }
     }
 
-    // Почему: у git есть глобальные флаги со значениями, подкоманда идёт уже за ними
     static func isReadOnly(_ arguments: [String]) -> Bool {
         var index = arguments.startIndex
 
         while index < arguments.endIndex {
             let argument = arguments[index]
 
-            if argument == "-C" || argument == "-c" {
-                index = arguments.index(index, offsetBy: 2)
+            if valued.contains(argument) {
+                index = arguments.index(index, offsetBy: 2, limitedBy: arguments.endIndex)
+                    ?? arguments.endIndex
                 continue
             }
 
@@ -111,17 +119,22 @@ enum GitProcessRunner {
     }
 
     // Почему: вывод читаем порциями, иначе гигантский дифф целиком поднимается в память
-    private static func read(_ handle: FileHandle, limit: Int) -> Data {
+    private static func read(_ handle: FileHandle, limit: Int) -> (data: Data, isTruncated: Bool) {
         var data = Data()
+        var isTruncated = false
 
         while true {
             let chunk = handle.availableData
             guard !chunk.isEmpty else { break }
 
-            if data.count < limit { data.append(chunk) }
+            if data.count + chunk.count <= limit {
+                data.append(chunk)
+            } else {
+                isTruncated = true
+            }
         }
 
-        return data
+        return (data, isTruncated)
     }
 
     private static func start(_ arguments: [String], box: Handle, limit: Int) async -> Result {
@@ -160,17 +173,18 @@ enum GitProcessRunner {
                         errors.data = errorPipe.fileHandleForReading.readDataToEndOfFile()
                     }
 
-                    let outputData = read(outputPipe.fileHandleForReading, limit: limit)
+                    let output = read(outputPipe.fileHandleForReading, limit: limit)
                     group.wait()
                     process.waitUntilExit()
 
-                    let errorText = (String(data: errors.data, encoding: .utf8) ?? "")
+                    let errorText = (String(data: errors.data.prefix(Limit.errors), encoding: .utf8) ?? "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
 
                     continuation.resume(returning: Result(
                         exitCode: process.terminationStatus,
-                        standardOutput: outputData,
-                        standardError: errorText
+                        standardOutput: output.data,
+                        standardError: errorText,
+                        isTruncated: output.isTruncated
                     ))
                 } catch {
                     continuation.resume(returning: Result(
