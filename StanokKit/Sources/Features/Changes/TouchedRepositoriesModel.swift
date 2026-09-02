@@ -25,6 +25,9 @@ public final class TouchedRepositoriesModel {
     private var focused: String?
 
     @ObservationIgnored
+    private var scope = UUID()
+
+    @ObservationIgnored
     private var runningToken = UUID()
 
     public nonisolated init() {}
@@ -33,17 +36,25 @@ public final class TouchedRepositoriesModel {
         self.source = source
     }
 
+    @discardableResult
+    public func begin() -> UUID {
+        scope = UUID()
+
+        return scope
+    }
+
     public func focus(on root: String?) {
         guard focused != root else { return }
 
         // Почему: область поиска сменилась, идущий проход собирает уже не тот репозиторий
-        stop(focused)
+        stop(scope)
         focused = root
+        begin()
     }
 
     // Почему: останавливаем только свой проход, иначе гасим опрос, начатый уже другой панелью
-    public func stop(_ scope: String?) {
-        guard focused == scope else { return }
+    public func stop(_ generation: UUID) {
+        guard scope == generation else { return }
 
         running?.cancel()
         running = nil

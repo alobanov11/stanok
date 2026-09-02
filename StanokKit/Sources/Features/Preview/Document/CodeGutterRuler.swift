@@ -24,18 +24,15 @@ final class CodeGutterRuler: NSRulerView {
     }
 
     var stamp: String {
-        guard let source else { return "" }
-
-        return [
-            "\(source.changes.digest)",
-            "\(source.folded.count)", "\(source.expanded.count)",
-            "\(source.width)", source.font.fontName, "\(source.font.pointSize)"
-        ].joined(separator: "|")
+        Self.stamp(of: source)
     }
 
     var source: Source? {
         didSet {
-            anchors = Self.anchors(of: source)
+            // Почему: якоря зависят только от диффа, пересобирать их на каждый кадр незачем
+            if source?.changes.digest != oldValue?.changes.digest {
+                anchors = Self.anchors(of: source)
+            }
 
             let thickness = source.map {
                 $0.width + Metric.gap + Metric.foldGap + Metric.chevron
@@ -139,6 +136,16 @@ final class CodeGutterRuler: NSRulerView {
         }
 
         source.showChange(anchor)
+    }
+
+    static func stamp(of source: Source?) -> String {
+        guard let source else { return "" }
+
+        return [
+            "\(source.changes.digest)",
+            "\(source.folded.count)", "\(source.expanded.count)",
+            "\(source.width)", source.font.fontName, "\(source.font.pointSize)"
+        ].joined(separator: "|")
     }
 
     private func isGap(_ fragment: NSTextLayoutFragment) -> Bool {

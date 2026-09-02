@@ -26,7 +26,8 @@ enum GitLineChanges {
         }
 
         let diff = await GitProcessRunner.run(
-            ["--no-optional-locks", "-C", directory] + arguments
+            ["--no-optional-locks", "-C", directory] + arguments,
+            limit: Limit.diff
         )
 
         // Почему: гигантский дифф незачем поднимать в память ради полос на полях
@@ -58,7 +59,7 @@ enum GitLineChanges {
         let fresh = await GitProcessRunner.run([
             "--no-optional-locks", "-C", directory,
             "diff", "--no-index", "-U0", "--no-color", "--", "/dev/null", path
-        ])
+        ], limit: Limit.diff)
 
         guard fresh.exitCode == 0 || fresh.exitCode == 1 else { return .none }
 

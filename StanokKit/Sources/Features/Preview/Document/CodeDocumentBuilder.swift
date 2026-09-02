@@ -135,6 +135,16 @@ enum CodeDocumentBuilder {
     }
 
     // Почему: в ревью читают правку, а не файл, поэтому оставляем куски вокруг изменений
+    static func visibleLine(_ line: Int, folds: CodeFoldMap, folded: Set<Int>) -> Int {
+        var current = line
+
+        while let owner = folds.owner(of: current), folded.contains(owner.header) {
+            current = owner.header
+        }
+
+        return current
+    }
+
     static func aroundChanges(
         _ shown: [Int],
         changes: GitFileChanges,
@@ -143,13 +153,8 @@ enum CodeDocumentBuilder {
         context: Int = 3
     ) -> [Int] {
         // Почему: изменение внутри свёрнутого блока иначе исчезает из ревью вместе с блоком
-        let touched = Set(changes.kinds.keys).union(changes.removed.keys).map { number -> Int in
-            let line = number - 1
-            guard let owner = folds.owner(of: line), folded.contains(owner.header) else {
-                return line
-            }
-
-            return owner.header
+        let touched = Set(changes.kinds.keys).union(changes.removed.keys).map { number in
+            visibleLine(number - 1, folds: folds, folded: folded)
         }
         guard !touched.isEmpty else { return shown }
 
