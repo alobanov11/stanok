@@ -173,6 +173,12 @@ public struct WorkspaceView<Terminal: View>: View {
     private var branchRevalidation = UUID()
 
     @State
+    private var dragged: TerminalSession.ID?
+
+    @State
+    private var dragTarget: TerminalSession.ID?
+
+    @State
     private var mainWidth: CGFloat = 0
 
     @State
@@ -560,6 +566,36 @@ private extension WorkspaceView {
                 if !isLeading { floatingMenu(session) }
             }
             .modifier(WorkspaceCard())
+            .overlay {
+                if dragTarget == session.id {
+                    RoundedRectangle(
+                        cornerRadius: WorkspaceLayout.cardRadius,
+                        style: .continuous
+                    )
+                    .strokeBorder(Color.accentColor.opacity(0.8), lineWidth: 2)
+                }
+            }
+            // Почему: тянем за шапку, а бросаем на любую точку соседней панели
+            .onDrag {
+                dragged = session.id
+
+                return NSItemProvider(object: session.id.uuidString as NSString)
+            }
+            .onDrop(
+                of: [.text],
+                delegate: PaneDropDelegate(
+                    target: session.id,
+                    dragged: $dragged,
+                    highlighted: $dragTarget,
+                    swap: swapPanes
+                )
+            )
+    }
+
+    func swapPanes(_ moved: TerminalSession.ID, _ target: TerminalSession.ID) {
+        withAnimation(.smooth(duration: 0.22)) {
+            store.swapPanes(moved, target)
+        }
     }
 
     func floatingMenu(_ session: TerminalSession) -> some View {

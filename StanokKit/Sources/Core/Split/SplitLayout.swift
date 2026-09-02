@@ -19,6 +19,20 @@ public indirect enum SplitLayout: Equatable, Sendable {
         leafIDs.contains(id)
     }
 
+    // Почему: перетаскивание меняет местами именно панели, структура разбиения остаётся прежней
+    public func swapping(_ first: UUID, _ second: UUID) -> SplitLayout {
+        switch self {
+        case let .leaf(id):
+            if id == first { return .leaf(second) }
+            if id == second { return .leaf(first) }
+
+            return self
+
+        case let .split(axis, children):
+            return .split(axis, children.map { $0.swapping(first, second) })
+        }
+    }
+
     public func inserting(
         _ id: UUID,
         _ direction: SplitDirection,

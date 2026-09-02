@@ -44,6 +44,20 @@ public final class SessionStore {
         return session
     }
 
+    // Почему: панели меняются местами внутри своей группы, чужие корни не трогаем
+    public func swapPanes(_ first: TerminalSession.ID, _ second: TerminalSession.ID) {
+        guard
+            first != second,
+            let owner = root(of: first),
+            owner.id == root(of: second)?.id,
+            let layout = owner.layout,
+            let index = sessions.firstIndex(where: { $0.id == owner.id })
+        else { return }
+
+        sessions[index].layout = layout.swapping(first, second)
+        save()
+    }
+
     @discardableResult
     public func splitSession(
         _ sessionID: TerminalSession.ID,
