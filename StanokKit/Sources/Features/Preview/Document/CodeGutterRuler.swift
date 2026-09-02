@@ -54,6 +54,11 @@ final class CodeGutterRuler: NSRulerView {
     private var hovered: Int?
     private var tracking: NSTrackingArea?
 
+    // Почему: NSRulerView рисует свою серую подложку, а нам нужен фон превью насквозь
+    override func draw(_ dirtyRect: NSRect) {
+        drawHashMarksAndLabels(in: dirtyRect)
+    }
+
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let source, let text = clientView as? NSTextView else { return }
 

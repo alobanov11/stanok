@@ -116,8 +116,12 @@ public struct WorkspaceView<Terminal: View>: View {
         AgentCommandRouter(dispatcher: dispatcher, tracker: processTracker)
     }
 
+    // Почему: превью — такая же колонка, как терминал, а не всегда половина экрана
     private var previewWidth: CGFloat {
-        (mainWidth / 2 - WorkspaceLayout.inset).rounded()
+        let columns = CGFloat(max(visiblePanes.count, 1) + 1)
+        let share = mainWidth / columns - WorkspaceLayout.inset
+
+        return max(share, WorkspaceLayout.minimumPreviewWidth).rounded()
     }
 
     private var previewInset: CGFloat {
