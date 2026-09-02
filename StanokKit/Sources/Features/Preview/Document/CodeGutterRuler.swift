@@ -35,6 +35,8 @@ final class CodeGutterRuler: NSRulerView {
 
     var source: Source? {
         didSet {
+            anchors = Self.anchors(of: source)
+
             let thickness = source.map {
                 $0.width + Metric.gap + Metric.foldGap + Metric.chevron
                     + Metric.gap + Metric.ribbon + Metric.ribbonGap
@@ -48,6 +50,7 @@ final class CodeGutterRuler: NSRulerView {
         }
     }
 
+    private var anchors: [Int: Int] = [:]
     private var hovered: Int?
     private var tracking: NSTrackingArea?
 
@@ -168,24 +171,32 @@ private extension CodeGutterRuler {
 
     // Почему: удаления привязаны к одной строке блока, а кликают по любой его полосе
     func removalAnchor(for line: Int, source: Source) -> Int? {
-        let number = line + 1
-        if source.changes.removed[number] != nil { return number }
+        anchors[line + 1]
+    }
 
-        var above = number
-        while source.changes.kinds[above] != nil {
-            if source.changes.removed[above] != nil { return above }
+    // Почему: искать якорь на каждую видимую строку каждого кадра — это тысячи обходов
+    static func anchors(of source: Source?) -> [Int: Int] {
+        guard let source else { return [:] }
 
-            above -= 1
+        var found: [Int: Int] = [:]
+
+        for number in source.changes.removed.keys {
+            var line = number
+            while source.changes.kinds[line] != nil {
+                found[line] = number
+                line -= 1
+            }
+
+            line = number + 1
+            while source.changes.kinds[line] != nil {
+                found[line] = number
+                line += 1
+            }
+
+            found[number] = number
         }
 
-        var below = number
-        while source.changes.kinds[below] != nil {
-            if source.changes.removed[below] != nil { return below }
-
-            below += 1
-        }
-
-        return nil
+        return found
     }
 
     func drawFoldRibbon(for line: Int, top: CGFloat, height: CGFloat, source: Source) {

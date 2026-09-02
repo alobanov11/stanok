@@ -37,11 +37,15 @@ public final class TouchedRepositoriesModel {
         guard focused != root else { return }
 
         // Почему: область поиска сменилась, идущий проход собирает уже не тот репозиторий
+        let previous = focused
         focused = root
-        stop()
+        stop(previous)
     }
 
-    public func stop() {
+    // Почему: останавливаем только свой проход, иначе гасим опрос, начатый уже другой панелью
+    public func stop(_ scope: String?) {
+        guard focused == scope else { return }
+
         running?.cancel()
         running = nil
         runningToken = UUID()

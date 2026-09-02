@@ -428,7 +428,7 @@ private extension WorkspaceView {
         }
 
         // Почему: закрытая панель не должна дочитывать репозитории в фоне
-        (touchedRepositories ?? ownRepositories).stop()
+        (touchedRepositories ?? ownRepositories).stop(inspectorGitRoot)
     }
 
     func pollCommits() async {

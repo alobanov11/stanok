@@ -14,7 +14,48 @@ enum GitProcessRunner {
         var data = Data()
     }
 
+    private final class Handle: @unchecked Sendable {
+
+        private let lock = NSLock()
+
+        private var process: Process?
+        private var isCancelled = false
+
+        func adopt(_ process: Process) -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+
+            guard !isCancelled else { return false }
+
+            self.process = process
+
+            return true
+        }
+
+        func terminate() {
+            lock.lock()
+            let running = process
+            isCancelled = true
+            lock.unlock()
+
+            guard let running, running.isRunning else { return }
+
+            running.terminate()
+        }
+    }
+
     static func run(_ arguments: [String]) async -> Result {
+        // Почему: отменённая задача иначе занимает единственную очередь до конца процесса
+        let box = Handle()
+
+        return await withTaskCancellationHandler {
+            await start(arguments, box: box)
+        } onCancel: {
+            box.terminate()
+        }
+    }
+
+    private static func start(_ arguments: [String], box: Handle) async -> Result {
         let environment = ToolEnvironment.current
 
         return await withCheckedContinuation { continuation in
@@ -31,6 +72,15 @@ enum GitProcessRunner {
                 process.standardError = errorPipe
 
                 do {
+                    guard box.adopt(process) else {
+                        continuation.resume(returning: Result(
+                            exitCode: -1,
+                            standardOutput: Data(),
+                            standardError: "cancelled"
+                        ))
+                        return
+                    }
+
                     try process.run()
 
                     // Почему: git встаёт навсегда, если stderr не читать вместе с stdout

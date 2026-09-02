@@ -69,7 +69,10 @@ enum FilePreviewLoader {
             return rejected(url, content: .failed("Не удалось прочитать файл из коммита"))
         }
 
-        guard let text = decode(blob.standardOutput) else {
+        let output = blob.standardOutput
+        let decoded = await Task.detached(priority: .userInitiated) { decode(output) }.value
+
+        guard let text = decoded else {
             return rejected(url, content: .unreadable)
         }
 

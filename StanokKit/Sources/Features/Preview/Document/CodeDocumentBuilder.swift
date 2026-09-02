@@ -141,8 +141,14 @@ enum CodeDocumentBuilder {
         let touched = Set(changes.kinds.keys).union(changes.removed.keys).map { $0 - 1 }
         guard !touched.isEmpty else { return shown }
 
-        let windows = touched.map { ($0 - context)...($0 + context) }
+        // Почему: проверка каждой строки по каждому окну — это миллионы сравнений на файл
+        var covered: Set<Int> = []
+        for line in touched {
+            for index in (line - context)...(line + context) {
+                covered.insert(index)
+            }
+        }
 
-        return shown.filter { index in windows.contains { $0.contains(index) } }
+        return shown.filter { covered.contains($0) }
     }
 }
