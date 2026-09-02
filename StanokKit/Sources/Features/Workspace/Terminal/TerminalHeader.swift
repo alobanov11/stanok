@@ -34,7 +34,7 @@ struct TerminalHeader: View {
     }
 
     private var actionsMenu: some View {
-        TerminalActionsMenu(split: split, newTerminal: newTerminal, close: close)
+        TerminalActionsMenu(hide: hide, newTerminal: newTerminal, close: close)
     }
 
     let session: TerminalSession
@@ -46,7 +46,7 @@ struct TerminalHeader: View {
     let selectGit: () -> Void
     let stashChanges: () -> Void
     let discardChanges: () -> Void
-    let split: (SplitDirection) -> Void
+    let hide: () -> Void
     let newTerminal: () -> Void
     let close: () -> Void
 }

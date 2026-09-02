@@ -42,20 +42,6 @@ struct SessionStoreOrderTests {
     }
 
     @Test
-    func aMovedTerminalTakesItsPanesAlong() throws {
-        let store = Self.makeStore()
-        let first = try #require(store.sessions.first)
-        let pane = try #require(store.splitSession(first.id, direction: .trailing))
-        let second = store.addSession(url: first.url)
-
-        store.moveRoot(first.id, to: 1)
-
-        #expect(store.roots.map(\.id) == [second.id, first.id])
-        #expect(store.sessions.map(\.id) == [second.id, first.id, pane.id])
-        #expect(store.session(for: pane.id)?.parentID == first.id)
-    }
-
-    @Test
     func anOrderThatSurvivesARestartIsTheOneOnScreen() throws {
         let name = "session-store-order-tests-\(UUID().uuidString)"
         let directory = FileManager.default.temporaryDirectory
@@ -78,19 +64,6 @@ struct SessionStoreOrderTests {
     }
 
     @Test
-    func movingAPaneOrAnUnknownTerminalChangesNothing() throws {
-        let store = Self.makeStore()
-        let first = try #require(store.sessions.first)
-        let pane = try #require(store.splitSession(first.id, direction: .bottom))
-        let second = store.addSession(url: first.url)
-
-        store.moveRoot(pane.id, to: 0)
-        store.moveRoot(UUID(), to: 0)
-
-        #expect(store.roots.map(\.id) == [first.id, second.id])
-    }
-
-    @Test
     func aCustomNameWinsOverTheTerminalsOwnTitle() throws {
         let store = Self.makeStore()
         let session = try #require(store.sessions.first)
@@ -102,17 +75,5 @@ struct SessionStoreOrderTests {
         store.setTitle(nil, for: session.id)
 
         #expect(store.session(for: session.id)?.displayName == "vim")
-    }
-
-    @Test
-    func aHeaderSurvivesReloadAndMovesToTheHeir() throws {
-        let store = Self.makeStore()
-        let root = try #require(store.sessions.first)
-        store.setHeader("проекты", for: root.id)
-
-        let pane = try #require(store.splitSession(root.id, direction: .trailing))
-        store.removeSession(root.id)
-
-        #expect(store.session(for: pane.id)?.header == "проекты")
     }
 }

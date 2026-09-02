@@ -12,22 +12,14 @@ struct LiveSessionController {
     let askSurface: (TerminalSession.ID) -> Void
 
     func activate(_ id: TerminalSession.ID) {
-        guard let root = store.root(of: id) else { return }
+        if !live.wrappedValue.contains(id) { dispatcher.markAtPrompt(id) }
 
-        let group = store.panes(of: root).map(\.id)
+        live.wrappedValue.removeAll { $0 == id }
+        live.wrappedValue.append(id)
+        processTracker.beginTracking(id)
 
-        for paneID in group where !live.wrappedValue.contains(paneID) {
-            dispatcher.markAtPrompt(paneID)
-        }
-
-        live.wrappedValue.removeAll { group.contains($0) }
-        live.wrappedValue.append(contentsOf: group)
-
-        for paneID in group {
-            processTracker.beginTracking(paneID)
-        }
-
-        trim(keeping: Set(group))
+        // Почему: показанные терминалы нельзя выселять, их поверхности прямо на экране
+        trim(keeping: Set(store.shown).union([id]))
         store.select(id)
     }
 
@@ -76,13 +68,10 @@ struct LiveSessionController {
     }
 
     private func neighbour(of session: TerminalSession) -> TerminalSession.ID? {
-        if
-            let root = store.root(of: session.id),
-            let sibling = store.panes(of: root).first(where: { $0.id != session.id }) {
-            return sibling.id
-        }
+        // Почему: соседом считается ближайший показанный терминал, а без него — любой другой
+        if let shown = store.shown.first(where: { $0 != session.id }) { return shown }
 
-        return store.roots.first { $0.id != session.id }?.id
+        return store.sessions.first { $0.id != session.id }?.id
     }
 
     private func trim(keeping group: Set<TerminalSession.ID>) {

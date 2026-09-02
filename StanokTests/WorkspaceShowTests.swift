@@ -1,0 +1,51 @@
+import Foundation
+import Testing
+
+@testable import StanokKit
+
+@MainActor
+struct WorkspaceShowTests {
+
+    private static func store() -> SessionStore {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: UUID().uuidString, directoryHint: .isDirectory)
+
+        return SessionStore(
+            file: directory.appending(path: "sessions.json"),
+            legacyFile: directory.appending(path: "repositories.json")
+        )
+    }
+
+    @Test
+    func aTerminalTakesAFreeColumnUntilTheAreaIsFull() throws {
+        let store = Self.store()
+        let first = store.addSession(url: URL(filePath: "/tmp"))
+        let second = store.addSession(url: URL(filePath: "/tmp"))
+        let third = store.addSession(url: URL(filePath: "/tmp"))
+
+        store.show(first.id, capacity: 2, replacing: nil)
+        store.show(second.id, capacity: 2, replacing: first.id)
+
+        #expect(store.shown == [first.id, second.id])
+
+        store.show(third.id, capacity: 2, replacing: second.id)
+
+        #expect(store.shown == [first.id, third.id])
+    }
+
+    @Test
+    func aHiddenTerminalReturnsToItsOriginalPlaceInTheRow() throws {
+        let store = Self.store()
+        let first = store.addSession(url: URL(filePath: "/tmp"))
+        let second = store.addSession(url: URL(filePath: "/tmp"))
+
+        store.show(first.id, capacity: 2, replacing: nil)
+        store.show(second.id, capacity: 2, replacing: nil)
+        store.hide(first.id)
+        store.show(first.id, capacity: 2, replacing: nil)
+
+        let order = store.sessions.filter { store.shown.contains($0.id) }.map(\.id)
+
+        #expect(order == [first.id, second.id])
+    }
+}

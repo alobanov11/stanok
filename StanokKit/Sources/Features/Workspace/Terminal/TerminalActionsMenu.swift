@@ -4,17 +4,9 @@ struct TerminalActionsMenu: View {
 
     var body: some View {
         Menu {
-            Menu("Добавить") {
-                Button("Снизу") { split(.bottom) }
-
-                Button("Справа") { split(.trailing) }
-
-                Button("Слева") { split(.leading) }
-
-                Button("Сверху") { split(.top) }
-            }
-
             Button("Новый терминал", action: newTerminal)
+
+            Button("Скрыть", action: hide)
 
             Button("Закрыть", role: .destructive, action: close)
         } label: {
@@ -30,7 +22,7 @@ struct TerminalActionsMenu: View {
         .help("Действия с терминалом")
     }
 
-    let split: (SplitDirection) -> Void
+    let hide: () -> Void
     let newTerminal: () -> Void
     let close: () -> Void
 }

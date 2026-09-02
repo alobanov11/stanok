@@ -26,10 +26,15 @@ enum WorkspaceGeometry {
         sidebarExpanded ? outsideLeading : insideOffset
     }
 
+    // Почему: если после превью терминалу не остаётся ширины, превью ложится поверх него
     static func previewMode(hasPreview: Bool, width: CGFloat) -> PreviewMode {
         guard hasPreview else { return .none }
 
-        return width >= WorkspaceLayout.minimumSplitWidth ? .split : .fullScreen
+        let needed = WorkspaceLayout.minimumTerminalWidth
+            + WorkspaceLayout.minimumPreviewWidth
+            + WorkspaceLayout.inset
+
+        return width >= needed ? .split : .fullScreen
     }
 
     static func previewTransition(for mode: PreviewMode) -> AnyTransition {

@@ -9,6 +9,7 @@ enum WorkspaceLayout {
     static let sidebarWidth: CGFloat = 360
     static let sidebarTopInset: CGFloat = 68
     static let minimumSplitWidth: CGFloat = 1000
+    static let minimumTerminalWidth: CGFloat = 720
     static let minimumPreviewWidth: CGFloat = 420
     static let filesWidth: CGFloat = 300
     static let toggleDuration = 0.28

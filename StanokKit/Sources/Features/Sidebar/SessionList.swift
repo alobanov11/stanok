@@ -132,10 +132,6 @@ struct SessionList: View {
                 }
 
                 rootRow(root, at: index)
-
-                ForEach(store.panes(of: root).filter { $0.id != root.id }) { pane in
-                    sessionRow(pane, indent: SessionList.paneIndent)
-                }
             }
         }
     }

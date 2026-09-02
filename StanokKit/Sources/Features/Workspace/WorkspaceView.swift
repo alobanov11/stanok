@@ -13,25 +13,22 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var rootSession: TerminalSession? {
-        guard let selection else { return nil }
-
-        return store.root(of: selection)
+        selectedSession
     }
 
+    // Почему: порядок в ряду задают сами терминалы, поэтому возврат скрытого не тасует соседей
     private var visiblePanes: [TerminalSession] {
-        guard let rootSession else { return [] }
+        store.sessions.filter { store.shown.contains($0.id) }
+    }
 
-        return store.panes(of: rootSession)
+    private var capacity: Int {
+        let room = mainWidth - previewInset
+
+        return max(Int(room / WorkspaceLayout.minimumTerminalWidth), 1)
     }
 
     private var visiblePaneIDs: [TerminalSession.ID] {
         visiblePanes.map(\.id)
-    }
-
-    private var paneLayout: SplitLayout? {
-        guard let rootSession else { return nil }
-
-        return rootSession.layout ?? .leaf(rootSession.id)
     }
 
     private var navigator: PreviewNavigator {
@@ -239,6 +236,11 @@ public struct WorkspaceView<Terminal: View>: View {
             liveSessions.reconcile(known)
             navigators.prune(roots: Set(store.roots.map(\.id)))
         }
+        .onChange(of: capacity) { _, room in
+            withAnimation(.smooth(duration: 0.22)) {
+                store.limit(to: room, keeping: selection)
+            }
+        }
         .onChange(of: filesMode) { _, mode in
             refreshBranches(for: mode)
 
@@ -401,10 +403,23 @@ private extension WorkspaceView {
         }
     }
 
+    // Почему: терминал занимает свободную колонку, а без места подменяет активный
     func activate(_ session: TerminalSession.ID?) {
         guard let session else { return }
 
+        withAnimation(.smooth(duration: 0.22)) {
+            store.show(session, capacity: capacity, replacing: selection)
+        }
+
         liveSessions.activate(session)
+    }
+
+    func hide(_ session: TerminalSession) {
+        withAnimation(.smooth(duration: 0.22)) { store.hide(session.id) }
+
+        guard selection == session.id else { return }
+
+        selection = visiblePanes.last?.id
     }
 
     func refreshBranches(for mode: FilePanelMode?) {
@@ -556,20 +571,20 @@ private extension WorkspaceView {
                     target: session.id,
                     dragged: $dragged,
                     highlighted: $dragTarget,
-                    swap: swapPanes
+                    swap: movePane
                 )
             )
     }
 
-    func swapPanes(_ moved: TerminalSession.ID, _ target: TerminalSession.ID) {
+    func movePane(_ moved: TerminalSession.ID, _ target: TerminalSession.ID) {
         withAnimation(.smooth(duration: 0.22)) {
-            store.swapPanes(moved, target)
+            store.move(moved, before: target)
         }
     }
 
     func floatingMenu(_ session: TerminalSession) -> some View {
         TerminalActionsMenu(
-            split: { direction in split(session, direction) },
+            hide: { hide(session) },
             newTerminal: { addSession(at: session.url) },
             close: { liveSessions.requestClose(session) }
         )
@@ -590,7 +605,7 @@ private extension WorkspaceView {
             selectGit: { selectFiles(.git, in: session) },
             stashChanges: { requestWorkingTree(.stash, for: session) },
             discardChanges: { requestWorkingTree(.discard, for: session) },
-            split: { direction in split(session, direction) },
+            hide: { hide(session) },
             newTerminal: { addSession(at: session.url) },
             close: { liveSessions.requestClose(session) }
         )
@@ -689,24 +704,33 @@ private extension WorkspaceView {
         )
     }
 
+    // Почему: одна область — один ряд равных колонок, вложенных разбиений больше нет
     func paneFrames(in size: CGSize) -> [TerminalSession.ID: CGRect] {
-        guard let paneLayout else { return [:] }
+        let panes = visiblePanes
+        guard !panes.isEmpty else { return [:] }
 
-        return SplitFrames.rects(for: paneLayout, in: size, gap: WorkspaceLayout.inset)
+        let gap = WorkspaceLayout.inset
+        let total = size.width - gap * CGFloat(panes.count - 1)
+        let width = max(total / CGFloat(panes.count), 1)
+        var frames: [TerminalSession.ID: CGRect] = [:]
+
+        for (index, session) in panes.enumerated() {
+            frames[session.id] = CGRect(
+                x: (width + gap) * CGFloat(index),
+                y: 0,
+                width: width,
+                height: size.height
+            )
+        }
+
+        return frames
     }
 
     func restingFrames(in area: CGSize) -> [TerminalSession.ID: CGRect] {
         var frames: [TerminalSession.ID: CGRect] = [:]
 
-        for root in store.roots where root.id != rootSession?.id {
-            let layout = root.layout ?? .leaf(root.id)
-            for (id, rect) in SplitFrames.rects(
-                for: layout,
-                in: area,
-                gap: WorkspaceLayout.inset
-            ) {
-                frames[id] = rect
-            }
+        for session in store.sessions where !store.shown.contains(session.id) {
+            frames[session.id] = CGRect(origin: .zero, size: area)
         }
 
         return frames
@@ -746,14 +770,6 @@ private extension WorkspaceView {
 
         await git.refresh(selectedSession)
         await branchStore.refresh(selectedSession)
-    }
-
-    func split(_ session: TerminalSession, _ direction: SplitDirection) {
-        withAnimation(.smooth(duration: 0.22)) {
-            guard let pane = store.splitSession(session.id, direction: direction) else { return }
-
-            selection = pane.id
-        }
     }
 
     func addSession(at url: URL) {

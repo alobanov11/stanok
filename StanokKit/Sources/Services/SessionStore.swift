@@ -7,7 +7,7 @@ public final class SessionStore {
     public static let shared = SessionStore()
 
     public var roots: [TerminalSession] {
-        sessions.filter { $0.parentID == nil }
+        sessions
     }
 
     public private(set) var sessions: [TerminalSession] = []
@@ -15,6 +15,9 @@ public final class SessionStore {
     public private(set) var unreachable: Set<TerminalSession.ID> = []
 
     public private(set) var selectedSessionID: TerminalSession.ID?
+
+    // Почему: рабочая область — один ряд, порядок в нём задаётся порядком самих терминалов
+    public private(set) var shown: [TerminalSession.ID] = []
 
     private let file: URL
     private let legacyFile: URL
@@ -44,81 +47,30 @@ public final class SessionStore {
         return session
     }
 
-    // Почему: панели меняются местами внутри своей группы, чужие корни не трогаем
-    public func swapPanes(_ first: TerminalSession.ID, _ second: TerminalSession.ID) {
-        guard
-            first != second,
-            let owner = root(of: first),
-            owner.id == root(of: second)?.id,
-            let layout = owner.layout,
-            let index = sessions.firstIndex(where: { $0.id == owner.id })
-        else { return }
-
-        sessions[index].layout = layout.swapping(first, second)
-        save()
-    }
-
-    @discardableResult
-    public func splitSession(
-        _ sessionID: TerminalSession.ID,
-        direction: SplitDirection
-    ) -> TerminalSession? {
-        guard
-            let source = session(for: sessionID),
-            let root = root(of: sessionID),
-            let rootIndex = sessions.firstIndex(where: { $0.id == root.id })
-        else { return nil }
-
-        let layout = root.layout ?? .leaf(root.id)
-        guard layout.contains(sessionID) else { return nil }
-
-        let pane = TerminalSession(
-            name: "shell \(sessions.count + 1)",
-            url: source.url,
-            parentID: root.id
-        )
-
-        sessions[rootIndex].layout = layout.inserting(pane.id, direction, near: sessionID)
-        sessions.append(pane)
-        save()
-        return pane
-    }
-
     public func moveRoot(_ sessionID: TerminalSession.ID, to index: Int) {
-        var order = roots.map(\.id)
-        guard let from = order.firstIndex(of: sessionID) else { return }
+        guard let from = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
 
-        let destination = min(max(index, 0), order.count - 1)
+        let destination = min(max(index, 0), sessions.count - 1)
         guard from != destination else { return }
 
-        order.remove(at: from)
-        order.insert(sessionID, at: destination)
-        regroup(order)
+        let session = sessions.remove(at: from)
+        sessions.insert(session, at: destination)
         save()
     }
 
     @discardableResult
     public func removeSession(_ sessionID: TerminalSession.ID) -> TerminalSession.ID? {
-        guard let session = session(for: sessionID) else { return nil }
+        guard sessions.contains(where: { $0.id == sessionID }) else { return nil }
 
-        let heir = session.parentID == nil ? removeRoot(session) : nil
-        if session.parentID != nil { removePane(session) }
-
+        sessions.removeAll { $0.id == sessionID }
+        shown.removeAll { $0 == sessionID }
         save()
-        return heir
+
+        return nil
     }
 
     public func root(of sessionID: TerminalSession.ID) -> TerminalSession? {
-        guard let session = session(for: sessionID) else { return nil }
-        guard let parentID = session.parentID else { return session }
-
-        return self.session(for: parentID)
-    }
-
-    public func panes(of root: TerminalSession) -> [TerminalSession] {
-        guard let layout = root.layout else { return [root] }
-
-        return layout.leafIDs.compactMap { id in sessions.first { $0.id == id } }
+        session(for: sessionID)
     }
 
     public func setTitle(_ title: String?, for sessionID: TerminalSession.ID) {
@@ -141,6 +93,57 @@ public final class SessionStore {
         guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
 
         sessions[index].liveTitle = title
+    }
+
+    public func show(_ sessionID: TerminalSession.ID, capacity: Int, replacing: TerminalSession.ID?) {
+        guard !shown.contains(sessionID) else { return }
+
+        if shown.count >= max(capacity, 1), let replacing, shown.contains(replacing) {
+            shown.removeAll { $0 == replacing }
+        }
+
+        while shown.count >= max(capacity, 1), !shown.isEmpty {
+            shown.removeFirst()
+        }
+
+        shown.append(sessionID)
+        saveScheduler.schedule(currentSnapshot())
+    }
+
+    // Почему: при сужении окна лишние терминалы уходят в сайдбар, а не сжимаются в полоску
+    public func limit(to capacity: Int, keeping selected: TerminalSession.ID?) {
+        let room = max(capacity, 1)
+        guard shown.count > room else { return }
+
+        var kept = shown
+        while kept.count > room {
+            guard let victim = kept.first(where: { $0 != selected }) else { break }
+
+            kept.removeAll { $0 == victim }
+        }
+
+        shown = kept
+        saveScheduler.schedule(currentSnapshot())
+    }
+
+    public func hide(_ sessionID: TerminalSession.ID) {
+        guard shown.contains(sessionID) else { return }
+
+        shown.removeAll { $0 == sessionID }
+        saveScheduler.schedule(currentSnapshot())
+    }
+
+    // Почему: перетаскивание меняет порядок терминалов, а место в ряду выводится из него
+    public func move(_ moved: TerminalSession.ID, before target: TerminalSession.ID) {
+        guard
+            moved != target,
+            let from = sessions.firstIndex(where: { $0.id == moved }),
+            let to = sessions.firstIndex(where: { $0.id == target })
+        else { return }
+
+        let session = sessions.remove(at: from)
+        sessions.insert(session, at: sessions.index(from < to ? to - 1 : to, offsetBy: 0))
+        save()
     }
 
     public func select(_ sessionID: TerminalSession.ID?) {
@@ -210,115 +213,23 @@ private extension SessionStore {
         sessions = grouped
     }
 
-    func removePane(_ pane: TerminalSession) {
-        sessions.removeAll { $0.id == pane.id }
-
-        guard
-            let parentID = pane.parentID,
-            let parentIndex = sessions.firstIndex(where: { $0.id == parentID })
-        else { return }
-
-        sessions[parentIndex].layout = pruned(
-            sessions[parentIndex].layout?.removing(pane.id),
-            soleLeaf: parentID
-        )
-    }
-
-    @discardableResult
-    func removeRoot(_ root: TerminalSession) -> TerminalSession.ID? {
-        let remaining = root.layout?.removing(root.id)
-        let position = sessions.firstIndex { $0.id == root.id }
-        sessions.removeAll { $0.id == root.id }
-
-        guard
-            let remaining,
-            let heirID = remaining.leafIDs.first,
-            let heirIndex = sessions.firstIndex(where: { $0.id == heirID })
-        else {
-            sessions.removeAll { $0.parentID == root.id }
-            return nil
-        }
-
-        sessions[heirIndex].parentID = nil
-        sessions[heirIndex].header = root.header
-        sessions[heirIndex].layout = pruned(remaining, soleLeaf: heirID)
-
-        for index in sessions.indices where sessions[index].parentID == root.id {
-            sessions[index].parentID = heirID
-        }
-
-        if let position {
-            let heir = sessions.remove(at: heirIndex)
-            sessions.insert(heir, at: min(position, sessions.count))
-        }
-
-        regroup(sessions.filter { $0.parentID == nil }.map(\.id))
-
-        return heirID
-    }
-
-    func pruned(_ layout: SplitLayout?, soleLeaf: UUID) -> SplitLayout? {
-        guard let layout, layout != .leaf(soleLeaf) else { return nil }
-
-        return layout
-    }
-
+    // Почему: вложенных терминалов больше нет, миграция просто выпрямляет старые записи
     func normalizeGroups() {
-        let changes = reparentOrphans() + pruneStrays()
-        guard changes > 0 else { return }
+        var changed = false
+
+        for index in sessions.indices where sessions[index].parentID != nil {
+            sessions[index].parentID = nil
+            changed = true
+        }
+
+        for index in sessions.indices where sessions[index].layout != nil {
+            sessions[index].layout = nil
+            changed = true
+        }
+
+        guard changed else { return }
 
         persistVerified(currentSnapshot())
-    }
-
-    func reparentOrphans() -> Int {
-        var changed = 0
-
-        for index in sessions.indices {
-            guard let parentID = sessions[index].parentID else { continue }
-
-            guard
-                let parentIndex = sessions.firstIndex(where: { $0.id == parentID }),
-                sessions[parentIndex].parentID == nil
-            else {
-                sessions[index].parentID = nil
-                changed += 1
-                continue
-            }
-
-            let layout = sessions[parentIndex].layout ?? .leaf(parentID)
-            guard !layout.contains(sessions[index].id) else { continue }
-
-            sessions[parentIndex].layout = layout.inserting(
-                sessions[index].id,
-                .trailing,
-                near: layout.leafIDs.last ?? parentID
-            )
-            changed += 1
-        }
-
-        return changed
-    }
-
-    func pruneStrays() -> Int {
-        let known = Set(sessions.map(\.id))
-        var changed = 0
-
-        for index in sessions.indices {
-            guard let layout = sessions[index].layout else { continue }
-
-            let strays = layout.leafIDs.filter { !known.contains($0) }
-            guard !strays.isEmpty else { continue }
-
-            var kept = layout
-            for stray in strays {
-                kept = kept.removing(stray) ?? .leaf(sessions[index].id)
-            }
-
-            sessions[index].layout = pruned(kept, soleLeaf: sessions[index].id)
-            changed += 1
-        }
-
-        return changed
     }
 
     func load() {
@@ -340,6 +251,7 @@ private extension SessionStore {
             let decoded = try JSONDecoder().decode(SessionFile.self, from: data)
             sessions = decoded.sessions
             selectedSessionID = decoded.selectedSessionID
+            shown = decoded.shown.filter { id in decoded.sessions.contains { $0.id == id } }
         } catch {
             fatalError("stanok: sessions.json is corrupt, refusing to fall back — \(error)")
         }
@@ -400,7 +312,7 @@ private extension SessionStore {
     }
 
     func currentSnapshot() -> SessionFile {
-        SessionFile(sessions: sessions, selectedSessionID: selectedSessionID)
+        SessionFile(sessions: sessions, selectedSessionID: selectedSessionID, shown: shown)
     }
 
     @discardableResult
