@@ -27,7 +27,7 @@ final class CodeGutterRuler: NSRulerView {
         guard let source else { return "" }
 
         return [
-            "\(source.changes.kinds.count)", "\(source.changes.removed.count)",
+            "\(source.changes.digest)",
             "\(source.folded.count)", "\(source.expanded.count)",
             "\(source.width)", source.font.fontName, "\(source.font.pointSize)"
         ].joined(separator: "|")

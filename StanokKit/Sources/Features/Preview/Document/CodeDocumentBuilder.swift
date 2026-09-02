@@ -112,7 +112,9 @@ enum CodeDocumentBuilder {
         onlyChanges: Bool = false
     ) -> PreviewDocument {
         let shown = folds.visibleLines(count: lines.count, folded: folded)
-        let visible = onlyChanges ? Self.aroundChanges(shown, changes: changes) : shown
+        let visible = onlyChanges
+            ? Self.aroundChanges(shown, changes: changes, folds: folds, folded: folded)
+            : shown
         var builder = Builder(
             font: font,
             changes: changes,
@@ -136,9 +138,19 @@ enum CodeDocumentBuilder {
     static func aroundChanges(
         _ shown: [Int],
         changes: GitFileChanges,
+        folds: CodeFoldMap = .empty,
+        folded: Set<Int> = [],
         context: Int = 3
     ) -> [Int] {
-        let touched = Set(changes.kinds.keys).union(changes.removed.keys).map { $0 - 1 }
+        // Почему: изменение внутри свёрнутого блока иначе исчезает из ревью вместе с блоком
+        let touched = Set(changes.kinds.keys).union(changes.removed.keys).map { number -> Int in
+            let line = number - 1
+            guard let owner = folds.owner(of: line), folded.contains(owner.header) else {
+                return line
+            }
+
+            return owner.header
+        }
         guard !touched.isEmpty else { return shown }
 
         // Почему: проверка каждой строки по каждому окну — это миллионы сравнений на файл

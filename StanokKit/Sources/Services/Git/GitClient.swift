@@ -243,34 +243,11 @@ private extension GitClient {
         await runRaw(["--no-optional-locks", "-C", path] + arguments)
     }
 
+    // Почему: один раннер на всех, чтобы отменённое чтение освобождало очередь git
     static func runRaw(_ arguments: [String]) async -> Data? {
-        let environment = ToolEnvironment.current
+        let outcome = await GitProcessRunner.run(arguments)
+        guard outcome.exitCode == 0 else { return nil }
 
-        return await withCheckedContinuation { continuation in
-            GitProcessQueue.serial.async {
-                let process = Process()
-                process.executableURL = URL(filePath: "/usr/bin/env")
-                process.environment = environment
-                process.standardInput = FileHandle.nullDevice
-                process.arguments = ["git"] + arguments
-
-                let pipe = Pipe()
-                process.standardOutput = pipe
-                process.standardError = FileHandle.nullDevice
-
-                do {
-                    try process.run()
-                    let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                    process.waitUntilExit()
-                    guard process.terminationStatus == 0 else {
-                        continuation.resume(returning: nil)
-                        return
-                    }
-                    continuation.resume(returning: data)
-                } catch {
-                    continuation.resume(returning: nil)
-                }
-            }
-        }
+        return outcome.standardOutput
     }
 }

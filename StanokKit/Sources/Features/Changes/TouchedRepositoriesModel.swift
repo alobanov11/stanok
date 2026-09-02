@@ -37,9 +37,8 @@ public final class TouchedRepositoriesModel {
         guard focused != root else { return }
 
         // Почему: область поиска сменилась, идущий проход собирает уже не тот репозиторий
-        let previous = focused
+        stop(focused)
         focused = root
-        stop(previous)
     }
 
     // Почему: останавливаем только свой проход, иначе гасим опрос, начатый уже другой панелью

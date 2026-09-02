@@ -422,13 +422,16 @@ private extension WorkspaceView {
     }
 
     func pollAgentChanges() async {
+        // Почему: панель могла смениться, гасить нужно свой проход, а не чужой
+        let scope = inspectorGitRoot
+
         while !Task.isCancelled, needsAgentChanges {
             await (touchedRepositories ?? ownRepositories).refresh()
             try? await Task.sleep(for: .seconds(20))
         }
 
         // Почему: закрытая панель не должна дочитывать репозитории в фоне
-        (touchedRepositories ?? ownRepositories).stop(inspectorGitRoot)
+        (touchedRepositories ?? ownRepositories).stop(scope)
     }
 
     func pollCommits() async {

@@ -32,6 +32,18 @@ enum GitProcessRunner {
             return true
         }
 
+        // Почему: отмена могла прийти между adopt и run, поэтому старт подтверждается отдельно
+        func confirm() {
+            lock.lock()
+            let cancelled = isCancelled
+            let running = process
+            lock.unlock()
+
+            guard cancelled, let running, running.isRunning else { return }
+
+            running.terminate()
+        }
+
         func terminate() {
             lock.lock()
             let running = process
@@ -44,7 +56,16 @@ enum GitProcessRunner {
         }
     }
 
+    // Почему: читающие команды можно обрывать, меняющие дерево — только доводить до конца
+    static let readOnly: Set<String> = [
+        "status", "diff", "diff-tree", "show", "log", "rev-parse", "rev-list", "ls-files",
+        "cat-file", "for-each-ref", "merge-base", "worktree", "config", "check-ignore"
+    ]
+
     static func run(_ arguments: [String]) async -> Result {
+        let command = arguments.first { !$0.hasPrefix("-") && $0 != "-C" } ?? ""
+        guard readOnly.contains(command) else { return await start(arguments, box: Handle()) }
+
         // Почему: отменённая задача иначе занимает единственную очередь до конца процесса
         let box = Handle()
 
@@ -82,6 +103,7 @@ enum GitProcessRunner {
                     }
 
                     try process.run()
+                    box.confirm()
 
                     // Почему: git встаёт навсегда, если stderr не читать вместе с stdout
                     let errors = Buffer()

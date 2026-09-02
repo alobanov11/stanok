@@ -2,6 +2,12 @@ import Foundation
 
 enum GitLineChanges {
 
+    private enum Limit {
+
+        static let diff = 2 * 1024 * 1024
+        static let removedPerAnchor = 500
+    }
+
     static func load(
         for url: URL,
         source: ReviewSource = .worktree,
@@ -23,7 +29,10 @@ enum GitLineChanges {
             ["--no-optional-locks", "-C", directory] + arguments
         )
 
+        // Почему: гигантский дифф незачем поднимать в память ради полос на полях
         if diff.exitCode == 0, !diff.standardOutput.isEmpty {
+            guard diff.standardOutput.count <= Limit.diff else { return .none }
+
             return parse(String(data: diff.standardOutput, encoding: .utf8) ?? "")
         }
 
@@ -79,7 +88,10 @@ enum GitLineChanges {
 
             guard let anchor, line.hasPrefix("-") else { continue }
 
-            removed[anchor, default: []].append(String(line.dropFirst()))
+            // Почему: тысячи удалённых строк под одной полосой всё равно не читают
+            if removed[anchor, default: []].count < Limit.removedPerAnchor {
+                removed[anchor, default: []].append(String(line.dropFirst()))
+            }
         }
 
         return GitFileChanges(kinds: kinds, removed: removed)

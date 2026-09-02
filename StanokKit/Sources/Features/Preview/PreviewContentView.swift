@@ -51,8 +51,7 @@ struct PreviewContentView: View {
     private var revision: String {
         [
             fileRevision,
-            "\(preview.changes.kinds.count)",
-            "\(preview.changes.removed.count)",
+            "\(preview.changes.digest)",
             "\(markdownSize)", markdownFamily, "\(markdownSpacing)",
             "\(codeSize)", resolvedCodeFamily
         ].joined(separator: "|")
