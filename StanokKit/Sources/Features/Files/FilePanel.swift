@@ -63,13 +63,6 @@ struct FilePanel: View {
                     onReview: hasGitReview ? { onReview(.git) } : nil
                 )
 
-                OtherRepositoriesTree(
-                    model: touchedRepositories,
-                    inspector: inspector,
-                    branches: branches,
-                    active: snapshot?.root,
-                    onOpenBranch: onOpenBranch
-                )
             }
             .padding(.horizontal, 8)
             .padding(.bottom, 10)
@@ -81,11 +74,8 @@ struct FilePanel: View {
     let fileTreeModel: FileTreeModel
     let changeTreeModel: ChangeTreeModel
     let branchTreeModel: BranchTreeModel
-    let touchedRepositories: TouchedRepositoriesModel
     let branchActions: BranchActions
     let onOpenBranch: (String, GitBranchRef) -> Void
-    let inspector: InspectorState
-    let branches: GitBranchStore
     let snapshot: GitSnapshot?
 
     @Binding

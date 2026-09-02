@@ -202,12 +202,6 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var processTracker = TabProcessTracker()
 
-    @Environment(\.touchedRepositories)
-    private var touchedRepositories
-
-    @State
-    private var ownRepositories = TouchedRepositoriesModel()
-
     public var body: some View {
         HStack(spacing: 0) {
             if isSidebarExpanded {
@@ -263,9 +257,6 @@ public struct WorkspaceView<Terminal: View>: View {
             )
         )
         .modifier(SessionPersistence(store: store))
-        .onChange(of: inspectorGitRoot, initial: true) { _, root in
-            (touchedRepositories ?? ownRepositories).focus(on: root)
-        }
         .onChange(of: gitSnapshot) { _, snapshot in
             if let root = snapshot?.root { revalidateBranchReview(root) }
 
@@ -281,7 +272,6 @@ public struct WorkspaceView<Terminal: View>: View {
             // Почему: коммит из терминала не трогает файл, но рибоны в превью уже не о том дереве
             Task { await navigator.refreshChanges() }
         }
-        .task(id: agentChangesKey) { await pollAgentChanges() }
         .task(id: gitSnapshot?.root) { await pollCommits() }
         .task { await pollReachability() }
     }
@@ -401,14 +391,6 @@ private extension WorkspaceView {
         }
     }
 
-    var agentChangesKey: String {
-        "\(needsAgentChanges)|\(inspectorGitRoot ?? "")"
-    }
-
-    var needsAgentChanges: Bool {
-        filesMode == .git
-    }
-
     // Почему: карточки перечитывают файлы того репозитория, чьё ревью открыто
     func reviewRevision(_ kind: ReviewKind) -> String {
         switch kind {
@@ -429,19 +411,6 @@ private extension WorkspaceView {
         guard mode == .git else { return }
 
         Task { await branchStore.refresh(selectedSession) }
-    }
-
-    func pollAgentChanges() async {
-        // Почему: панель могла смениться, гасить нужно свой проход, а не чужой
-        let scope = (touchedRepositories ?? ownRepositories).begin()
-
-        while !Task.isCancelled, needsAgentChanges {
-            await (touchedRepositories ?? ownRepositories).refresh()
-            try? await Task.sleep(for: .seconds(20))
-        }
-
-        // Почему: закрытая панель не должна дочитывать репозитории в фоне
-        (touchedRepositories ?? ownRepositories).stop(scope)
     }
 
     func pollCommits() async {
@@ -671,11 +640,8 @@ private extension WorkspaceView {
             fileTreeModel: inspector.fileTree(for: folder),
             changeTreeModel: inspector.changeTree(for: gitRoot),
             branchTreeModel: inspector.branchTree(for: gitRoot),
-            touchedRepositories: touchedRepositories ?? ownRepositories,
             branchActions: branchActions,
             onOpenBranch: openBranchReview,
-            inspector: inspector,
-            branches: branchStore,
             snapshot: gitSnapshot,
             selected: inspectorControls.selectedFile,
             onOpen: inspectorControls.open,
