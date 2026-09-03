@@ -21,10 +21,17 @@ public struct WorkspaceView<Terminal: View>: View {
         store.sessions.filter { store.shown.contains($0.id) }
     }
 
-    private var capacity: Int {
-        let room = mainWidth - previewInset
+    private var isVertical: Bool {
+        WorkspaceGeometry.isVertical(mainSize)
+    }
 
-        return max(Int(room / WorkspaceLayout.minimumTerminalWidth), 1)
+    private var capacity: Int {
+        let room = (isVertical ? mainSize.height : mainSize.width) - previewInset
+        let step = isVertical
+            ? WorkspaceLayout.minimumTerminalHeight
+            : WorkspaceLayout.minimumTerminalWidth
+
+        return max(Int(room / step), 1)
     }
 
     private var visiblePaneIDs: [TerminalSession.ID] {
@@ -116,9 +123,13 @@ public struct WorkspaceView<Terminal: View>: View {
     // Почему: превью — такая же колонка, как терминал, а не всегда половина экрана
     private var previewWidth: CGFloat {
         let columns = CGFloat(max(visiblePanes.count, 1) + 1)
-        let share = mainWidth / columns - WorkspaceLayout.inset
+        let along = isVertical ? mainSize.height : mainSize.width
+        let share = along / columns - WorkspaceLayout.inset
+        let minimum = isVertical
+            ? WorkspaceLayout.minimumPreviewHeight
+            : WorkspaceLayout.minimumPreviewWidth
 
-        return max(share, WorkspaceLayout.minimumPreviewWidth).rounded()
+        return max(share, minimum).rounded()
     }
 
     private var previewInset: CGFloat {
@@ -126,7 +137,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var previewMode: PreviewMode {
-        WorkspaceGeometry.previewMode(hasPreview: navigator.current != nil, width: mainWidth)
+        WorkspaceGeometry.previewMode(hasPreview: navigator.current != nil, size: mainSize)
     }
 
     private var isClosingLiveSession: Binding<Bool> {
@@ -176,7 +187,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var dragTarget: TerminalSession.ID?
 
     @State
-    private var mainWidth: CGFloat = 0
+    private var mainSize = CGSize.zero
 
     @State
     private var closeRequest: TerminalSession?
@@ -302,7 +313,10 @@ public struct WorkspaceView<Terminal: View>: View {
         GeometryReader { proxy in
             let frames = paneFrames(in: proxy.size)
             let resting = restingFrames(
-                in: CGSize(width: proxy.size.width + previewInset, height: proxy.size.height)
+                in: CGSize(
+                    width: proxy.size.width + (isVertical ? 0 : previewInset),
+                    height: proxy.size.height + (isVertical ? previewInset : 0)
+                )
             )
 
             ZStack(alignment: .topLeading) {
@@ -353,25 +367,15 @@ public struct WorkspaceView<Terminal: View>: View {
     private var main: some View {
         mainContent
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { mainWidth = $0 }
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { mainSize = $0 }
     }
 
     private var mainContent: some View {
         ZStack {
             panes
-                .padding(.trailing, previewInset)
+                .padding(isVertical ? .bottom : .trailing, previewInset)
 
-            if let entry = navigator.current {
-                previewLayer(
-                    entry,
-                    leadingInset: previewMode == .split
-                        ? WorkspaceGeometry.expandedHeaderLeading
-                        : WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
-                )
-                .frame(width: previewMode == .split ? previewWidth : nil)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .transition(WorkspaceGeometry.previewTransition(for: previewMode))
-            }
+            if let entry = navigator.current { preview(entry) }
         }
     }
 
@@ -380,6 +384,24 @@ public struct WorkspaceView<Terminal: View>: View {
 
     public init(@ViewBuilder terminal: @escaping TerminalBuilder<Terminal>) {
         self.terminal = terminal
+    }
+
+    private func preview(_ entry: PreviewEntry) -> some View {
+        let side = previewMode == .split ? previewWidth : nil
+        let inset = previewMode == .split
+            ? WorkspaceGeometry.expandedHeaderLeading
+            : WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded)
+
+        return previewLayer(entry, leadingInset: inset)
+            .frame(width: isVertical ? nil : side, height: isVertical ? side : nil)
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: .infinity,
+                alignment: isVertical ? .bottom : .trailing
+            )
+            .transition(
+                WorkspaceGeometry.previewTransition(for: previewMode, isVertical: isVertical)
+            )
     }
 }
 
@@ -706,23 +728,22 @@ private extension WorkspaceView {
         )
     }
 
-    // Почему: одна область — один ряд равных колонок, вложенных разбиений больше нет
+    // Почему: одна область — ряд или столбец равных долей, вложенных разбиений больше нет
     func paneFrames(in size: CGSize) -> [TerminalSession.ID: CGRect] {
         let panes = visiblePanes
         guard !panes.isEmpty else { return [:] }
 
         let gap = WorkspaceLayout.inset
-        let total = size.width - gap * CGFloat(panes.count - 1)
-        let width = max(total / CGFloat(panes.count), 1)
+        let along = isVertical ? size.height : size.width
+        let share = max((along - gap * CGFloat(panes.count - 1)) / CGFloat(panes.count), 1)
         var frames: [TerminalSession.ID: CGRect] = [:]
 
         for (index, session) in panes.enumerated() {
-            frames[session.id] = CGRect(
-                x: (width + gap) * CGFloat(index),
-                y: 0,
-                width: width,
-                height: size.height
-            )
+            let offset = (share + gap) * CGFloat(index)
+
+            frames[session.id] = isVertical
+                ? CGRect(x: 0, y: offset, width: size.width, height: share)
+                : CGRect(x: offset, y: 0, width: share, height: size.height)
         }
 
         return frames

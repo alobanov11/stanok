@@ -26,19 +26,28 @@ enum WorkspaceGeometry {
         sidebarExpanded ? outsideLeading : insideOffset
     }
 
-    // Почему: если после превью терминалу не остаётся ширины, превью ложится поверх него
-    static func previewMode(hasPreview: Bool, width: CGFloat) -> PreviewMode {
-        guard hasPreview else { return .none }
-
-        let needed = WorkspaceLayout.minimumTerminalWidth
-            + WorkspaceLayout.minimumPreviewWidth
-            + WorkspaceLayout.inset
-
-        return width >= needed ? .split : .fullScreen
+    // Почему: на вертикальном мониторе колонки не помещаются, поэтому область делится по высоте
+    static func isVertical(_ size: CGSize) -> Bool {
+        size.height > size.width
     }
 
-    static func previewTransition(for mode: PreviewMode) -> AnyTransition {
-        mode == .split ? .move(edge: .trailing).combined(with: .opacity) : .opacity
+    // Почему: если после превью терминалу не остаётся места, превью ложится поверх него
+    static func previewMode(hasPreview: Bool, size: CGSize) -> PreviewMode {
+        guard hasPreview else { return .none }
+
+        let vertical = isVertical(size)
+        let needed = vertical
+            ? WorkspaceLayout.minimumTerminalHeight + WorkspaceLayout.minimumPreviewHeight
+            : WorkspaceLayout.minimumTerminalWidth + WorkspaceLayout.minimumPreviewWidth
+        let room = vertical ? size.height : size.width
+
+        return room >= needed + WorkspaceLayout.inset ? .split : .fullScreen
+    }
+
+    static func previewTransition(for mode: PreviewMode, isVertical: Bool) -> AnyTransition {
+        guard mode == .split else { return .opacity }
+
+        return .move(edge: isVertical ? .bottom : .trailing).combined(with: .opacity)
     }
 
     static func headerLeading(sidebarExpanded: Bool) -> CGFloat {
