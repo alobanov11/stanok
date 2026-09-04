@@ -330,6 +330,35 @@ final class GhosttySurfaceView: NSView {
         window.makeFirstResponder(self)
     }
 
+    // Почему: миниатюра рисуется настоящим текстом экрана, Metal-слой для этого не снять
+    func viewportText() -> String? {
+        guard let surface else { return nil }
+
+        var selection = ghostty_selection_s()
+        selection.top_left = ghostty_point_s(
+            tag: GHOSTTY_POINT_VIEWPORT,
+            coord: GHOSTTY_POINT_COORD_TOP_LEFT,
+            x: 0,
+            y: 0
+        )
+        selection.bottom_right = ghostty_point_s(
+            tag: GHOSTTY_POINT_VIEWPORT,
+            coord: GHOSTTY_POINT_COORD_BOTTOM_RIGHT,
+            x: 0,
+            y: 0
+        )
+        selection.rectangle = false
+
+        var text = ghostty_text_s()
+        guard ghostty_surface_read_text(surface, selection, &text) else { return nil }
+
+        defer { ghostty_surface_free_text(surface, &text) }
+
+        guard let pointer = text.text else { return nil }
+
+        return String(cString: pointer)
+    }
+
     func setCursorShape(_ shape: ghostty_action_mouse_shape_e) {
         guard !isHidden else { return }
 

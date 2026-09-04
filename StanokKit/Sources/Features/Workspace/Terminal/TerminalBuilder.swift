@@ -16,6 +16,8 @@ public struct TerminalRequest {
     public let closeRequest: UUID?
     public let onCloseHandled: (UUID) -> Void
     public let onFocused: () -> Void
+    public let onSnapshot: (String) -> Void
+    public let wantsSnapshots: Bool
 }
 
 public typealias TerminalBuilder<Terminal: View> = (TerminalRequest) -> Terminal

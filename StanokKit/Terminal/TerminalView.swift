@@ -6,6 +6,9 @@ public struct TerminalView: View {
     @State
     private var scrollController = TerminalScrollController()
 
+    @State
+    private var snapshotController = TerminalSnapshotController()
+
     public var body: some View {
         TerminalSurface(
             runtime: runtime,
@@ -25,11 +28,14 @@ public struct TerminalView: View {
             onCloseHandled: onCloseHandled,
             onFocused: onFocused,
             onScrollbar: scrollController.report,
-            scrollController: scrollController
+            scrollController: scrollController,
+            snapshotController: snapshotController
         )
         .overlay(alignment: .trailing) {
             TerminalScrollbarOverlay(controller: scrollController)
         }
+        // Почему: миниатюра в полосе — это текст экрана, снятый раз в полторы секунды
+        .task(id: wantsSnapshots) { await pollSnapshots() }
     }
 
     private let runtime: GhosttyRuntime
@@ -37,6 +43,7 @@ public struct TerminalView: View {
     private let processLabel: String
     private let isVisible: Bool
     private let isFocused: Bool
+    private let wantsSnapshots: Bool
     private let insertRequest: TerminalInsertRequest?
     private let onCommandFinished: (CommandRun) -> Void
     private let onOpenURL: (String) -> Void
@@ -47,6 +54,7 @@ public struct TerminalView: View {
     private let onInsertHandled: (UUID) -> Void
     private let onCloseHandled: (UUID) -> Void
     private let onFocused: () -> Void
+    private let onSnapshot: (String) -> Void
     private let closeRequest: UUID?
 
     public init(
@@ -65,7 +73,9 @@ public struct TerminalView: View {
         onInsertHandled: @escaping (UUID) -> Void = { _ in },
         closeRequest: UUID? = nil,
         onCloseHandled: @escaping (UUID) -> Void = { _ in },
-        onFocused: @escaping () -> Void = {}
+        onFocused: @escaping () -> Void = {},
+        onSnapshot: @escaping (String) -> Void = { _ in },
+        wantsSnapshots: Bool = false
     ) {
         self.runtime = runtime
         self.workingDirectory = workingDirectory
@@ -83,5 +93,17 @@ public struct TerminalView: View {
         self.closeRequest = closeRequest
         self.onCloseHandled = onCloseHandled
         self.onFocused = onFocused
+        self.onSnapshot = onSnapshot
+        self.wantsSnapshots = wantsSnapshots
+    }
+
+    private func pollSnapshots() async {
+        guard wantsSnapshots else { return }
+
+        while !Task.isCancelled {
+            if let text = snapshotController.read?() { onSnapshot(text) }
+
+            try? await Task.sleep(for: .milliseconds(1500))
+        }
     }
 }

@@ -25,6 +25,11 @@ public struct WorkspaceView<Terminal: View>: View {
         WorkspaceGeometry.isVertical(mainSize)
     }
 
+    // Почему: полоса нужна, только когда терминалы перестали помещаться и вытесняют друг друга
+    private var needsStrip: Bool {
+        store.sessions.count > capacity
+    }
+
     private var capacity: Int {
         let room = (isVertical ? mainSize.height : mainSize.width) - previewInset
         let step = isVertical
@@ -210,6 +215,9 @@ public struct WorkspaceView<Terminal: View>: View {
     @State
     private var processTracker = TabProcessTracker()
 
+    @State
+    private var snapshots = TerminalSnapshots()
+
     public var body: some View {
         HStack(spacing: 0) {
             if isSidebarExpanded {
@@ -245,6 +253,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .onChange(of: selection) { _, new in activate(new) }
         .onChange(of: knownSessionIDs) { _, known in
             liveSessions.reconcile(known)
+            snapshots.forget(known)
             navigators.prune(roots: Set(store.roots.map(\.id)))
         }
         .onChange(of: capacity) { _, room in
@@ -365,12 +374,43 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var main: some View {
-        mainContent
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { mainSize = $0 }
+        // Почему: на высоком окне полоса ложится снизу, на широком — справа
+        Group {
+            if isVertical {
+                VStack(spacing: WorkspaceLayout.inset) { mainContent
+                    strip
+                }
+            } else {
+                HStack(spacing: WorkspaceLayout.inset) { mainContent
+                    strip
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var strip: some View {
+        if needsStrip {
+            TerminalStrip(
+                sessions: store.sessions,
+                shown: Set(store.shown),
+                selection: selection,
+                isVertical: isVertical,
+                snapshots: snapshots,
+                onOpen: { selection = $0.id }
+            )
+            .transition(.opacity)
+        }
     }
 
     private var mainContent: some View {
+        // Почему: ёмкость считаем по площади терминалов, полоса миниатюр в неё не входит
+        area
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { mainSize = $0 }
+    }
+
+    private var area: some View {
         ZStack {
             panes
                 .padding(isVertical ? .bottom : .trailing, previewInset)
@@ -664,7 +704,9 @@ private extension WorkspaceView {
                 onInsertHandled: { dispatcher.markInserted(session.id, request: $0) },
                 closeRequest: dispatcher.closeRequest(for: session.id),
                 onCloseHandled: { dispatcher.markCloseHandled(session.id, request: $0) },
-                onFocused: { selection = session.id }
+                onFocused: { selection = session.id },
+                onSnapshot: { snapshots.set($0, for: session.id) },
+                wantsSnapshots: needsStrip
             )
         )
     }

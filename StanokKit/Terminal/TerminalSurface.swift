@@ -21,6 +21,7 @@ struct TerminalSurface: NSViewRepresentable {
     let onFocused: () -> Void
     let onScrollbar: (TerminalScrollbar) -> Void
     let scrollController: TerminalScrollController
+    let snapshotController: TerminalSnapshotController
 
     static func dismantleNSView(_ view: GhosttySurfaceView, coordinator: ()) {
         view.shutdown()
@@ -45,6 +46,7 @@ struct TerminalSurface: NSViewRepresentable {
         view.onFocused = onFocused
         view.onScrollbarChanged = onScrollbar
         scrollController.scroll = { [weak view] row in view?.scroll(toRow: row) }
+        snapshotController.read = { [weak view] in view?.viewportText() }
         view.apply(insertRequest: insertRequest)
         view.apply(closeRequest: closeRequest)
         return view
@@ -62,6 +64,7 @@ struct TerminalSurface: NSViewRepresentable {
         view.onFocused = onFocused
         view.onScrollbarChanged = onScrollbar
         scrollController.scroll = { [weak view] row in view?.scroll(toRow: row) }
+        snapshotController.read = { [weak view] in view?.viewportText() }
         view.setVisible(to: isVisible)
         view.setFocused(to: isFocused)
         view.apply(insertRequest: insertRequest)
