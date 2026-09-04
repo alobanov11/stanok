@@ -231,6 +231,12 @@ public struct WorkspaceView<Terminal: View>: View {
     private var pinned = PinnedSourceStore()
 
     @State
+    private var renameTarget: TerminalSession?
+
+    @State
+    private var renameText = ""
+
+    @State
     private var navigators = PreviewNavigators()
 
     @State
@@ -306,6 +312,17 @@ public struct WorkspaceView<Terminal: View>: View {
             session: selectedSession, store: store,
             selection: $selection, closeSession: liveSessions.requestClose
         ))
+        .alert(
+            "Переименовать терминал",
+            isPresented: Binding(
+                get: { renameTarget != nil },
+                set: { if !$0 { renameTarget = nil } }
+            )
+        ) {
+            TextField("Имя", text: $renameText)
+            Button("Отмена", role: .cancel) { renameTarget = nil }
+            Button("Готово") { commitRename() }
+        }
         .task { selectFirstIfNeeded() }
         .task(id: visiblePaneIDs) { await refreshPanes() }
         .task(id: selection) { await branchStore.refresh(selectedSession) }
@@ -759,6 +776,7 @@ private extension WorkspaceView {
 
     func floatingMenu(_ session: TerminalSession) -> some View {
         TerminalActionsMenu(
+            rename: { startRename(session) },
             hide: { hide(session) },
             newTerminal: { addSession(at: session.url) },
             close: { liveSessions.requestClose(session) }
@@ -781,10 +799,24 @@ private extension WorkspaceView {
             selectGit: { selectFiles(.git, in: session) },
             stashChanges: { requestWorkingTree(.stash, for: session) },
             discardChanges: { requestWorkingTree(.discard, for: session) },
+            rename: { startRename(session) },
             hide: { hide(session) },
             newTerminal: { addSession(at: session.url) },
             close: { liveSessions.requestClose(session) }
         )
+    }
+
+    func startRename(_ session: TerminalSession) {
+        renameText = session.displayName
+        renameTarget = session
+    }
+
+    func commitRename() {
+        guard let renameTarget else { return }
+
+        let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        store.setTitle(trimmed.isEmpty ? nil : trimmed, for: renameTarget.id)
+        self.renameTarget = nil
     }
 
     func dragItem(for session: TerminalSession) -> NSItemProvider {

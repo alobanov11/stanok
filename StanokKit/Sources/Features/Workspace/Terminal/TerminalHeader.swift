@@ -37,7 +37,12 @@ struct TerminalHeader: View {
     }
 
     private var actionsMenu: some View {
-        TerminalActionsMenu(hide: hide, newTerminal: newTerminal, close: close)
+        TerminalActionsMenu(
+            rename: rename,
+            hide: hide,
+            newTerminal: newTerminal,
+            close: close
+        )
     }
 
     let session: TerminalSession
@@ -50,6 +55,7 @@ struct TerminalHeader: View {
     let selectGit: () -> Void
     let stashChanges: () -> Void
     let discardChanges: () -> Void
+    let rename: () -> Void
     let hide: () -> Void
     let newTerminal: () -> Void
     let close: () -> Void
