@@ -4,7 +4,7 @@ struct TerminalStrip: View {
 
     private enum Metric {
 
-        static let card = CGSize(width: 208, height: 128)
+        static let card = WorkspaceLayout.stripCard
         static let radius: CGFloat = 10
         static let text: CGFloat = 4
     }
@@ -12,8 +12,8 @@ struct TerminalStrip: View {
     var body: some View {
         content
             .frame(
-                width: isVertical ? nil : Metric.card.width + 24,
-                height: isVertical ? Metric.card.height + 24 : nil
+                width: isVertical ? nil : WorkspaceLayout.stripWidth,
+                height: isVertical ? WorkspaceLayout.stripHeight : nil
             )
     }
 
@@ -21,12 +21,12 @@ struct TerminalStrip: View {
     private var content: some View {
         if isVertical {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) { cards }
+                LazyHStack(spacing: 8) { cards }
                     .padding(.horizontal, 12)
             }
         } else {
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 8) { cards }
+                LazyVStack(spacing: 8) { cards }
                     .padding(.vertical, 12)
             }
         }

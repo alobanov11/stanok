@@ -31,6 +31,13 @@ enum WorkspaceGeometry {
         size.height > size.width
     }
 
+    // Почему: между колонками есть зазор, без него ёмкость завышается и панели ужимаются
+    static func fit(room: CGFloat, minimum: CGFloat) -> Int {
+        let gap = WorkspaceLayout.inset
+
+        return max(Int((room + gap) / (minimum + gap)), 1)
+    }
+
     // Почему: если после превью терминалу не остаётся места, превью ложится поверх него
     static func previewMode(hasPreview: Bool, size: CGSize) -> PreviewMode {
         guard hasPreview else { return .none }

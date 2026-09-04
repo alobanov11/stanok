@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct PaneDropDelegate: DropDelegate {
 
@@ -16,7 +17,7 @@ struct PaneDropDelegate: DropDelegate {
     func validateDrop(info: DropInfo) -> Bool {
         guard let dragged, dragged != target else { return false }
 
-        return true
+        return info.hasItemsConforming(to: [.plainText])
     }
 
     func dropEntered(info: DropInfo) {
@@ -36,15 +37,32 @@ struct PaneDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        defer {
-            dragged = nil
-            highlighted = nil
-        }
-
         guard let dragged, dragged != target else { return false }
 
-        swap(dragged, target)
+        guard let provider = info.itemProviders(for: [.plainText]).first else {
+            reset()
+
+            return false
+        }
+
+        // Почему: отменённый drag оставляет прежний dragged, поэтому сверяем сам перенесённый ID
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            let carried = (object as? NSString).flatMap { UUID(uuidString: $0 as String) }
+
+            Task { @MainActor in
+                defer { reset() }
+
+                guard carried == dragged else { return }
+
+                swap(dragged, target)
+            }
+        }
 
         return true
+    }
+
+    private func reset() {
+        dragged = nil
+        highlighted = nil
     }
 }

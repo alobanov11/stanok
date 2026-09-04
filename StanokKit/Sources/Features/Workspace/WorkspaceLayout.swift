@@ -13,6 +13,10 @@ enum WorkspaceLayout {
     static let minimumTerminalHeight: CGFloat = 420
     static let minimumPreviewHeight: CGFloat = 320
     static let minimumPreviewWidth: CGFloat = 420
+    static let stripCard = CGSize(width: 208, height: 128)
+    static let stripPadding: CGFloat = 24
+    static let stripWidth = stripCard.width + stripPadding
+    static let stripHeight = stripCard.height + stripPadding
     static let filesWidth: CGFloat = 300
     static let toggleDuration = 0.28
     static let toggleWidth: CGFloat = 36

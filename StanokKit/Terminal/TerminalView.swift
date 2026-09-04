@@ -9,6 +9,9 @@ public struct TerminalView: View {
     @State
     private var snapshotController = TerminalSnapshotController()
 
+    @State
+    private var snapshotPhase = Double.random(in: 0..<1)
+
     public var body: some View {
         TerminalSurface(
             runtime: runtime,
@@ -99,6 +102,9 @@ public struct TerminalView: View {
 
     private func pollSnapshots() async {
         guard wantsSnapshots else { return }
+
+        // Почему: чтение экрана берёт мьютекс рендерера, поэтому терминалы читают вразнобой
+        try? await Task.sleep(for: .milliseconds(Int(snapshotPhase * 1500)))
 
         while !Task.isCancelled {
             if let text = snapshotController.read?() { onSnapshot(text) }

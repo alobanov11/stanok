@@ -34,6 +34,48 @@ struct WorkspaceShowTests {
     }
 
     @Test
+    func aFullAreaReplacesThePreviouslyActiveTerminal() throws {
+        let store = Self.store()
+        let first = store.addSession(url: URL(filePath: "/tmp"))
+        let second = store.addSession(url: URL(filePath: "/tmp"))
+        let third = store.addSession(url: URL(filePath: "/tmp"))
+
+        store.show(first.id, capacity: 2, replacing: nil)
+        store.show(second.id, capacity: 2, replacing: first.id)
+        store.show(third.id, capacity: 2, replacing: second.id)
+
+        #expect(store.visible == [first.id, third.id])
+    }
+
+    @Test
+    func aNarrowWindowHidesTerminalsTemporarily() throws {
+        let store = Self.store()
+        let first = store.addSession(url: URL(filePath: "/tmp"))
+        let second = store.addSession(url: URL(filePath: "/tmp"))
+
+        store.show(first.id, capacity: 2, replacing: nil)
+        store.show(second.id, capacity: 2, replacing: nil)
+        store.limit(to: 1, keeping: second.id)
+
+        #expect(store.visible == [second.id])
+        #expect(store.shown == [first.id, second.id])
+
+        store.limit(to: 2, keeping: second.id)
+
+        #expect(store.visible == [first.id, second.id])
+    }
+
+    @Test
+    func columnsKeepTheirMinimumWidthWithGaps() throws {
+        let fits = WorkspaceGeometry.fit(
+            room: 1440,
+            minimum: WorkspaceLayout.minimumTerminalWidth
+        )
+
+        #expect(fits == 1)
+    }
+
+    @Test
     func aHiddenTerminalReturnsToItsOriginalPlaceInTheRow() throws {
         let store = Self.store()
         let first = store.addSession(url: URL(filePath: "/tmp"))

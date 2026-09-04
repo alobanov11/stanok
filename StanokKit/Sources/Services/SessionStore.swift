@@ -10,6 +10,10 @@ public final class SessionStore {
         sessions
     }
 
+    public var visible: [TerminalSession.ID] {
+        shown.filter { !crowded.contains($0) }
+    }
+
     public private(set) var sessions: [TerminalSession] = []
 
     public private(set) var unreachable: Set<TerminalSession.ID> = []
@@ -18,6 +22,9 @@ public final class SessionStore {
 
     // Почему: рабочая область — один ряд, порядок в нём задаётся порядком самих терминалов
     public private(set) var shown: [TerminalSession.ID] = []
+
+    // Почему: узкое окно прячет терминалы временно, желание пользователя при этом не меняется
+    public private(set) var crowded: Set<TerminalSession.ID> = []
 
     private let file: URL
     private let legacyFile: URL
@@ -95,41 +102,58 @@ public final class SessionStore {
         sessions[index].liveTitle = title
     }
 
-    public func show(_ sessionID: TerminalSession.ID, capacity: Int, replacing: TerminalSession.ID?) {
+    public func show(
+        _ sessionID: TerminalSession.ID,
+        capacity: Int,
+        replacing: TerminalSession.ID?
+    ) {
+        crowded.remove(sessionID)
+
         guard !shown.contains(sessionID) else { return }
 
-        if shown.count >= max(capacity, 1), let replacing, shown.contains(replacing) {
+        let room = max(capacity, 1)
+
+        if visible.count >= room, let replacing, visible.contains(replacing) {
             shown.removeAll { $0 == replacing }
         }
 
-        while shown.count >= max(capacity, 1), !shown.isEmpty {
-            shown.removeFirst()
+        while visible.count >= room, let victim = visible.first {
+            shown.removeAll { $0 == victim }
         }
 
         shown.append(sessionID)
+        shown = sessions.map(\.id).filter { shown.contains($0) }
         saveScheduler.schedule(currentSnapshot())
     }
 
-    // Почему: при сужении окна лишние терминалы уходят в сайдбар, а не сжимаются в полоску
+    // Почему: сужение окна прячет лишние временно, при расширении они возвращаются сами
     public func limit(to capacity: Int, keeping selected: TerminalSession.ID?) {
         let room = max(capacity, 1)
-        guard shown.count > room else { return }
+        var hidden = crowded.intersection(shown)
 
-        var kept = shown
-        while kept.count > room {
-            guard let victim = kept.first(where: { $0 != selected }) else { break }
+        while shown.count(where: { !hidden.contains($0) }) > room {
+            guard let victim = shown.first(where: { !hidden.contains($0) && $0 != selected })
+            else { break }
 
-            kept.removeAll { $0 == victim }
+            hidden.insert(victim)
         }
 
-        shown = kept
-        saveScheduler.schedule(currentSnapshot())
+        for id in shown.reversed() where hidden.contains(id) {
+            guard shown.count(where: { !hidden.contains($0) }) < room else { break }
+
+            hidden.remove(id)
+        }
+
+        guard hidden != crowded else { return }
+
+        crowded = hidden
     }
 
     public func hide(_ sessionID: TerminalSession.ID) {
         guard shown.contains(sessionID) else { return }
 
         shown.removeAll { $0 == sessionID }
+        crowded.remove(sessionID)
         saveScheduler.schedule(currentSnapshot())
     }
 
@@ -235,11 +259,25 @@ private extension SessionStore {
     func load() {
         if FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) {
             loadSessionsFile()
+            adoptLegacyShown()
         } else {
             migrateFromLegacyFile()
         }
 
         normalizeGroups()
+    }
+
+    // Почему: у старых записей области не было, её восстанавливаем из сплитов активной группы
+    func adoptLegacyShown() {
+        guard shown.isEmpty, !sessions.isEmpty else { return }
+
+        let selected = session(for: selectedSessionID) ?? sessions[0]
+        let rootID = selected.parentID ?? selected.id
+        let leaves = sessions.first { $0.id == rootID }?.layout?.leafIDs ?? []
+        let known = Set(sessions.map(\.id))
+        let restored = leaves.filter { known.contains($0) }
+
+        shown = restored.isEmpty ? [selected.id] : restored
     }
 
     func loadSessionsFile() {

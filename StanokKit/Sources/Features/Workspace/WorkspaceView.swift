@@ -18,25 +18,45 @@ public struct WorkspaceView<Terminal: View>: View {
 
     // Почему: порядок в ряду задают сами терминалы, поэтому возврат скрытого не тасует соседей
     private var visiblePanes: [TerminalSession] {
-        store.sessions.filter { store.shown.contains($0.id) }
+        store.sessions.filter { store.visible.contains($0.id) }
     }
 
     private var isVertical: Bool {
-        WorkspaceGeometry.isVertical(mainSize)
+        WorkspaceGeometry.isVertical(areaSize)
     }
 
-    // Почему: полоса нужна, только когда терминалы перестали помещаться и вытесняют друг друга
+    // Почему: полосу решает внешний размер, иначе её толщина влияла бы на саму себя
     private var needsStrip: Bool {
-        store.sessions.count > capacity
+        guard let measured else { return false }
+
+        return store.sessions.count > fit(in: measured, preview: previewInset(in: measured))
+    }
+
+    private var stripInset: CGFloat {
+        guard needsStrip else { return 0 }
+
+        let thickness = isVertical ? WorkspaceLayout.stripHeight : WorkspaceLayout.stripWidth
+
+        return thickness + WorkspaceLayout.inset
+    }
+
+    // Почему: полоса миниатюр забирает место у терминалов, поэтому ёмкость считаем без неё
+    private var contentSize: CGSize {
+        CGSize(
+            width: max(areaSize.width - (isVertical ? 0 : stripInset), 0),
+            height: max(areaSize.height - (isVertical ? stripInset : 0), 0)
+        )
+    }
+
+    // Почему: до первого замера площадь нулевая, и раскладку по ней строить нельзя
+    private var measured: CGSize? {
+        areaSize.width > 1 && areaSize.height > 1 ? areaSize : nil
     }
 
     private var capacity: Int {
-        let room = (isVertical ? mainSize.height : mainSize.width) - previewInset
-        let step = isVertical
-            ? WorkspaceLayout.minimumTerminalHeight
-            : WorkspaceLayout.minimumTerminalWidth
+        guard measured != nil else { return max(store.visible.count, 1) }
 
-        return max(Int(room / step), 1)
+        return fit(in: contentSize, preview: previewInset)
     }
 
     private var visiblePaneIDs: [TerminalSession.ID] {
@@ -125,24 +145,16 @@ public struct WorkspaceView<Terminal: View>: View {
         AgentCommandRouter(dispatcher: dispatcher, tracker: processTracker)
     }
 
-    // Почему: превью — такая же колонка, как терминал, а не всегда половина экрана
     private var previewWidth: CGFloat {
-        let columns = CGFloat(max(visiblePanes.count, 1) + 1)
-        let along = isVertical ? mainSize.height : mainSize.width
-        let share = along / columns - WorkspaceLayout.inset
-        let minimum = isVertical
-            ? WorkspaceLayout.minimumPreviewHeight
-            : WorkspaceLayout.minimumPreviewWidth
-
-        return max(share, minimum).rounded()
+        previewWidth(in: contentSize)
     }
 
     private var previewInset: CGFloat {
-        previewMode == .split ? previewWidth + WorkspaceLayout.inset : 0
+        previewInset(in: contentSize)
     }
 
     private var previewMode: PreviewMode {
-        WorkspaceGeometry.previewMode(hasPreview: navigator.current != nil, size: mainSize)
+        WorkspaceGeometry.previewMode(hasPreview: navigator.current != nil, size: contentSize)
     }
 
     private var isClosingLiveSession: Binding<Bool> {
@@ -192,7 +204,7 @@ public struct WorkspaceView<Terminal: View>: View {
     private var dragTarget: TerminalSession.ID?
 
     @State
-    private var mainSize = CGSize.zero
+    private var areaSize = CGSize.zero
 
     @State
     private var closeRequest: TerminalSession?
@@ -250,13 +262,15 @@ public struct WorkspaceView<Terminal: View>: View {
         .task(id: visiblePaneIDs) { await refreshPanes() }
         .task(id: selection) { await branchStore.refresh(selectedSession) }
         .task(id: selectedSession?.url) { await settleDirectoryChange() }
-        .onChange(of: selection) { _, new in activate(new) }
+        .onChange(of: selection) { old, new in activate(new, replacing: old) }
         .onChange(of: knownSessionIDs) { _, known in
             liveSessions.reconcile(known)
             snapshots.forget(known)
             navigators.prune(roots: Set(store.roots.map(\.id)))
         }
         .onChange(of: capacity) { _, room in
+            guard measured != nil else { return }
+
             withAnimation(.smooth(duration: 0.22)) {
                 store.limit(to: room, keeping: selection)
             }
@@ -387,6 +401,7 @@ public struct WorkspaceView<Terminal: View>: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { areaSize = $0 }
     }
 
     @ViewBuilder
@@ -394,7 +409,7 @@ public struct WorkspaceView<Terminal: View>: View {
         if needsStrip {
             TerminalStrip(
                 sessions: store.sessions,
-                shown: Set(store.shown),
+                shown: Set(store.visible),
                 selection: selection,
                 isVertical: isVertical,
                 snapshots: snapshots,
@@ -405,9 +420,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var mainContent: some View {
-        // Почему: ёмкость считаем по площади терминалов, полоса миниатюр в неё не входит
         area
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { mainSize = $0 }
     }
 
     private var area: some View {
@@ -465,15 +478,57 @@ private extension WorkspaceView {
         }
     }
 
-    // Почему: терминал занимает свободную колонку, а без места подменяет активный
-    func activate(_ session: TerminalSession.ID?) {
+    // Почему: терминал занимает свободную колонку, а без места подменяет прежний активный
+    func activate(_ session: TerminalSession.ID?, replacing previous: TerminalSession.ID?) {
         guard let session else { return }
 
         withAnimation(.smooth(duration: 0.22)) {
-            store.show(session, capacity: capacity, replacing: selection)
+            store.show(session, capacity: capacity, replacing: previous)
         }
 
         liveSessions.activate(session)
+    }
+
+    // Почему: сохранённая область должна вернуться целиком, а не одной выбранной колонкой
+    func restoreShownPanes() {
+        for id in store.visible where !live.contains(id) {
+            liveSessions.activate(id)
+        }
+
+        guard let selection else { return }
+
+        liveSessions.activate(selection)
+    }
+
+    func fit(in size: CGSize, preview: CGFloat) -> Int {
+        let along = isVertical ? size.height : size.width
+        let minimum = isVertical
+            ? WorkspaceLayout.minimumTerminalHeight
+            : WorkspaceLayout.minimumTerminalWidth
+
+        return WorkspaceGeometry.fit(room: along - preview, minimum: minimum)
+    }
+
+    // Почему: превью — такая же колонка, как терминал, но не отбирает у него минимум
+    func previewWidth(in size: CGSize) -> CGFloat {
+        let columns = CGFloat(max(visiblePanes.count, 1) + 1)
+        let along = isVertical ? size.height : size.width
+        let share = along / columns - WorkspaceLayout.inset
+        let minimum = isVertical
+            ? WorkspaceLayout.minimumPreviewHeight
+            : WorkspaceLayout.minimumPreviewWidth
+        let terminal = isVertical
+            ? WorkspaceLayout.minimumTerminalHeight
+            : WorkspaceLayout.minimumTerminalWidth
+        let spare = along - terminal - WorkspaceLayout.inset
+
+        return min(max(share, minimum), max(spare, minimum)).rounded()
+    }
+
+    func previewInset(in size: CGSize) -> CGFloat {
+        let mode = WorkspaceGeometry.previewMode(hasPreview: navigator.current != nil, size: size)
+
+        return mode == .split ? previewWidth(in: size) + WorkspaceLayout.inset : 0
     }
 
     func hide(_ session: TerminalSession) {
@@ -920,8 +975,10 @@ private extension WorkspaceView {
     }
 
     func selectFirstIfNeeded() {
-        guard selection == nil else { return }
+        if selection == nil {
+            selection = store.session(for: store.selectedSessionID)?.id ?? store.sessions.first?.id
+        }
 
-        selection = store.session(for: store.selectedSessionID)?.id ?? store.sessions.first?.id
+        restoreShownPanes()
     }
 }

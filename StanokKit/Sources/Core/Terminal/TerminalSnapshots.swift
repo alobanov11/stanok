@@ -9,9 +9,11 @@ public final class TerminalSnapshots {
 
         static let lines = 24
         static let width = 120
+        static let sessions = 48
     }
 
     private var texts: [TerminalSession.ID: String] = [:]
+    private var order: [TerminalSession.ID] = []
 
     public init() {}
 
@@ -29,9 +31,17 @@ public final class TerminalSnapshots {
         guard texts[session] != trimmed else { return }
 
         texts[session] = trimmed
+        order.removeAll { $0 == session }
+        order.append(session)
+
+        while order.count > Limit.sessions, let evicted = order.first {
+            texts[evicted] = nil
+            order.removeFirst()
+        }
     }
 
     public func forget(_ known: Set<TerminalSession.ID>) {
         texts = texts.filter { known.contains($0.key) }
+        order.removeAll { !known.contains($0) }
     }
 }
