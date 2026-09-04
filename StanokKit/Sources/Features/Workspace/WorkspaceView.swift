@@ -716,19 +716,9 @@ private extension WorkspaceView {
         terminalContent(session, isShown: isShown, isFocused: isFocused)
             // Почему: под шапкой лежит живой первый ряд, а не переполнение скролла
             .padding(.top, isLeading ? WorkspaceLayout.headerHeight : 0)
-            // Почему: тянем за верхнюю кромку любой панели, а не только за шапку первой
             .overlay(alignment: .top) {
-                Group {
-                    if isLeading {
-                        header(session)
-                    } else {
-                        Color.clear.frame(height: WorkspaceLayout.headerHeight)
-                    }
-                }
-                .onDrag {
-                    dragged = session.id
-
-                    return NSItemProvider(object: session.id.uuidString as NSString)
+                if isLeading {
+                    header(session)
                 }
             }
             .overlay(alignment: .topTrailing) {
@@ -765,7 +755,8 @@ private extension WorkspaceView {
         TerminalActionsMenu(
             hide: { hide(session) },
             newTerminal: { addSession(at: session.url) },
-            close: { liveSessions.requestClose(session) }
+            close: { liveSessions.requestClose(session) },
+            drag: { dragItem(for: session) }
         )
         .padding(.horizontal, 4)
         .glassEffect(.regular.interactive(), in: .capsule)
@@ -786,8 +777,15 @@ private extension WorkspaceView {
             discardChanges: { requestWorkingTree(.discard, for: session) },
             hide: { hide(session) },
             newTerminal: { addSession(at: session.url) },
-            close: { liveSessions.requestClose(session) }
+            close: { liveSessions.requestClose(session) },
+            drag: { dragItem(for: session) }
         )
+    }
+
+    func dragItem(for session: TerminalSession) -> NSItemProvider {
+        dragged = session.id
+
+        return NSItemProvider(object: session.id.uuidString as NSString)
     }
 
     func terminalContent(

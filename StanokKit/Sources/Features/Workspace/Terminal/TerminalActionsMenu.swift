@@ -3,6 +3,23 @@ import SwiftUI
 struct TerminalActionsMenu: View {
 
     var body: some View {
+        HStack(spacing: 2) {
+            if let drag {
+                // Почему: перетаскивание живёт на явной ручке, иначе оно спорит с выделением текста
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 20)
+                    .contentShape(.capsule)
+                    .help("Перетащить терминал")
+                    .onDrag(drag)
+            }
+
+            menu
+        }
+    }
+
+    private var menu: some View {
         Menu {
             Button("Новый терминал", action: newTerminal)
 
@@ -25,4 +42,6 @@ struct TerminalActionsMenu: View {
     let hide: () -> Void
     let newTerminal: () -> Void
     let close: () -> Void
+
+    var drag: (() -> NSItemProvider)?
 }

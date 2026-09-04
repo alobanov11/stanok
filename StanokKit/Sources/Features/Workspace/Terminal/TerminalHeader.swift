@@ -34,7 +34,7 @@ struct TerminalHeader: View {
     }
 
     private var actionsMenu: some View {
-        TerminalActionsMenu(hide: hide, newTerminal: newTerminal, close: close)
+        TerminalActionsMenu(hide: hide, newTerminal: newTerminal, close: close, drag: drag)
     }
 
     let session: TerminalSession
@@ -49,6 +49,7 @@ struct TerminalHeader: View {
     let hide: () -> Void
     let newTerminal: () -> Void
     let close: () -> Void
+    let drag: () -> NSItemProvider
 }
 
 private extension TerminalHeader {
