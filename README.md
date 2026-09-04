@@ -7,8 +7,6 @@
 Ghostty-fast rendering, a single workspace of terminal columns, and a git
 inspector that turns any branch or commit into a review — without leaving the app.
 
-<img src="docs/screenshot.png" alt="Stanok" width="900">
-
 </div>
 
 ---
