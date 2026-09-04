@@ -9,8 +9,7 @@ struct SidebarRow: View {
     }
 
     private var iconStyle: AnyShapeStyle {
-        if isMuted { return AnyShapeStyle(.tertiary) }
-        return isLive ? AnyShapeStyle(Color.green) : AnyShapeStyle(.secondary)
+        isMuted ? AnyShapeStyle(.tertiary) : presence.style
     }
 
     @State
@@ -18,7 +17,7 @@ struct SidebarRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: icon)
+            Image(systemName: presence.icon)
                 .font(.system(size: 12))
                 .frame(width: 16)
                 .foregroundStyle(iconStyle)
@@ -50,30 +49,27 @@ struct SidebarRow: View {
         }
     }
 
-    let icon: String
     let title: String
     let isSelected: Bool
     let isMuted: Bool
-    let isLive: Bool
     let isDropTarget: Bool
+    let presence: SidebarRowPresence
     let indent: CGFloat
     let close: () -> Void
 
     init(
-        icon: String,
         title: String,
         isSelected: Bool,
         isMuted: Bool,
-        isLive: Bool,
+        presence: SidebarRowPresence,
         indent: CGFloat,
         isDropTarget: Bool = false,
         close: @escaping () -> Void
     ) {
-        self.icon = icon
         self.title = title
         self.isSelected = isSelected
         self.isMuted = isMuted
-        self.isLive = isLive
+        self.presence = presence
         self.indent = indent
         self.isDropTarget = isDropTarget
         self.close = close

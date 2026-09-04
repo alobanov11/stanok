@@ -196,6 +196,12 @@ private extension SessionList {
         return true
     }
 
+    func presence(of session: TerminalSession) -> SidebarRowPresence {
+        if store.visible.contains(session.id) { return .onScreen }
+
+        return live.contains(session.id) ? .hidden : .idle
+    }
+
     func sessionRow(
         _ session: TerminalSession,
         indent: CGFloat,
@@ -203,11 +209,10 @@ private extension SessionList {
         isDropTarget: Bool = false
     ) -> some View {
         SidebarRow(
-            icon: "apple.terminal",
             title: session.displayName,
             isSelected: session.id == selection,
             isMuted: store.unreachable.contains(session.id),
-            isLive: live.contains(session.id),
+            presence: presence(of: session),
             indent: indent,
             isDropTarget: isDropTarget,
             close: { closeSession(session) }
