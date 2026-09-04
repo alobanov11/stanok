@@ -28,13 +28,16 @@ struct TerminalHeader: View {
         .padding(.trailing, 48)
         .frame(height: WorkspaceLayout.headerHeight)
         .overlay(alignment: .trailing) {
-            actionsMenu
-                .padding(.trailing, 12)
+            // Почему: меню действий принадлежит активному терминалу, у остальных оно лишний шум
+            if isFocused {
+                actionsMenu
+                    .padding(.trailing, 12)
+            }
         }
     }
 
     private var actionsMenu: some View {
-        TerminalActionsMenu(hide: hide, newTerminal: newTerminal, close: close, drag: drag)
+        TerminalActionsMenu(hide: hide, newTerminal: newTerminal, close: close)
     }
 
     let session: TerminalSession
@@ -42,6 +45,7 @@ struct TerminalHeader: View {
     let leadingInset: CGFloat
     let filesMode: FilePanelMode?
     let isBusy: Bool
+    let isFocused: Bool
     let selectAll: () -> Void
     let selectGit: () -> Void
     let stashChanges: () -> Void
@@ -49,7 +53,6 @@ struct TerminalHeader: View {
     let hide: () -> Void
     let newTerminal: () -> Void
     let close: () -> Void
-    let drag: () -> NSItemProvider
 }
 
 private extension TerminalHeader {

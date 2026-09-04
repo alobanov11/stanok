@@ -6,6 +6,7 @@ enum WorkspaceLayout {
     static let inset: CGFloat = 12
     static let cardRadius: CGFloat = 16
     static let cardStyle = CardStyle.inset
+    static let dragBorder: CGFloat = 10
     static let sidebarWidth: CGFloat = 360
     static let sidebarTopInset: CGFloat = 68
     static let minimumSplitWidth: CGFloat = 1000

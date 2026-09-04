@@ -718,13 +718,19 @@ private extension WorkspaceView {
             .padding(.top, isLeading ? WorkspaceLayout.headerHeight : 0)
             .overlay(alignment: .top) {
                 if isLeading {
-                    header(session)
+                    header(session, isFocused: isFocused)
                 }
             }
             .overlay(alignment: .topTrailing) {
-                if !isLeading { floatingMenu(session) }
+                if !isLeading, isFocused { floatingMenu(session) }
             }
             .modifier(WorkspaceCard())
+            // Почему: тянем за невидимую рамку карточки, чтобы не занимать место лишней ручкой
+            .overlay {
+                RoundedRectangle(cornerRadius: WorkspaceLayout.cardRadius, style: .continuous)
+                    .stroke(Color.black.opacity(0.001), lineWidth: WorkspaceLayout.dragBorder)
+                    .onDrag { dragItem(for: session) }
+            }
             .overlay {
                 if dragTarget == session.id {
                     RoundedRectangle(
@@ -755,8 +761,7 @@ private extension WorkspaceView {
         TerminalActionsMenu(
             hide: { hide(session) },
             newTerminal: { addSession(at: session.url) },
-            close: { liveSessions.requestClose(session) },
-            drag: { dragItem(for: session) }
+            close: { liveSessions.requestClose(session) }
         )
         .padding(.horizontal, 4)
         .glassEffect(.regular.interactive(), in: .capsule)
@@ -764,21 +769,21 @@ private extension WorkspaceView {
         .padding(.trailing, 8)
     }
 
-    func header(_ session: TerminalSession) -> some View {
+    func header(_ session: TerminalSession, isFocused: Bool) -> some View {
         TerminalHeader(
             session: session,
             status: git.status(for: session),
             leadingInset: WorkspaceGeometry.headerLeading(sidebarExpanded: isSidebarExpanded),
             filesMode: filesMode,
             isBusy: branchStore.isOperating(session) || isWorkingTreeBusy,
+            isFocused: isFocused,
             selectAll: { selectFiles(.all, in: session) },
             selectGit: { selectFiles(.git, in: session) },
             stashChanges: { requestWorkingTree(.stash, for: session) },
             discardChanges: { requestWorkingTree(.discard, for: session) },
             hide: { hide(session) },
             newTerminal: { addSession(at: session.url) },
-            close: { liveSessions.requestClose(session) },
-            drag: { dragItem(for: session) }
+            close: { liveSessions.requestClose(session) }
         )
     }
 
