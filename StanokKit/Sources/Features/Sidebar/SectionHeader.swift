@@ -11,6 +11,16 @@ struct SectionHeader: View {
 
             Spacer(minLength: 0)
 
+            if let onRemove {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .help("Убрать из инспектора")
+            }
+
             if let action {
                 Button(action: action) {
                     Image(systemName: "rectangle.grid.1x2")
@@ -30,4 +40,5 @@ struct SectionHeader: View {
     let title: String
 
     var action: (() -> Void)?
+    var onRemove: (() -> Void)?
 }

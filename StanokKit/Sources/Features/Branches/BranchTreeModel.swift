@@ -4,7 +4,7 @@ import Foundation
 @Observable
 final class BranchTreeModel {
 
-    enum State {
+    enum State: Equatable {
 
         case loading
         case notRepository

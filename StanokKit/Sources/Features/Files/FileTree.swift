@@ -24,6 +24,8 @@ struct FileTree: View {
                 ScrollView {
                     LazyVStack(spacing: 1) {
                         ForEach(root.visibleDescendants) { row($0) }
+
+                        groupRows
                     }
                     .padding(.horizontal, 8)
                     .padding(.bottom, 10)
@@ -37,6 +39,17 @@ struct FileTree: View {
             }
         } else {
             placeholder
+        }
+    }
+
+    @ViewBuilder
+    private var groupRows: some View {
+        ForEach(groups) { group in
+            SectionHeader(title: group.title, onRemove: group.onRemove)
+
+            if let root = group.model.root {
+                ForEach(root.visibleDescendants) { row($0) }
+            }
         }
     }
 
@@ -68,6 +81,7 @@ struct FileTree: View {
     }
 
     let model: FileTreeModel
+    let groups: [FileTreeGroup]
     let snapshot: GitSnapshot?
 
     @Binding

@@ -33,6 +33,11 @@ final class GitBranchStore {
         return rootByPath[path] ?? path
     }
 
+    // Почему: у добавленной вручную папки нет сессии, а её корень известен только после чтения
+    func snapshot(path: String) -> GitBranchSnapshot? {
+        rootByPath[path].flatMap { cache[$0] } ?? cache[path]
+    }
+
     func snapshot(root: String) -> GitBranchSnapshot? {
         cache[root]
     }

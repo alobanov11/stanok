@@ -45,9 +45,18 @@ struct BranchTree: View {
     @ViewBuilder
     private var content: some View {
         if case .loaded = model.state, let root = model.root {
-            SectionHeader(title: "Ветки")
+            SectionHeader(title: title, onRemove: onRemove)
 
             list(root)
+        } else if onRemove != nil {
+            SectionHeader(title: title, onRemove: onRemove)
+
+            Text(model.state == .notRepository ? "Не репозиторий" : "Веток нет")
+                .font(Typography.caption)
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -70,6 +79,8 @@ struct BranchTree: View {
     @Bindable
     var model: BranchTreeModel
 
+    let title: String
+    let onRemove: (() -> Void)?
     let actions: BranchActions?
     let tracking: GitTracking
     let root: String?

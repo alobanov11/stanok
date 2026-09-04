@@ -16,6 +16,10 @@ public enum AppPaths {
         configDirectory.appending(path: "config.ghostty", directoryHint: .notDirectory)
     }
 
+    public static var pinned: URL {
+        configDirectory.appending(path: "pinned.json", directoryHint: .notDirectory)
+    }
+
     public static var repositories: URL {
         configDirectory.appending(path: "repositories.json", directoryHint: .notDirectory)
     }

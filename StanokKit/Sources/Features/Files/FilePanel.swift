@@ -28,6 +28,14 @@ struct FilePanel: View {
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 0)
+
+            Button(action: onAdd) {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(mode == .all ? "Добавить папку" : "Добавить репозиторий")
         }
         .padding(.horizontal, 14)
         .frame(height: WorkspaceLayout.headerHeight)
@@ -37,7 +45,13 @@ struct FilePanel: View {
     private var content: some View {
         switch mode {
         case .all:
-            FileTree(model: fileTreeModel, snapshot: snapshot, selected: $selected, onOpen: onOpen)
+            FileTree(
+                model: fileTreeModel,
+                groups: fileGroups,
+                snapshot: snapshot,
+                selected: $selected,
+                onOpen: onOpen
+            )
 
         case .git:
             git
@@ -49,12 +63,27 @@ struct FilePanel: View {
             LazyVStack(spacing: 1) {
                 BranchTree(
                     model: branchTreeModel,
+                    title: "Ветки",
+                    onRemove: nil,
                     actions: branchActions,
                     tracking: snapshot?.tracking ?? .none,
                     root: snapshot?.root,
                     counters: counters,
                     onOpenBranch: onOpenBranch
                 )
+
+                ForEach(branchGroups) { group in
+                    BranchTree(
+                        model: group.model,
+                        title: group.title,
+                        onRemove: group.onRemove,
+                        actions: nil,
+                        tracking: .none,
+                        root: group.root,
+                        counters: nil,
+                        onOpenBranch: onOpenBranch
+                    )
+                }
 
                 ChangeTree(
                     model: changeTreeModel,
@@ -72,6 +101,9 @@ struct FilePanel: View {
 
     let mode: FilePanelMode
     let fileTreeModel: FileTreeModel
+    let fileGroups: [FileTreeGroup]
+    let branchGroups: [BranchTreeGroup]
+    let onAdd: () -> Void
     let changeTreeModel: ChangeTreeModel
     let branchTreeModel: BranchTreeModel
     let branchActions: BranchActions

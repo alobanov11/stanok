@@ -105,13 +105,58 @@ public struct WorkspaceView<Terminal: View>: View {
         gitSnapshot?.root ?? inspectorFolder.map { InspectorState.key(for: $0) }
     }
 
+    // Почему: добавленные вручную папки живут рядом с сессиями и не должны вычищаться
     private var sessionFolders: Set<URL> {
-        Set(store.sessions.map(\.url))
+        Set(store.sessions.map(\.url)).union(pinned.folders.map(\.url))
     }
 
     private var sessionGitRoots: Set<String> {
         Set(store.sessions.compactMap { git.snapshot(for: $0)?.root })
             .union(sessionFolders.map { InspectorState.key(for: $0) })
+            .union(pinned.repositories.map(\.path))
+    }
+
+    private var pinnedFolderPaths: [String] {
+        pinned.folders.map(\.path)
+    }
+
+    private var pinnedRepositoryPaths: [String] {
+        pinned.repositories.map(\.path)
+    }
+
+    private var pinnedBranchSnapshots: [String: GitBranchSnapshot] {
+        var result: [String: GitBranchSnapshot] = [:]
+
+        for source in pinned.repositories {
+            guard let snapshot = branchStore.snapshot(path: source.path) else { continue }
+
+            result[source.path] = snapshot
+        }
+
+        return result
+    }
+
+    private var fileGroups: [FileTreeGroup] {
+        pinned.folders.map { source in
+            FileTreeGroup(
+                id: source.id,
+                title: source.name,
+                model: inspector.fileTree(for: source.url),
+                onRemove: { pinned.remove(source.id) }
+            )
+        }
+    }
+
+    private var branchGroups: [BranchTreeGroup] {
+        pinned.repositories.map { source in
+            BranchTreeGroup(
+                id: source.id,
+                title: source.name,
+                root: pinnedBranchSnapshots[source.path]?.root ?? source.path,
+                model: inspector.branchTree(for: source.path),
+                onRemove: { pinned.remove(source.id) }
+            )
+        }
     }
 
     private var newTerminalFolder: URL {
@@ -181,6 +226,9 @@ public struct WorkspaceView<Terminal: View>: View {
 
     @State
     private var branchStore = GitBranchStore()
+
+    @State
+    private var pinned = PinnedSourceStore()
 
     @State
     private var navigators = PreviewNavigators()
@@ -261,6 +309,13 @@ public struct WorkspaceView<Terminal: View>: View {
         .task { selectFirstIfNeeded() }
         .task(id: visiblePaneIDs) { await refreshPanes() }
         .task(id: selection) { await branchStore.refresh(selectedSession) }
+        .task(id: pinnedRepositoryPaths) { await refreshPinnedBranches() }
+        .task(id: pinnedFolderPaths) { openPinnedTrees() }
+        .onChange(of: pinnedBranchSnapshots, initial: true) { _, snapshots in
+            for (path, snapshot) in snapshots {
+                inspector.branchTree(for: path).apply(snapshot)
+            }
+        }
         .task(id: selectedSession?.url) { await settleDirectoryChange() }
         .onChange(of: selection) { old, new in activate(new, replacing: old) }
         .onChange(of: knownSessionIDs) { _, known in
@@ -511,15 +566,16 @@ private extension WorkspaceView {
 
     // Почему: превью — такая же колонка, как терминал, но не отбирает у него минимум
     func previewWidth(in size: CGSize) -> CGFloat {
-        let columns = CGFloat(max(visiblePanes.count, 1) + 1)
         let along = isVertical ? size.height : size.width
+        let terminal = isVertical
+            ? WorkspaceLayout.minimumTerminalHeight
+            : WorkspaceLayout.minimumTerminalWidth
+        // Почему: доля превью выводится из геометрии, иначе она зависит от своего же результата
+        let columns = CGFloat(WorkspaceGeometry.fit(room: along, minimum: terminal) + 1)
         let share = along / columns - WorkspaceLayout.inset
         let minimum = isVertical
             ? WorkspaceLayout.minimumPreviewHeight
             : WorkspaceLayout.minimumPreviewWidth
-        let terminal = isVertical
-            ? WorkspaceLayout.minimumTerminalHeight
-            : WorkspaceLayout.minimumTerminalWidth
         let spare = along - terminal - WorkspaceLayout.inset
 
         return min(max(share, minimum), max(spare, minimum)).rounded()
@@ -532,7 +588,7 @@ private extension WorkspaceView {
     }
 
     func hide(_ session: TerminalSession) {
-        withAnimation(.smooth(duration: 0.22)) { store.hide(session.id) }
+        withAnimation(.smooth(duration: 0.22)) { store.hide(session.id, capacity: capacity) }
 
         guard selection == session.id else { return }
 
@@ -660,15 +716,19 @@ private extension WorkspaceView {
         terminalContent(session, isShown: isShown, isFocused: isFocused)
             // Почему: под шапкой лежит живой первый ряд, а не переполнение скролла
             .padding(.top, isLeading ? WorkspaceLayout.headerHeight : 0)
+            // Почему: тянем за верхнюю кромку любой панели, а не только за шапку первой
             .overlay(alignment: .top) {
-                if isLeading {
-                    // Почему: тянем за шапку, иначе перетаскивание конфликтует с выделением текста
-                    header(session)
-                        .onDrag {
-                            dragged = session.id
+                Group {
+                    if isLeading {
+                        header(session)
+                    } else {
+                        Color.clear.frame(height: WorkspaceLayout.headerHeight)
+                    }
+                }
+                .onDrag {
+                    dragged = session.id
 
-                            return NSItemProvider(object: session.id.uuidString as NSString)
-                        }
+                    return NSItemProvider(object: session.id.uuidString as NSString)
                 }
             }
             .overlay(alignment: .topTrailing) {
@@ -774,6 +834,9 @@ private extension WorkspaceView {
         FilePanel(
             mode: mode,
             fileTreeModel: inspector.fileTree(for: folder),
+            fileGroups: fileGroups,
+            branchGroups: branchGroups,
+            onAdd: addPinnedSource,
             changeTreeModel: inspector.changeTree(for: gitRoot),
             branchTreeModel: inspector.branchTree(for: gitRoot),
             branchActions: branchActions,
@@ -867,6 +930,41 @@ private extension WorkspaceView {
 
         inspectorControls.openTree(gitDirectories: gitDirectories) {
             Task { await git.refresh(session) }
+        }
+
+        openPinnedTrees()
+    }
+
+    // Почему: добавленные папки живут своим деревом и не зависят от активного терминала
+    func openPinnedTrees() {
+        for source in pinned.folders {
+            inspector.fileTree(for: source.url).open(
+                source.url,
+                gitDirectories: [],
+                onGitChange: {}
+            )
+        }
+    }
+
+    func refreshPinnedBranches() async {
+        for path in pinnedRepositoryPaths {
+            await branchStore.refresh(root: path)
+        }
+    }
+
+    func addPinnedSource() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Добавить"
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        if filesMode == .git {
+            pinned.addRepository(url)
+        } else {
+            pinned.addFolder(url)
         }
     }
 

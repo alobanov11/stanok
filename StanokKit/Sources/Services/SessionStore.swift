@@ -107,57 +107,30 @@ public final class SessionStore {
         capacity: Int,
         replacing: TerminalSession.ID?
     ) {
+        if !shown.contains(sessionID) {
+            shown = sessions.map(\.id).filter { shown.contains($0) || $0 == sessionID }
+            saveScheduler.schedule(currentSnapshot())
+        }
+
         crowded.remove(sessionID)
-
-        guard !shown.contains(sessionID) else { return }
-
-        let room = max(capacity, 1)
-
-        if visible.count >= room, let replacing, visible.contains(replacing) {
-            shown.removeAll { $0 == replacing }
-        }
-
-        while visible.count >= room, let victim = visible.first {
-            shown.removeAll { $0 == victim }
-        }
-
-        shown.append(sessionID)
-        shown = sessions.map(\.id).filter { shown.contains($0) }
-        saveScheduler.schedule(currentSnapshot())
+        enforce(capacity: capacity, keeping: sessionID, yielding: replacing)
     }
 
     // Почему: сужение окна прячет лишние временно, при расширении они возвращаются сами
     public func limit(to capacity: Int, keeping selected: TerminalSession.ID?) {
-        let room = max(capacity, 1)
-        var hidden = crowded.intersection(shown)
-
-        while shown.count(where: { !hidden.contains($0) }) > room {
-            guard let victim = shown.first(where: { !hidden.contains($0) && $0 != selected })
-            else { break }
-
-            hidden.insert(victim)
-        }
-
-        for id in shown.reversed() where hidden.contains(id) {
-            guard shown.count(where: { !hidden.contains($0) }) < room else { break }
-
-            hidden.remove(id)
-        }
-
-        guard hidden != crowded else { return }
-
-        crowded = hidden
+        enforce(capacity: capacity, keeping: selected, yielding: nil)
     }
 
-    public func hide(_ sessionID: TerminalSession.ID) {
+    public func hide(_ sessionID: TerminalSession.ID, capacity: Int) {
         guard shown.contains(sessionID) else { return }
 
         shown.removeAll { $0 == sessionID }
         crowded.remove(sessionID)
         saveScheduler.schedule(currentSnapshot())
+        enforce(capacity: capacity, keeping: nil, yielding: nil)
     }
 
-    // Почему: перетаскивание меняет порядок терминалов, а место в ряду выводится из него
+    // Почему: терминалы меняются местами, поэтому перенос работает в обе стороны и в конец ряда
     public func move(_ moved: TerminalSession.ID, before target: TerminalSession.ID) {
         guard
             moved != target,
@@ -165,8 +138,8 @@ public final class SessionStore {
             let to = sessions.firstIndex(where: { $0.id == target })
         else { return }
 
-        let session = sessions.remove(at: from)
-        sessions.insert(session, at: sessions.index(from < to ? to - 1 : to, offsetBy: 0))
+        sessions.swapAt(from, to)
+        shown = sessions.map(\.id).filter { shown.contains($0) }
         save()
     }
 
@@ -222,6 +195,34 @@ public final class SessionStore {
 
 private extension SessionStore {
 
+    // Почему: вытеснение и возврат — одна операция, иначе состояния расходятся по путям вызова
+    func enforce(capacity: Int, keeping kept: TerminalSession.ID?, yielding: TerminalSession.ID?) {
+        let room = max(capacity, 1)
+        var hidden = crowded.intersection(shown)
+        let first = [yielding].compactMap(\.self).filter { $0 != kept && shown.contains($0) }
+
+        for id in first where shown.count - hidden.count > room {
+            hidden.insert(id)
+        }
+
+        while shown.count - hidden.count > room {
+            guard let victim = shown.first(where: { !hidden.contains($0) && $0 != kept })
+            else { break }
+
+            hidden.insert(victim)
+        }
+
+        for id in shown.reversed() where hidden.contains(id) {
+            guard shown.count - hidden.count < room else { break }
+
+            hidden.remove(id)
+        }
+
+        guard hidden != crowded else { return }
+
+        crowded = hidden
+    }
+
     func regroup(_ order: [TerminalSession.ID]) {
         var grouped: [TerminalSession] = []
 
@@ -259,7 +260,6 @@ private extension SessionStore {
     func load() {
         if FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) {
             loadSessionsFile()
-            adoptLegacyShown()
         } else {
             migrateFromLegacyFile()
         }
@@ -268,8 +268,8 @@ private extension SessionStore {
     }
 
     // Почему: у старых записей области не было, её восстанавливаем из сплитов активной группы
-    func adoptLegacyShown() {
-        guard shown.isEmpty, !sessions.isEmpty else { return }
+    func adoptLegacyShown(hadShown: Bool) {
+        guard !hadShown, shown.isEmpty, !sessions.isEmpty else { return }
 
         let selected = session(for: selectedSessionID) ?? sessions[0]
         let rootID = selected.parentID ?? selected.id
@@ -290,6 +290,10 @@ private extension SessionStore {
             sessions = decoded.sessions
             selectedSessionID = decoded.selectedSessionID
             shown = decoded.shown.filter { id in decoded.sessions.contains { $0.id == id } }
+
+            // Почему: пустая область — осознанный выбор, а отсутствие ключа — запись старой схемы
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            adoptLegacyShown(hadShown: (object ?? nil)?["shown"] != nil)
         } catch {
             fatalError("stanok: sessions.json is corrupt, refusing to fall back — \(error)")
         }
