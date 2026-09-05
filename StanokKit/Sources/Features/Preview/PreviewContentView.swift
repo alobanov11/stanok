@@ -26,6 +26,7 @@ struct PreviewContentView: View {
             fold: fold,
             showChange: showChange,
             note: toggleNote,
+            noteFrame: { noteRect = $0 },
             noteLine: noteLine
         )
     }
@@ -121,6 +122,7 @@ struct PreviewContentView: View {
             openLink: { openURL($0) },
             scrolls: scrolls,
             contentLines: contentLines,
+            noteLine: noteLine,
             onScroll: { noteLine = nil }
         )
         .overlay(alignment: .topLeading) { note }
@@ -143,8 +145,9 @@ struct PreviewContentView: View {
                 },
                 onCancel: { self.noteLine = nil }
             )
+            .frame(height: PreviewTextView.noteHeight - 4)
             .padding(.horizontal, 8)
-            .offset(y: noteRect.maxY + 2)
+            .offset(y: noteRect.minY + 2)
         }
     }
 
@@ -180,7 +183,8 @@ private extension PreviewContentView {
 
     // Почему: повторный клик по номеру закрывает поле — это toggle, а не отдельная кнопка
     func toggleNote(_ line: Int, rect: CGRect) {
-        noteRect = rect
+        // Почему: пока просвет не отрисован, рамка неизвестна — поле ждёт её и не мигает в углу
+        noteRect = .zero
         noteLine = noteLine == line ? nil : line
     }
 

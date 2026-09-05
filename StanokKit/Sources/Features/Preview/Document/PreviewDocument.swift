@@ -6,6 +6,7 @@ struct PreviewDocument: @unchecked Sendable {
 
         static let sourceLine = NSAttributedString.Key("stanok.sourceLine")
         static let gap = NSAttributedString.Key("stanok.gap")
+        static let note = NSAttributedString.Key("stanok.note")
     }
 
     static var empty: PreviewDocument {

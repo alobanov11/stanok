@@ -13,6 +13,7 @@ final class CodeGutterRuler: NSRulerView {
         let fold: (Int) -> Void
         let showChange: (Int) -> Void
         let note: (Int, CGRect) -> Void
+        let noteFrame: (CGRect) -> Void
         let noteLine: Int?
     }
 
@@ -55,6 +56,7 @@ final class CodeGutterRuler: NSRulerView {
     private var hovered: Int?
     private var hoveredNumber: Int?
     private var monitor: AnyObject?
+    private var reported: NSRect?
     private var tracking: NSTrackingArea?
 
     // Почему: NSRulerView рисует свою серую подложку, а нам нужен фон превью насквозь
@@ -64,6 +66,8 @@ final class CodeGutterRuler: NSRulerView {
 
     override func drawHashMarksAndLabels(in rect: NSRect) {
         guard let source, let text = clientView as? NSTextView else { return }
+
+        reportNote(source, in: text)
 
         let numbers: [NSAttributedString.Key: Any] = [
             .font: source.font,
@@ -230,6 +234,51 @@ final class CodeGutterRuler: NSRulerView {
             at: 0,
             effectiveRange: nil
         ) as? Bool ?? false
+    }
+
+    // Почему: просвет для правки живёт в тексте, а его рамку в координатах скролла знает линейка
+    private func reportNote(_ source: Source, in text: NSTextView) {
+        guard source.noteLine != nil else {
+            reported = nil
+
+            return
+        }
+
+        guard let found = noteRect(in: text), found != reported else { return }
+
+        reported = found
+        let frame = convert(found, to: scrollView ?? enclosingScrollView)
+        let notify = source.noteFrame
+
+        DispatchQueue.main.async { notify(frame) }
+    }
+
+    private func noteRect(in text: NSTextView) -> NSRect? {
+        guard let layout = text.textLayoutManager else { return nil }
+
+        var rect: NSRect?
+
+        layout.enumerateTextLayoutFragments(from: layout.documentRange.location) { fragment in
+            guard
+                let paragraph = fragment.textElement as? NSTextParagraph,
+                paragraph.attributedString.attribute(
+                    PreviewDocument.Key.note,
+                    at: 0,
+                    effectiveRange: nil
+                ) != nil
+            else { return true }
+
+            let frame = fragment.layoutFragmentFrame
+            let top = convert(
+                NSPoint(x: 0, y: text.textContainerOrigin.y + frame.minY),
+                from: text
+            ).y
+            rect = NSRect(x: 0, y: top, width: bounds.width, height: frame.height)
+
+            return false
+        }
+
+        return rect
     }
 
     private func sourceLine(of fragment: NSTextLayoutFragment) -> Int? {

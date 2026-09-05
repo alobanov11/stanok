@@ -18,6 +18,7 @@ struct PreviewTextView: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
 
         var openLink: ((URL) -> Void)?
+        var noteLine: Int?
 
         let scrollSignal = ScrollSignal()
 
@@ -61,6 +62,8 @@ struct PreviewTextView: NSViewRepresentable {
         }
     }
 
+    static let noteHeight: CGFloat = 36
+
     let document: PreviewDocument
     let fileKey: String
     let shape: String
@@ -71,7 +74,40 @@ struct PreviewTextView: NSViewRepresentable {
 
     var scrolls = true
     var contentLines: Int?
+    var noteLine: Int?
     var onScroll: (@MainActor () -> Void)?
+
+    static func placeholder() -> NSAttributedString {
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = noteHeight
+        style.maximumLineHeight = noteHeight
+
+        // Почему: метки просвета нужны гаттеру — он не рисует здесь номер и находит рамку поля
+        return NSAttributedString(
+            string: "\n",
+            attributes: [
+                .paragraphStyle: style,
+                PreviewDocument.Key.gap: true,
+                PreviewDocument.Key.note: true
+            ]
+        )
+    }
+
+    static func anchor(for line: Int, in storage: NSTextStorage) -> Int? {
+        var found: Int?
+
+        storage.enumerateAttribute(
+            PreviewDocument.Key.sourceLine,
+            in: NSRange(location: 0, length: storage.length)
+        ) { value, range, stop in
+            guard value as? Int == line - 1 else { return }
+
+            found = NSMaxRange((storage.string as NSString).lineRange(for: range))
+            stop.pointee = true
+        }
+
+        return found.map { min($0, storage.length) }
+    }
 
     static func crossfade(_ text: NSTextView, scroll: NSScrollView) {
         for view in [text, scroll.verticalRulerView].compactMap(\.self) {
@@ -162,6 +198,8 @@ struct PreviewTextView: NSViewRepresentable {
 
         configure(scroll, text: text)
 
+        applyNote(text: text, scroll: scroll, context: context)
+
         let opened = context.coordinator.fileKey != fileKey
         context.coordinator.fileKey = fileKey
 
@@ -187,17 +225,38 @@ struct PreviewTextView: NSViewRepresentable {
         scroll.reflectScrolledClipView(scroll.contentView)
     }
 
+    // Почему: просвет живёт в самом тексте, поэтому строки под ним честно уезжают вниз
+    func applyNote(text: NSTextView, scroll: NSScrollView, context: Context) {
+        guard context.coordinator.noteLine != noteLine else { return }
+
+        context.coordinator.noteLine = noteLine
+        text.textStorage?.setAttributedString(document.text)
+
+        guard
+            let noteLine,
+            let storage = text.textStorage,
+            let anchor = Self.anchor(for: noteLine, in: storage)
+        else {
+            scroll.verticalRulerView?.needsDisplay = true
+
+            return
+        }
+
+        storage.insert(Self.placeholder(), at: anchor)
+        scroll.verticalRulerView?.needsDisplay = true
+    }
+
     func fixedHeight(of nsView: NSScrollView) -> CGFloat? {
         guard let contentLines, contentLines > 0, let line = Self.lineHeight(of: nsView)
         else { return nil }
 
         let inset = (nsView.documentView as? NSTextView)?.textContainerInset.height ?? 0
 
-        return CGFloat(contentLines) * line + inset * 2
+        return CGFloat(contentLines) * line + inset * 2 + (noteLine == nil ? 0 : Self.noteHeight)
     }
 
     func measuredHeight(of nsView: NSScrollView, width: CGFloat, context: Context) -> CGFloat {
-        let key = document.revision + "@\(Int(width))"
+        let key = document.revision + "@\(Int(width))@\(noteLine ?? -1)"
 
         if context.coordinator.measuredKey == key, let measured = context.coordinator.measured {
             return measured
