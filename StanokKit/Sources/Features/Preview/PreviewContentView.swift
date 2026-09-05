@@ -24,7 +24,9 @@ struct PreviewContentView: View {
             font: codeFont,
             width: digits * codeFont.maximumAdvancement.width + 4,
             fold: fold,
-            showChange: showChange
+            showChange: showChange,
+            note: toggleNote,
+            noteLine: noteLine
         )
     }
 
@@ -120,7 +122,6 @@ struct PreviewContentView: View {
             scrolls: scrolls,
             contentLines: contentLines,
             noteLine: noteLine,
-            onNote: { noteLine = $0 },
             onNoteFrame: { noteRect = $0 },
             onScroll: { noteLine = nil }
         )
@@ -178,6 +179,11 @@ private extension PreviewContentView {
             folded.sorted().map(String.init).joined(separator: ","),
             expanded.sorted().map(String.init).joined(separator: ",")
         ].joined(separator: "|")
+    }
+
+    // Почему: повторный клик по номеру закрывает поле — это toggle, а не отдельная кнопка
+    func toggleNote(_ line: Int) {
+        noteLine = noteLine == line ? nil : line
     }
 
     func rebuild() async {

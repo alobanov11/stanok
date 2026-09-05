@@ -12,6 +12,8 @@ final class CodeGutterRuler: NSRulerView {
         let width: CGFloat
         let fold: (Int) -> Void
         let showChange: (Int) -> Void
+        let note: (Int) -> Void
+        let noteLine: Int?
     }
 
     private enum Metric {
@@ -49,6 +51,7 @@ final class CodeGutterRuler: NSRulerView {
 
     private var anchors: [Int: Int] = [:]
     private var hovered: Int?
+    private var hoveredNumber: Int?
     private var tracking: NSTrackingArea?
 
     // Почему: NSRulerView рисует свою серую подложку, а нам нужен фон превью насквозь
@@ -63,6 +66,10 @@ final class CodeGutterRuler: NSRulerView {
             .font: source.font,
             .foregroundColor: NSColor.tertiaryLabelColor
         ]
+        let highlighted: [NSAttributedString.Key: Any] = [
+            .font: source.font,
+            .foregroundColor: NSColor.controlAccentColor
+        ]
 
         enumerateVisibleFragments(from: rect.minY, in: text) { line, top, height, isGap in
             // Почему: у раскрытых удалённых строк нет номера, но полоса им нужна целиком
@@ -72,7 +79,12 @@ final class CodeGutterRuler: NSRulerView {
                 return top < rect.maxY
             }
 
-            let label = NSAttributedString(string: "\(line + 1)", attributes: numbers)
+            // Почему: наведённый и открытый номер подсвечиваются — по ним и открывается правка
+            let active = hoveredNumber == line || source.noteLine == line + 1
+            let label = NSAttributedString(
+                string: "\(line + 1)",
+                attributes: active ? highlighted : numbers
+            )
             let size = label.size()
             label.draw(at: NSPoint(x: source.width + Metric.gap - size.width, y: top))
 
@@ -90,18 +102,30 @@ final class CodeGutterRuler: NSRulerView {
             source?.folds.fold(startingAt: $0)?.header ?? source?.folds.owner(of: $0)?.header
         }
         let next = isInFoldColumn(point.x) ? owner : nil
+        let number = isInNumberColumn(point.x) ? line : nil
 
-        guard next != hovered else { return }
+        guard next != hovered || number != hoveredNumber else { return }
 
         hovered = next
+        hoveredNumber = number
         needsDisplay = true
     }
 
     override func mouseExited(with event: NSEvent) {
-        guard hovered != nil else { return }
+        guard hovered != nil || hoveredNumber != nil else { return }
 
         hovered = nil
+        hoveredNumber = nil
         needsDisplay = true
+    }
+
+    override func resetCursorRects() {
+        guard let source else { return }
+
+        addCursorRect(
+            NSRect(x: 0, y: 0, width: source.width + Metric.gap, height: bounds.height),
+            cursor: .pointingHand
+        )
     }
 
     override func updateTrackingAreas() {
@@ -122,6 +146,12 @@ final class CodeGutterRuler: NSRulerView {
         let point = convert(event.locationInWindow, from: nil)
 
         guard let source, let line = line(at: point.y) else { return super.mouseDown(with: event) }
+
+        if isInNumberColumn(point.x) {
+            source.note(line + 1)
+
+            return
+        }
 
         if isInFoldColumn(point.x) {
             let fold = source.folds.fold(startingAt: line) ?? source.folds.owner(of: line)
@@ -144,7 +174,8 @@ final class CodeGutterRuler: NSRulerView {
         return [
             "\(source.changes.digest)",
             "\(source.folded.count)", "\(source.expanded.count)",
-            "\(source.width)", source.font.fontName, "\(source.font.pointSize)"
+            "\(source.width)", source.font.fontName, "\(source.font.pointSize)",
+            "\(source.noteLine ?? -1)"
         ].joined(separator: "|")
     }
 
@@ -173,6 +204,12 @@ private extension CodeGutterRuler {
 
     func foldColumn(_ source: Source) -> CGFloat {
         source.width + Metric.gap + Metric.foldGap
+    }
+
+    func isInNumberColumn(_ x: CGFloat) -> Bool {
+        guard let source else { return false }
+
+        return x <= source.width + Metric.gap
     }
 
     func isInFoldColumn(_ x: CGFloat) -> Bool {

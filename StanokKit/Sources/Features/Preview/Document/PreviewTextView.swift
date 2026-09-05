@@ -18,7 +18,6 @@ struct PreviewTextView: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
 
         var openLink: ((URL) -> Void)?
-        var onNote: ((Int) -> Void)?
         var noteLine: Int?
 
         let scrollSignal = ScrollSignal()
@@ -53,25 +52,6 @@ struct PreviewTextView: NSViewRepresentable {
             }
         }
 
-        // Почему: строка берётся по фрагменту раскладки — клик у края не должен уезжать на соседнюю
-        @MainActor
-        func note(at point: NSPoint, in text: NSTextView) {
-            guard
-                let storage = text.textStorage,
-                storage.length > 0,
-                let layout = text.textLayoutManager
-            else { return }
-
-            let origin = text.textContainerOrigin
-            let inside = NSPoint(x: point.x - origin.x, y: point.y - origin.y)
-            guard
-                let fragment = layout.textLayoutFragment(for: inside),
-                let line = PreviewTextView.line(of: fragment, in: storage, layout: layout)
-            else { return }
-
-            onNote?(line)
-        }
-
         func textView(_ view: NSTextView, clickedOnLink link: Any, at index: Int) -> Bool {
             guard let url = link as? URL ?? (link as? String).flatMap(URL.init(string:)) else {
                 return false
@@ -95,30 +75,19 @@ struct PreviewTextView: NSViewRepresentable {
     var scrolls = true
     var contentLines: Int?
     var noteLine: Int?
-    var onNote: ((Int) -> Void)?
     var onNoteFrame: ((CGRect) -> Void)?
     var onScroll: (@MainActor () -> Void)?
-
-    static func line(
-        of fragment: NSTextLayoutFragment,
-        in storage: NSTextStorage,
-        layout: NSTextLayoutManager
-    ) -> Int? {
-        let start = layout.offset(
-            from: layout.documentRange.location,
-            to: fragment.rangeInElement.location
-        )
-        guard start >= 0, start < storage.length else { return nil }
-
-        return storage.attribute(PreviewDocument.sourceLine, at: start, effectiveRange: nil) as? Int
-    }
 
     static func placeholder() -> NSAttributedString {
         let style = NSMutableParagraphStyle()
         style.minimumLineHeight = noteHeight
         style.maximumLineHeight = noteHeight
 
-        return NSAttributedString(string: "\n", attributes: [.paragraphStyle: style])
+        // Почему: без метки просвета гаттер рисует на этой строке полосу удаления
+        return NSAttributedString(
+            string: "\n",
+            attributes: [.paragraphStyle: style, PreviewDocument.gap: true]
+        )
     }
 
     static func crossfade(_ text: NSTextView, scroll: NSScrollView) {
@@ -169,7 +138,7 @@ struct PreviewTextView: NSViewRepresentable {
             PreviewDocument.sourceLine,
             in: NSRange(location: 0, length: storage.length)
         ) { value, range, stop in
-            guard value as? Int == line else { return }
+            guard value as? Int == line - 1 else { return }
 
             found = NSMaxRange(range)
             stop.pointee = true
@@ -215,11 +184,6 @@ struct PreviewTextView: NSViewRepresentable {
         scroll.contentView.postsBoundsChangedNotifications = true
         context.coordinator.observe(scroll)
 
-        text.onCommandClick = { [weak text] point in
-            guard let text else { return }
-
-            MainActor.assumeIsolated { context.coordinator.note(at: point, in: text) }
-        }
         configure(scroll, text: text)
 
         return scroll
@@ -227,7 +191,6 @@ struct PreviewTextView: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.openLink = openLink
-        context.coordinator.onNote = onNote
         context.coordinator.scrollSignal.action = onScroll
 
         guard let text = scroll.documentView as? NSTextView else { return }
