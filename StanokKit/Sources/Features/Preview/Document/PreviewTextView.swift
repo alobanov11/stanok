@@ -141,16 +141,28 @@ struct PreviewTextView: NSViewRepresentable {
         layout.enumerateTextLayoutFragments(from: layout.documentRange.location) { fragment in
             guard
                 let paragraph = fragment.textElement as? NSTextParagraph,
-                paragraph.attributedString.attribute(
-                    PreviewDocument.Key.note,
-                    at: 0,
-                    effectiveRange: nil
-                ) != nil
+                Self.marks(paragraph.attributedString)
             else { return true }
 
             found = fragment.layoutFragmentFrame
 
             return false
+        }
+
+        return found
+    }
+
+    static func marks(_ text: NSAttributedString) -> Bool {
+        var found = false
+
+        text.enumerateAttribute(
+            PreviewDocument.Key.note,
+            in: NSRange(location: 0, length: text.length)
+        ) { value, _, stop in
+            guard value != nil else { return }
+
+            found = true
+            stop.pointee = true
         }
 
         return found
@@ -165,7 +177,8 @@ struct PreviewTextView: NSViewRepresentable {
         ) { value, range, stop in
             guard value as? Int == line - 1 else { return }
 
-            found = NSMaxRange(range)
+            // Почему: просвет должен стать отдельным абзацем, иначе он прирастает к строке кода
+            found = NSMaxRange((storage.string as NSString).lineRange(for: range))
             stop.pointee = true
         }
 
