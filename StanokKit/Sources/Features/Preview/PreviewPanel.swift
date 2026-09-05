@@ -42,6 +42,11 @@ struct PreviewPanel: View {
         case .markdown, .code:
             PreviewContentView(preview: preview, topInset: WorkspaceLayout.headerHeight)
 
+        case let .image(image):
+            ScrollView {
+                ImagePreviewView(image: image, topInset: WorkspaceLayout.headerHeight)
+            }
+
         default:
             FileInfoView(preview: preview)
         }

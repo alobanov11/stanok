@@ -73,6 +73,9 @@ struct ReviewFileCard: View {
             case .code, .markdown:
                 PreviewContentView(preview: preview, onlyChanges: true, scrolls: false)
 
+            case let .image(image):
+                ImagePreviewView(image: image, compact: true)
+
             case .tooLarge:
                 notice("файл больше 2 МБ")
 

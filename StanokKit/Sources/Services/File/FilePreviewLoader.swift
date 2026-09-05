@@ -17,10 +17,15 @@ enum FilePreviewLoader {
     private enum Limit {
 
         static let size = 2 * 1024 * 1024
+        static let image = 16 * 1024 * 1024
         static let lines = 5000
     }
 
     private static let markdownExtensions: Set<String> = ["md", "markdown", "mdown", "mkd"]
+
+    private static let imageExtensions: Set<String> = [
+        "png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "tiff", "tif", "bmp", "ico", "svg"
+    ]
 
     static func load(
         _ url: URL,
@@ -31,11 +36,43 @@ enum FilePreviewLoader {
         var preview = await Task.detached(priority: .userInitiated) {
             read(url, rendering: rendering)
         }.value
+
+        // Почему: у картинки в ревью показываем и прежнюю версию, взятую из индекса репозитория
+        if case let .image(image) = preview.content {
+            return await imagePreview(preview, image: image, url: url, source: source, root: root)
+        }
+
         guard !Task.isCancelled, case .code = preview.content else { return preview }
 
         preview.changes = await GitLineChanges.load(for: url, source: source, root: root)
 
         return preview
+    }
+
+    static func imagePreview(
+        _ preview: FilePreview,
+        image: ImagePreview,
+        url: URL,
+        source: ReviewSource,
+        root: String?
+    ) async -> FilePreview {
+        guard let root, let path = relativePath(of: url, in: root) else { return preview }
+
+        let revision: String = switch source {
+        case .worktree: "HEAD"
+        case let .commit(sha): sha + "^"
+        }
+
+        let old = await blob(root: root, revision: revision, path: path)
+
+        return FilePreview(
+            url: preview.url,
+            content: .image(ImagePreview(new: image.new, old: old)),
+            size: preview.size,
+            kind: preview.kind,
+            modified: preview.modified,
+            isTruncated: false
+        )
     }
 
     // Почему: текст коммита и его дифф должны быть одной ревизией, иначе номера строк врут
@@ -46,6 +83,10 @@ enum FilePreviewLoader {
         sha: String,
         rendering: Rendering = .rich
     ) async -> FilePreview {
+        if imageExtensions.contains(url.pathExtension.lowercased()) {
+            return await commitImage(url, in: root, path: path, sha: sha)
+        }
+
         let measure = await GitProcessRunner.run([
             "--no-optional-locks", "-C", root, "cat-file", "-s", "\(sha):\(path)"
         ])
@@ -85,6 +126,46 @@ enum FilePreviewLoader {
         preview.changes = await GitLineChanges.load(for: url, source: .commit(sha), root: root)
 
         return preview
+    }
+
+    private static func commitImage(
+        _ url: URL,
+        in root: String,
+        path: String,
+        sha: String
+    ) async -> FilePreview {
+        let new = await blob(root: root, revision: sha, path: path)
+        let old = await blob(root: root, revision: sha + "^", path: path)
+
+        guard new != nil || old != nil else {
+            return rejected(url, content: .failed("Файла нет в этом коммите"))
+        }
+
+        return FilePreview(
+            url: url,
+            content: .image(ImagePreview(new: new, old: old)),
+            size: Int64(new?.count ?? old?.count ?? 0),
+            kind: "Изображение",
+            modified: nil,
+            isTruncated: false
+        )
+    }
+
+    private static func relativePath(of url: URL, in root: String) -> String? {
+        let path = url.standardizedFileURL.path(percentEncoded: false)
+        let base = root.hasSuffix("/") ? root : root + "/"
+        guard path.hasPrefix(base) else { return nil }
+
+        return String(path.dropFirst(base.count))
+    }
+
+    private static func blob(root: String, revision: String, path: String) async -> Data? {
+        let output = await GitProcessRunner.run([
+            "--no-optional-locks", "-C", root, "show", "\(revision):\(path)"
+        ])
+        guard output.exitCode == 0, !output.standardOutput.isEmpty else { return nil }
+
+        return output.standardOutput
     }
 
     private static func rejected(
@@ -187,6 +268,14 @@ enum FilePreviewLoader {
                 modified: modified,
                 isTruncated: truncated
             )
+        }
+
+        if
+            imageExtensions.contains(url.pathExtension.lowercased()),
+            values?.isRegularFile == true,
+            size <= Limit.image,
+            let data = try? Data(contentsOf: url, options: .mappedIfSafe) {
+            return preview(.image(ImagePreview(new: data, old: nil)), truncated: false)
         }
 
         switch source(of: url, isRegular: values?.isRegularFile == true) {

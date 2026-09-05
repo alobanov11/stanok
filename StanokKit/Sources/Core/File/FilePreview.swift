@@ -6,6 +6,7 @@ struct FilePreview: Identifiable, Sendable {
 
         case markdown([MarkdownBlock])
         case code([[CodeToken]])
+        case image(ImagePreview)
         case unreadable
         case tooLarge
         case failed(String)

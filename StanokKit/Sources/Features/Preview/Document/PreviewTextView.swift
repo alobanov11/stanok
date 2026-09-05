@@ -123,6 +123,8 @@ struct PreviewTextView: NSViewRepresentable {
         scroll.hasVerticalScroller = scrolls
         scroll.documentView = text
         scroll.autohidesScrollers = true
+        // Почему: обычный скроллер занимает ширину и при анимации панели дёргает текст
+        scroll.scrollerStyle = .overlay
 
         if !scrolls {
             scroll.verticalScrollElasticity = .none
@@ -211,9 +213,17 @@ struct PreviewTextView: NSViewRepresentable {
     }
 
     private func configure(_ scroll: NSScrollView, text: NSTextView) {
-        text.textContainerInset = NSSize(width: mode == .code ? 10 : 18, height: 14)
-        scroll.contentInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
-        scroll.scrollerInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
+        let inset = NSSize(width: mode == .code ? 10 : 18, height: 14)
+
+        // Почему: перезапись тех же вставок на каждом кадре анимации перекладывает весь текст
+        if text.textContainerInset != inset { text.textContainerInset = inset }
+
+        if scroll.contentInsets.top != topInset {
+            scroll.contentInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
+            scroll.scrollerInsets = NSEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0)
+        }
+
+        if scroll.scrollerStyle != .overlay { scroll.scrollerStyle = .overlay }
 
         switch mode {
         case .reading:
