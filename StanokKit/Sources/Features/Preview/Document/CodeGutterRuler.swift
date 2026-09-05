@@ -25,6 +25,8 @@ final class CodeGutterRuler: NSRulerView {
         static let chevron: CGFloat = 9
     }
 
+    private nonisolated(unsafe) static var handled = 0
+
     var stamp: String {
         Self.stamp(of: source)
     }
@@ -160,7 +162,15 @@ final class CodeGutterRuler: NSRulerView {
             guard let self, event.window === self.window else { return event }
 
             let point = convert(event.locationInWindow, from: nil)
-            guard visibleRect.contains(point), handle(at: point) else { return event }
+
+            // Почему: монитор висит на каждой линейке, и один клик иначе обрабатывают все сразу
+            guard Self.handled != event.eventNumber, visibleRect.contains(point) else {
+                return event
+            }
+
+            guard handle(at: point) else { return event }
+
+            Self.handled = event.eventNumber
 
             return nil
         } as AnyObject?
@@ -189,8 +199,9 @@ final class CodeGutterRuler: NSRulerView {
     func handle(at point: NSPoint) -> Bool {
         guard let source, let line = line(at: point.y) else { return false }
 
+        // Почему: enclosingScrollView отдаёт внешний список ревью, а нам нужен свой скролл
         if isInNumberColumn(point.x), let rect = lineRect(at: point.y) {
-            source.note(line + 1, convert(rect, to: enclosingScrollView))
+            source.note(line + 1, convert(rect, to: scrollView ?? enclosingScrollView))
 
             return true
         }
