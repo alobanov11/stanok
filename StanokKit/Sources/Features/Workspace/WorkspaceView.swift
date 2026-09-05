@@ -316,7 +316,8 @@ public struct WorkspaceView<Terminal: View>: View {
         .ignoresSafeArea()
         .background(WindowBackground().ignoresSafeArea())
         .frame(minWidth: 880, minHeight: 520)
-        .focusedValue(\.workspaceCommands, .make(
+        // Почему: без терминалов фокусировать нечего, а команды меню нужны и в пустом окне
+        .focusedSceneValue(\.workspaceCommands, .make(
             toggleSidebar: toggleSidebar, selectFilesMode: inspectorControls.select,
             session: selectedSession, store: store,
             selection: $selection, closeSession: liveSessions.requestClose,
