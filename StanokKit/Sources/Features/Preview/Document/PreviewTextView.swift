@@ -18,7 +18,8 @@ struct PreviewTextView: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
 
         var openLink: ((URL) -> Void)?
-        var onNote: ((Int, CGRect) -> Void)?
+        var onNote: ((Int) -> Void)?
+        var noteLine: Int?
 
         let scrollSignal = ScrollSignal()
 
@@ -52,28 +53,23 @@ struct PreviewTextView: NSViewRepresentable {
             }
         }
 
-        // Почему: номер строки берём из атрибута документа — со свёрнутыми блоками счёт другой
+        // Почему: строка берётся по фрагменту раскладки — клик у края не должен уезжать на соседнюю
         @MainActor
-        func note(at point: NSPoint, in text: NSTextView, scroll: NSScrollView) {
-            guard let storage = text.textStorage, storage.length > 0 else { return }
-
-            let index = min(text.characterIndexForInsertion(at: point), storage.length - 1)
+        func note(at point: NSPoint, in text: NSTextView) {
             guard
-                let line = storage.attribute(
-                    PreviewDocument.sourceLine,
-                    at: index,
-                    effectiveRange: nil
-                ) as? Int
+                let storage = text.textStorage,
+                storage.length > 0,
+                let layout = text.textLayoutManager
             else { return }
 
-            let fragment = text.textLayoutManager?.textLayoutFragment(for: point)
-            let frame = fragment?.layoutFragmentFrame ?? NSRect(origin: point, size: .zero)
-            let placed = frame.offsetBy(
-                dx: text.textContainerOrigin.x,
-                dy: text.textContainerOrigin.y
-            )
+            let origin = text.textContainerOrigin
+            let inside = NSPoint(x: point.x - origin.x, y: point.y - origin.y)
+            guard
+                let fragment = layout.textLayoutFragment(for: inside),
+                let line = PreviewTextView.line(of: fragment, in: storage, layout: layout)
+            else { return }
 
-            onNote?(line, text.convert(placed, to: scroll))
+            onNote?(line)
         }
 
         func textView(_ view: NSTextView, clickedOnLink link: Any, at index: Int) -> Bool {
@@ -86,6 +82,8 @@ struct PreviewTextView: NSViewRepresentable {
         }
     }
 
+    static let noteHeight: CGFloat = 34
+
     let document: PreviewDocument
     let fileKey: String
     let shape: String
@@ -96,8 +94,32 @@ struct PreviewTextView: NSViewRepresentable {
 
     var scrolls = true
     var contentLines: Int?
-    var onNote: ((Int, CGRect) -> Void)?
+    var noteLine: Int?
+    var onNote: ((Int) -> Void)?
+    var onNoteFrame: ((CGRect) -> Void)?
     var onScroll: (@MainActor () -> Void)?
+
+    static func line(
+        of fragment: NSTextLayoutFragment,
+        in storage: NSTextStorage,
+        layout: NSTextLayoutManager
+    ) -> Int? {
+        let start = layout.offset(
+            from: layout.documentRange.location,
+            to: fragment.rangeInElement.location
+        )
+        guard start >= 0, start < storage.length else { return nil }
+
+        return storage.attribute(PreviewDocument.sourceLine, at: start, effectiveRange: nil) as? Int
+    }
+
+    static func placeholder() -> NSAttributedString {
+        let style = NSMutableParagraphStyle()
+        style.minimumLineHeight = noteHeight
+        style.maximumLineHeight = noteHeight
+
+        return NSAttributedString(string: "\n", attributes: [.paragraphStyle: style])
+    }
 
     static func crossfade(_ text: NSTextView, scroll: NSScrollView) {
         for view in [text, scroll.verticalRulerView].compactMap(\.self) {
@@ -140,6 +162,24 @@ struct PreviewTextView: NSViewRepresentable {
         return layout.usageBoundsForTextContainer.height + text.textContainerInset.height * 2
     }
 
+    static func anchor(for line: Int, in storage: NSTextStorage) -> Int? {
+        var found: Int?
+
+        storage.enumerateAttribute(
+            PreviewDocument.sourceLine,
+            in: NSRange(location: 0, length: storage.length)
+        ) { value, range, stop in
+            guard value as? Int == line else { return }
+
+            found = NSMaxRange(range)
+            stop.pointee = true
+        }
+
+        guard let found else { return nil }
+
+        return min(found, storage.length)
+    }
+
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }
@@ -175,10 +215,10 @@ struct PreviewTextView: NSViewRepresentable {
         scroll.contentView.postsBoundsChangedNotifications = true
         context.coordinator.observe(scroll)
 
-        text.onCommandClick = { [weak scroll, weak text] point in
-            guard let scroll, let text else { return }
+        text.onCommandClick = { [weak text] point in
+            guard let text else { return }
 
-            MainActor.assumeIsolated { context.coordinator.note(at: point, in: text, scroll: scroll) }
+            MainActor.assumeIsolated { context.coordinator.note(at: point, in: text) }
         }
         configure(scroll, text: text)
 
@@ -208,15 +248,51 @@ struct PreviewTextView: NSViewRepresentable {
             if folding { Self.crossfade(text, scroll: scroll) }
 
             text.textStorage?.setAttributedString(document.text)
+            context.coordinator.noteLine = nil
             scroll.tile()
             scroll.verticalRulerView?.needsDisplay = true
         }
+
+        applyNote(scroll, text: text, context: context)
 
         guard opened else { return }
 
         text.setSelectedRange(NSRange(location: 0, length: 0))
         scroll.contentView.scroll(to: NSPoint(x: 0, y: -scroll.contentInsets.top))
         scroll.reflectScrolledClipView(scroll.contentView)
+    }
+
+    // Почему: под строкой освобождается настоящая строка документа, поле не ложится поверх кода
+    func applyNote(_ scroll: NSScrollView, text: NSTextView, context: Context) {
+        guard context.coordinator.noteLine != noteLine else { return }
+
+        let storage = text.textStorage
+        context.coordinator.noteLine = noteLine
+        storage?.setAttributedString(document.text)
+
+        guard let noteLine, let storage, let layout = text.textLayoutManager else {
+            scroll.verticalRulerView?.needsDisplay = true
+
+            return
+        }
+
+        guard let anchor = Self.anchor(for: noteLine, in: storage) else { return }
+
+        storage.insert(Self.placeholder(), at: anchor)
+        layout.ensureLayout(for: layout.documentRange)
+        scroll.verticalRulerView?.needsDisplay = true
+
+        guard
+            let location = layout.location(layout.documentRange.location, offsetBy: anchor + 1),
+            let fragment = layout.textLayoutFragment(for: location)
+        else { return }
+
+        let frame = fragment.layoutFragmentFrame.offsetBy(
+            dx: text.textContainerOrigin.x,
+            dy: text.textContainerOrigin.y
+        )
+
+        onNoteFrame?(text.convert(frame, to: scroll))
     }
 
     func fixedHeight(of nsView: NSScrollView) -> CGFloat? {

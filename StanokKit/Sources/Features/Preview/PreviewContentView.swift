@@ -119,10 +119,9 @@ struct PreviewContentView: View {
             openLink: { openURL($0) },
             scrolls: scrolls,
             contentLines: contentLines,
-            onNote: { line, rect in
-                noteLine = line
-                noteRect = rect
-            },
+            noteLine: noteLine,
+            onNote: { noteLine = $0 },
+            onNoteFrame: { noteRect = $0 },
             onScroll: { noteLine = nil }
         )
         .overlay(alignment: .topLeading) { note }
@@ -145,9 +144,9 @@ struct PreviewContentView: View {
                 },
                 onCancel: { self.noteLine = nil }
             )
-            .padding(.horizontal, 10)
-            .offset(y: max(noteRect.maxY, 0))
-            .transition(.opacity)
+            .frame(height: PreviewTextView.noteHeight)
+            .padding(.leading, noteRect.minX)
+            .offset(y: noteRect.minY)
         }
     }
 

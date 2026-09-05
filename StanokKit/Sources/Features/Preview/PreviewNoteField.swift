@@ -4,11 +4,7 @@ struct PreviewNoteField: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Text("\(line)")
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.tertiary)
-
-            TextField("Правка к строке — Enter отправит в терминал", text: $text)
+            TextField("Правка к строке \(line) — Enter отправит в терминал", text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .focused($isFocused)
@@ -30,12 +26,14 @@ struct PreviewNoteField: View {
             .buttonStyle(.plain)
             .keyboardShortcut(.escape, modifiers: [])
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(.black.opacity(0.55), in: .rect(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(.white.opacity(0.14), lineWidth: 1)
+        .padding(.horizontal, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Почему: строка правки живёт внутри кода, поэтому подложка такая же, как у выделения
+        .background(.white.opacity(0.07))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(Color.accentColor.opacity(0.8))
+                .frame(width: 2)
         }
         .task { isFocused = true }
     }
