@@ -18,7 +18,6 @@ struct PreviewTextView: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
 
         var openLink: ((URL) -> Void)?
-        var noteLine: Int?
 
         let scrollSignal = ScrollSignal()
 
@@ -62,8 +61,6 @@ struct PreviewTextView: NSViewRepresentable {
         }
     }
 
-    static let noteHeight: CGFloat = 34
-
     let document: PreviewDocument
     let fileKey: String
     let shape: String
@@ -74,25 +71,7 @@ struct PreviewTextView: NSViewRepresentable {
 
     var scrolls = true
     var contentLines: Int?
-    var noteLine: Int?
-    var onNoteFrame: ((CGRect) -> Void)?
     var onScroll: (@MainActor () -> Void)?
-
-    static func placeholder() -> NSAttributedString {
-        let style = NSMutableParagraphStyle()
-        style.minimumLineHeight = noteHeight
-        style.maximumLineHeight = noteHeight
-
-        // Почему: без метки просвета гаттер рисует на этой строке полосу удаления
-        return NSAttributedString(
-            string: "\n",
-            attributes: [
-                .paragraphStyle: style,
-                PreviewDocument.Key.gap: true,
-                PreviewDocument.Key.note: true
-            ]
-        )
-    }
 
     static func crossfade(_ text: NSTextView, scroll: NSScrollView) {
         for view in [text, scroll.verticalRulerView].compactMap(\.self) {
@@ -133,58 +112,6 @@ struct PreviewTextView: NSViewRepresentable {
         layout.ensureLayout(for: layout.documentRange)
 
         return layout.usageBoundsForTextContainer.height + text.textContainerInset.height * 2
-    }
-
-    static func noteFrame(in layout: NSTextLayoutManager) -> NSRect? {
-        var found: NSRect?
-
-        layout.enumerateTextLayoutFragments(from: layout.documentRange.location) { fragment in
-            guard
-                let paragraph = fragment.textElement as? NSTextParagraph,
-                Self.marks(paragraph.attributedString)
-            else { return true }
-
-            found = fragment.layoutFragmentFrame
-
-            return false
-        }
-
-        return found
-    }
-
-    static func marks(_ text: NSAttributedString) -> Bool {
-        var found = false
-
-        text.enumerateAttribute(
-            PreviewDocument.Key.note,
-            in: NSRange(location: 0, length: text.length)
-        ) { value, _, stop in
-            guard value != nil else { return }
-
-            found = true
-            stop.pointee = true
-        }
-
-        return found
-    }
-
-    static func anchor(for line: Int, in storage: NSTextStorage) -> Int? {
-        var found: Int?
-
-        storage.enumerateAttribute(
-            PreviewDocument.Key.sourceLine,
-            in: NSRange(location: 0, length: storage.length)
-        ) { value, range, stop in
-            guard value as? Int == line - 1 else { return }
-
-            // Почему: просвет должен стать отдельным абзацем, иначе он прирастает к строке кода
-            found = NSMaxRange((storage.string as NSString).lineRange(for: range))
-            stop.pointee = true
-        }
-
-        guard let found else { return nil }
-
-        return min(found, storage.length)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -249,46 +176,15 @@ struct PreviewTextView: NSViewRepresentable {
             if folding { Self.crossfade(text, scroll: scroll) }
 
             text.textStorage?.setAttributedString(document.text)
-            context.coordinator.noteLine = nil
             scroll.tile()
             scroll.verticalRulerView?.needsDisplay = true
         }
-
-        applyNote(scroll, text: text, context: context)
 
         guard opened else { return }
 
         text.setSelectedRange(NSRange(location: 0, length: 0))
         scroll.contentView.scroll(to: NSPoint(x: 0, y: -scroll.contentInsets.top))
         scroll.reflectScrolledClipView(scroll.contentView)
-    }
-
-    // Почему: под строкой освобождается настоящая строка документа, поле не ложится поверх кода
-    func applyNote(_ scroll: NSScrollView, text: NSTextView, context: Context) {
-        guard context.coordinator.noteLine != noteLine else { return }
-
-        let storage = text.textStorage
-        context.coordinator.noteLine = noteLine
-        storage?.setAttributedString(document.text)
-
-        guard let noteLine, let storage, let layout = text.textLayoutManager else {
-            scroll.verticalRulerView?.needsDisplay = true
-
-            return
-        }
-
-        guard let anchor = Self.anchor(for: noteLine, in: storage) else { return }
-
-        storage.insert(Self.placeholder(), at: anchor)
-        layout.ensureLayout(for: layout.documentRange)
-        scroll.verticalRulerView?.needsDisplay = true
-
-        // Почему: просвет ищем по метке — смещения в символах не совпадают с элементами раскладки
-        guard let placed = Self.noteFrame(in: layout) else { return }
-
-        let frame = placed.offsetBy(dx: text.textContainerOrigin.x, dy: text.textContainerOrigin.y)
-
-        onNoteFrame?(text.convert(frame, to: scroll))
     }
 
     func fixedHeight(of nsView: NSScrollView) -> CGFloat? {

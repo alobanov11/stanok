@@ -12,7 +12,7 @@ final class CodeGutterRuler: NSRulerView {
         let width: CGFloat
         let fold: (Int) -> Void
         let showChange: (Int) -> Void
-        let note: (Int) -> Void
+        let note: (Int, CGRect) -> Void
         let noteLine: Int?
     }
 
@@ -189,8 +189,8 @@ final class CodeGutterRuler: NSRulerView {
     func handle(at point: NSPoint) -> Bool {
         guard let source, let line = line(at: point.y) else { return false }
 
-        if isInNumberColumn(point.x) {
-            source.note(line + 1)
+        if isInNumberColumn(point.x), let rect = lineRect(at: point.y) {
+            source.note(line + 1, convert(rect, to: enclosingScrollView))
 
             return true
         }
@@ -343,6 +343,23 @@ private extension CodeGutterRuler {
             xRadius: Metric.ribbon / 2,
             yRadius: Metric.ribbon / 2
         ).fill()
+    }
+
+    // Почему: рамку строки знает только линейка — она же по ней рисует номера
+    func lineRect(at y: CGFloat) -> NSRect? {
+        guard let text = clientView as? NSTextView else { return nil }
+
+        var found: NSRect?
+
+        enumerateVisibleFragments(from: y, in: text) { _, top, height, _ in
+            guard top <= y, top + height > y else { return top <= y }
+
+            found = NSRect(x: 0, y: top, width: bounds.width, height: height)
+
+            return false
+        }
+
+        return found
     }
 
     func line(at y: CGFloat) -> Int? {

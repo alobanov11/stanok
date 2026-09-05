@@ -121,8 +121,6 @@ struct PreviewContentView: View {
             openLink: { openURL($0) },
             scrolls: scrolls,
             contentLines: contentLines,
-            noteLine: noteLine,
-            onNoteFrame: { noteRect = $0 },
             onScroll: { noteLine = nil }
         )
         .overlay(alignment: .topLeading) { note }
@@ -145,9 +143,8 @@ struct PreviewContentView: View {
                 },
                 onCancel: { self.noteLine = nil }
             )
-            .frame(height: PreviewTextView.noteHeight)
-            .padding(.leading, noteRect.minX)
-            .offset(y: noteRect.minY)
+            .padding(.horizontal, 8)
+            .offset(y: noteRect.maxY + 2)
         }
     }
 
@@ -182,9 +179,8 @@ private extension PreviewContentView {
     }
 
     // Почему: повторный клик по номеру закрывает поле — это toggle, а не отдельная кнопка
-    func toggleNote(_ line: Int) {
-        noteRect = .zero
-
+    func toggleNote(_ line: Int, rect: CGRect) {
+        noteRect = rect
         noteLine = noteLine == line ? nil : line
     }
 
