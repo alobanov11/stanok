@@ -9,9 +9,19 @@ struct PreviewTextView: NSViewRepresentable {
         case code
     }
 
+    // Почему: уведомление о скролле приходит вне актора, а координатор не Sendable
+    final class ScrollSignal: @unchecked Sendable {
+
+        var action: (@MainActor () -> Void)?
+    }
+
     final class Coordinator: NSObject, NSTextViewDelegate {
 
         var openLink: ((URL) -> Void)?
+        var onNote: ((Int, CGRect) -> Void)?
+
+        let scrollSignal = ScrollSignal()
+
         var revision: String?
         var shape: String?
         var fileKey: String?
@@ -28,13 +38,42 @@ struct PreviewTextView: NSViewRepresentable {
 
         @MainActor
         func observe(_ scroll: NSScrollView) {
+            let signal = scrollSignal
+
             observer = NotificationCenter.default.addObserver(
                 forName: NSView.boundsDidChangeNotification,
                 object: scroll.contentView,
                 queue: .main
             ) { [weak scroll] _ in
-                MainActor.assumeIsolated { scroll?.verticalRulerView?.needsDisplay = true }
+                MainActor.assumeIsolated {
+                    scroll?.verticalRulerView?.needsDisplay = true
+                    signal.action?()
+                }
             }
+        }
+
+        // Почему: номер строки берём из атрибута документа — со свёрнутыми блоками счёт другой
+        @MainActor
+        func note(at point: NSPoint, in text: NSTextView, scroll: NSScrollView) {
+            guard let storage = text.textStorage, storage.length > 0 else { return }
+
+            let index = min(text.characterIndexForInsertion(at: point), storage.length - 1)
+            guard
+                let line = storage.attribute(
+                    PreviewDocument.sourceLine,
+                    at: index,
+                    effectiveRange: nil
+                ) as? Int
+            else { return }
+
+            let fragment = text.textLayoutManager?.textLayoutFragment(for: point)
+            let frame = fragment?.layoutFragmentFrame ?? NSRect(origin: point, size: .zero)
+            let placed = frame.offsetBy(
+                dx: text.textContainerOrigin.x,
+                dy: text.textContainerOrigin.y
+            )
+
+            onNote?(line, text.convert(placed, to: scroll))
         }
 
         func textView(_ view: NSTextView, clickedOnLink link: Any, at index: Int) -> Bool {
@@ -57,6 +96,8 @@ struct PreviewTextView: NSViewRepresentable {
 
     var scrolls = true
     var contentLines: Int?
+    var onNote: ((Int, CGRect) -> Void)?
+    var onScroll: (@MainActor () -> Void)?
 
     static func crossfade(_ text: NSTextView, scroll: NSScrollView) {
         for view in [text, scroll.verticalRulerView].compactMap(\.self) {
@@ -133,6 +174,12 @@ struct PreviewTextView: NSViewRepresentable {
 
         scroll.contentView.postsBoundsChangedNotifications = true
         context.coordinator.observe(scroll)
+
+        text.onCommandClick = { [weak scroll, weak text] point in
+            guard let scroll, let text else { return }
+
+            MainActor.assumeIsolated { context.coordinator.note(at: point, in: text, scroll: scroll) }
+        }
         configure(scroll, text: text)
 
         return scroll
@@ -140,6 +187,8 @@ struct PreviewTextView: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.openLink = openLink
+        context.coordinator.onNote = onNote
+        context.coordinator.scrollSignal.action = onScroll
 
         guard let text = scroll.documentView as? NSTextView else { return }
 

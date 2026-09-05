@@ -6,6 +6,17 @@ final class PlainCopyTextView: NSTextView {
         [.string]
     }
 
+    var onCommandClick: ((NSPoint) -> Void)?
+
+    override func mouseDown(with event: NSEvent) {
+        guard event.modifierFlags.contains(.command), let onCommandClick else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        onCommandClick(convert(event.locationInWindow, from: nil))
+    }
+
     override func writeSelection(
         to pasteboard: NSPasteboard,
         types: [NSPasteboard.PasteboardType]

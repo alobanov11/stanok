@@ -68,6 +68,20 @@ public final class TerminalCommandDispatcher {
         announceCopy(for: sessionID)
     }
 
+    // Почему: правка из превью попадает в активный терминал как текст, без запуска команды
+    public func insert(_ text: String, into sessionID: TerminalSession.ID?) {
+        guard !text.isEmpty else { return }
+
+        guard let sessionID else {
+            write(text)
+            announceCopy(for: nil)
+
+            return
+        }
+
+        insertRequests[sessionID] = TerminalInsertRequest(text: text)
+    }
+
     public func dispatch(
         _ action: AgentResumeAction,
         into sessionID: TerminalSession.ID?,

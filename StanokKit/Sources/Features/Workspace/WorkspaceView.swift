@@ -307,6 +307,7 @@ public struct WorkspaceView<Terminal: View>: View {
                 .padding(.trailing, WorkspaceLayout.inset)
                 .padding(.vertical, WorkspaceLayout.inset)
                 .environment(\.openURL, OpenURLAction(handler: linkRouter.handleLink))
+                .environment(\.previewNotes, PreviewNoteSender(send: sendPreviewNote))
 
             rightPanel
         }
@@ -836,6 +837,10 @@ private extension WorkspaceView {
         let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
         store.setTitle(trimmed.isEmpty ? nil : trimmed, for: renameTarget.id)
         self.renameTarget = nil
+    }
+
+    func sendPreviewNote(_ note: PreviewNote) {
+        dispatcher.insert(note.message(relativeTo: inspectorGitRoot), into: selection)
     }
 
     func dragItem(for session: TerminalSession) -> NSItemProvider {

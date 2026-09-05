@@ -99,6 +99,15 @@ struct PreviewContentView: View {
     @Environment(\.openURL)
     private var openURL
 
+    @Environment(\.previewNotes)
+    private var notes
+
+    @State
+    private var noteLine: Int?
+
+    @State
+    private var noteRect = CGRect.zero
+
     var body: some View {
         PreviewTextView(
             document: document,
@@ -109,12 +118,36 @@ struct PreviewContentView: View {
             topInset: topInset,
             openLink: { openURL($0) },
             scrolls: scrolls,
-            contentLines: contentLines
+            contentLines: contentLines,
+            onNote: { line, rect in
+                noteLine = line
+                noteRect = rect
+            },
+            onScroll: { noteLine = nil }
         )
+        .overlay(alignment: .topLeading) { note }
         .overlay(alignment: .trailing) { marks }
         .task(id: revision) { await rebuild() }
         .onReceive(NotificationCenter.default.publisher(for: ConfigFile.changed)) { _ in
             terminalFamily = ConfigFile.value(for: "font-family") ?? ""
+        }
+    }
+
+    // Почему: правка отправляется сразу в терминал и нигде не остаётся — это разовая записка
+    @ViewBuilder
+    private var note: some View {
+        if let noteLine {
+            PreviewNoteField(
+                line: noteLine,
+                onSend: { text in
+                    notes.send(PreviewNote(url: preview.url, line: noteLine, text: text))
+                    self.noteLine = nil
+                },
+                onCancel: { self.noteLine = nil }
+            )
+            .padding(.horizontal, 10)
+            .offset(y: max(noteRect.maxY, 0))
+            .transition(.opacity)
         }
     }
 
