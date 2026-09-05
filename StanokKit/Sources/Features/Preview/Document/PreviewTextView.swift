@@ -86,7 +86,11 @@ struct PreviewTextView: NSViewRepresentable {
         // Почему: без метки просвета гаттер рисует на этой строке полосу удаления
         return NSAttributedString(
             string: "\n",
-            attributes: [.paragraphStyle: style, PreviewDocument.gap: true]
+            attributes: [
+                .paragraphStyle: style,
+                PreviewDocument.Key.gap: true,
+                PreviewDocument.Key.note: true
+            ]
         )
     }
 
@@ -131,11 +135,32 @@ struct PreviewTextView: NSViewRepresentable {
         return layout.usageBoundsForTextContainer.height + text.textContainerInset.height * 2
     }
 
+    static func noteFrame(in layout: NSTextLayoutManager) -> NSRect? {
+        var found: NSRect?
+
+        layout.enumerateTextLayoutFragments(from: layout.documentRange.location) { fragment in
+            guard
+                let paragraph = fragment.textElement as? NSTextParagraph,
+                paragraph.attributedString.attribute(
+                    PreviewDocument.Key.note,
+                    at: 0,
+                    effectiveRange: nil
+                ) != nil
+            else { return true }
+
+            found = fragment.layoutFragmentFrame
+
+            return false
+        }
+
+        return found
+    }
+
     static func anchor(for line: Int, in storage: NSTextStorage) -> Int? {
         var found: Int?
 
         storage.enumerateAttribute(
-            PreviewDocument.sourceLine,
+            PreviewDocument.Key.sourceLine,
             in: NSRange(location: 0, length: storage.length)
         ) { value, range, stop in
             guard value as? Int == line - 1 else { return }
@@ -239,29 +264,17 @@ struct PreviewTextView: NSViewRepresentable {
             return
         }
 
-        NSLog(
-            "stanok-note: applyNote line=%d anchor=%@",
-            noteLine,
-            String(describing: Self.anchor(for: noteLine, in: storage))
-        )
-
         guard let anchor = Self.anchor(for: noteLine, in: storage) else { return }
 
         storage.insert(Self.placeholder(), at: anchor)
         layout.ensureLayout(for: layout.documentRange)
         scroll.verticalRulerView?.needsDisplay = true
 
-        guard
-            let location = layout.location(layout.documentRange.location, offsetBy: anchor + 1),
-            let fragment = layout.textLayoutFragment(for: location)
-        else { return }
+        // Почему: просвет ищем по метке — смещения в символах не совпадают с элементами раскладки
+        guard let placed = Self.noteFrame(in: layout) else { return }
 
-        let frame = fragment.layoutFragmentFrame.offsetBy(
-            dx: text.textContainerOrigin.x,
-            dy: text.textContainerOrigin.y
-        )
+        let frame = placed.offsetBy(dx: text.textContainerOrigin.x, dy: text.textContainerOrigin.y)
 
-        NSLog("stanok-note: frame %@", NSStringFromRect(text.convert(frame, to: scroll)))
         onNoteFrame?(text.convert(frame, to: scroll))
     }
 

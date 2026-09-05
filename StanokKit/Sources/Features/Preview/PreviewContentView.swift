@@ -136,7 +136,7 @@ struct PreviewContentView: View {
     // Почему: правка отправляется сразу в терминал и нигде не остаётся — это разовая записка
     @ViewBuilder
     private var note: some View {
-        if let noteLine {
+        if let noteLine, noteRect.height > 0 {
             PreviewNoteField(
                 line: noteLine,
                 onSend: { text in
@@ -183,7 +183,8 @@ private extension PreviewContentView {
 
     // Почему: повторный клик по номеру закрывает поле — это toggle, а не отдельная кнопка
     func toggleNote(_ line: Int) {
-        NSLog("stanok-note: toggle %d, was %@", line, String(describing: noteLine))
+        noteRect = .zero
+
         noteLine = noteLine == line ? nil : line
     }
 

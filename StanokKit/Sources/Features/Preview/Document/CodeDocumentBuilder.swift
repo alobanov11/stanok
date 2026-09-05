@@ -33,7 +33,7 @@ enum CodeDocumentBuilder {
                 attributes: [
                     .font: font,
                     .foregroundColor: NSColor.tertiaryLabelColor,
-                    PreviewDocument.gap: true
+                    PreviewDocument.Key.gap: true
                 ]
             ))
         }
@@ -92,7 +92,7 @@ enum CodeDocumentBuilder {
             }
 
             paragraph.addAttribute(
-                PreviewDocument.sourceLine,
+                PreviewDocument.Key.sourceLine,
                 value: index,
                 range: NSRange(location: 0, length: paragraph.length)
             )

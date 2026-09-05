@@ -215,7 +215,7 @@ final class CodeGutterRuler: NSRulerView {
         guard let paragraph = fragment.textElement as? NSTextParagraph else { return false }
 
         return paragraph.attributedString.attribute(
-            PreviewDocument.gap,
+            PreviewDocument.Key.gap,
             at: 0,
             effectiveRange: nil
         ) as? Bool ?? false
@@ -225,7 +225,7 @@ final class CodeGutterRuler: NSRulerView {
         guard let paragraph = fragment.textElement as? NSTextParagraph else { return nil }
 
         return paragraph.attributedString.attribute(
-            PreviewDocument.sourceLine,
+            PreviewDocument.Key.sourceLine,
             at: 0,
             effectiveRange: nil
         ) as? Int
