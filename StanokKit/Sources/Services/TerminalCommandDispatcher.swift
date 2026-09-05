@@ -96,7 +96,7 @@ public final class TerminalCommandDispatcher {
         }
 
         confirmedIdle.remove(sessionID)
-        insertRequests[sessionID] = TerminalInsertRequest(text: command + "\n")
+        insertRequests[sessionID] = TerminalInsertRequest(text: command, submits: true)
     }
 }
 

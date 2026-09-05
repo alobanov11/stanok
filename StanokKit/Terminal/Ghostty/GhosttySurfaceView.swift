@@ -401,7 +401,7 @@ final class GhosttySurfaceView: NSView {
         guard let insertRequest, insertRequest.id != lastHandledInsertRequestID else { return }
 
         lastHandledInsertRequestID = insertRequest.id
-        insert(insertRequest.text)
+        insert(insertRequest.text, submits: insertRequest.submits)
 
         let id = insertRequest.id
         DispatchQueue.main.async { [weak self] in self?.onInsertHandled?(id) }
@@ -588,11 +588,11 @@ private extension GhosttySurfaceView {
         performBindingAction("paste_from_clipboard")
     }
 
-    func insert(_ text: String) {
+    func insert(_ text: String, submits: Bool = false) {
         guard let surface, !text.isEmpty else { return }
 
-        let executes = text.hasSuffix("\n")
-        let body = executes ? String(text.dropLast()) : text
+        let executes = submits
+        let body = text.hasSuffix("\n") && submits ? String(text.dropLast()) : text
 
         if !body.isEmpty {
             body.withCString { ghostty_surface_text(surface, $0, UInt(body.utf8.count)) }
