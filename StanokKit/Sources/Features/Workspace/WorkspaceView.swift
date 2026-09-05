@@ -840,9 +840,9 @@ private extension WorkspaceView {
         self.renameTarget = nil
     }
 
-    // Почему: текст уезжает в bracketed paste, поэтому переносы копятся, а не выполняются
+    // Почему: правка начинается с новой строки — иначе липнет к тому, что уже набрано в промпте
     func sendPreviewNote(_ note: PreviewNote) {
-        dispatcher.insert(note.message(relativeTo: inspectorGitRoot) + "\n", into: selection)
+        dispatcher.insert("\n" + note.message(relativeTo: inspectorGitRoot), into: selection)
     }
 
     func dragItem(for session: TerminalSession) -> NSItemProvider {
