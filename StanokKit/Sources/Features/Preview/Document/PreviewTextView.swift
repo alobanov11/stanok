@@ -239,6 +239,12 @@ struct PreviewTextView: NSViewRepresentable {
             return
         }
 
+        NSLog(
+            "stanok-note: applyNote line=%d anchor=%@",
+            noteLine,
+            String(describing: Self.anchor(for: noteLine, in: storage))
+        )
+
         guard let anchor = Self.anchor(for: noteLine, in: storage) else { return }
 
         storage.insert(Self.placeholder(), at: anchor)
@@ -255,6 +261,7 @@ struct PreviewTextView: NSViewRepresentable {
             dy: text.textContainerOrigin.y
         )
 
+        NSLog("stanok-note: frame %@", NSStringFromRect(text.convert(frame, to: scroll)))
         onNoteFrame?(text.convert(frame, to: scroll))
     }
 

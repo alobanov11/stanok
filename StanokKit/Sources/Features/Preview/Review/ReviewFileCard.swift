@@ -108,6 +108,7 @@ struct ReviewFileCard: View {
         .overlay {
             RoundedRectangle(cornerRadius: Metric.radius, style: .continuous)
                 .strokeBorder(.white.opacity(isHovering ? 0.16 : 0.08), lineWidth: 1)
+                .allowsHitTesting(false)
         }
         .onHover { isHovering = $0 }
         .onChange(of: isExpanded) { _, isOpen in

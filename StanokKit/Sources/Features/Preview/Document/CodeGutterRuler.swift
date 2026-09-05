@@ -52,6 +52,7 @@ final class CodeGutterRuler: NSRulerView {
     private var anchors: [Int: Int] = [:]
     private var hovered: Int?
     private var hoveredNumber: Int?
+    private var monitor: AnyObject?
     private var tracking: NSTrackingArea?
 
     // Почему: NSRulerView рисует свою серую подложку, а нам нужен фон превью насквозь
@@ -142,30 +143,35 @@ final class CodeGutterRuler: NSRulerView {
         tracking = area
     }
 
+    // Почему: сверху лежит SwiftUI и съедает клик, поэтому линейка ловит событие сама
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+            self.monitor = nil
+        }
+
+        guard window != nil else { return }
+
+        monitor = NSEvent.addLocalMonitorForEvents(
+            matching: .leftMouseDown
+        ) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+
+            let point = convert(event.locationInWindow, from: nil)
+            guard visibleRect.contains(point), handle(at: point) else { return event }
+
+            return nil
+        } as AnyObject?
+    }
+
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
 
-        guard let source, let line = line(at: point.y) else { return super.mouseDown(with: event) }
+        guard !handle(at: point) else { return }
 
-        if isInNumberColumn(point.x) {
-            source.note(line + 1)
-
-            return
-        }
-
-        if isInFoldColumn(point.x) {
-            let fold = source.folds.fold(startingAt: line) ?? source.folds.owner(of: line)
-            guard let fold else { return super.mouseDown(with: event) }
-
-            source.fold(fold.header)
-            return
-        }
-
-        guard let anchor = removalAnchor(for: line, source: source) else {
-            return super.mouseDown(with: event)
-        }
-
-        source.showChange(anchor)
+        super.mouseDown(with: event)
     }
 
     static func stamp(of source: Source?) -> String {
@@ -177,6 +183,32 @@ final class CodeGutterRuler: NSRulerView {
             "\(source.width)", source.font.fontName, "\(source.font.pointSize)",
             "\(source.noteLine ?? -1)"
         ].joined(separator: "|")
+    }
+
+    @discardableResult
+    func handle(at point: NSPoint) -> Bool {
+        guard let source, let line = line(at: point.y) else { return false }
+
+        if isInNumberColumn(point.x) {
+            source.note(line + 1)
+
+            return true
+        }
+
+        if isInFoldColumn(point.x) {
+            guard let fold = source.folds.fold(startingAt: line) ?? source.folds.owner(of: line)
+            else { return false }
+
+            source.fold(fold.header)
+
+            return true
+        }
+
+        guard let anchor = removalAnchor(for: line, source: source) else { return false }
+
+        source.showChange(anchor)
+
+        return true
     }
 
     private func isGap(_ fragment: NSTextLayoutFragment) -> Bool {

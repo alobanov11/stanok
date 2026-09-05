@@ -126,7 +126,7 @@ struct PreviewContentView: View {
             onScroll: { noteLine = nil }
         )
         .overlay(alignment: .topLeading) { note }
-        .overlay(alignment: .trailing) { marks }
+        .overlay(alignment: .trailing) { marks.allowsHitTesting(false) }
         .task(id: revision) { await rebuild() }
         .onReceive(NotificationCenter.default.publisher(for: ConfigFile.changed)) { _ in
             terminalFamily = ConfigFile.value(for: "font-family") ?? ""
@@ -183,6 +183,7 @@ private extension PreviewContentView {
 
     // Почему: повторный клик по номеру закрывает поле — это toggle, а не отдельная кнопка
     func toggleNote(_ line: Int) {
+        NSLog("stanok-note: toggle %d, was %@", line, String(describing: noteLine))
         noteLine = noteLine == line ? nil : line
     }
 
