@@ -23,11 +23,17 @@ public final class PinnedSourceStore {
     }
 
     public func addFolder(_ url: URL) {
-        add(url, to: &folders)
+        guard let updated = appending(url, to: folders) else { return }
+
+        folders = updated
+        save()
     }
 
     public func addRepository(_ url: URL) {
-        add(url, to: &repositories)
+        guard let updated = appending(url, to: repositories) else { return }
+
+        repositories = updated
+        save()
     }
 
     public func remove(_ id: PinnedSource.ID) {
@@ -39,12 +45,12 @@ public final class PinnedSourceStore {
 
 private extension PinnedSourceStore {
 
-    func add(_ url: URL, to list: inout [PinnedSource]) {
+    // Почему: inout на само свойство пересекался с чтением в save() и ронял exclusivity-проверку
+    func appending(_ url: URL, to list: [PinnedSource]) -> [PinnedSource]? {
         let path = url.standardizedFileURL.path(percentEncoded: false)
-        guard !list.contains(where: { $0.path == path }) else { return }
+        guard !list.contains(where: { $0.path == path }) else { return nil }
 
-        list.append(PinnedSource(path: path))
-        save()
+        return list + [PinnedSource(path: path)]
     }
 
     func load() {
