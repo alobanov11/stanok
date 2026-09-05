@@ -840,8 +840,9 @@ private extension WorkspaceView {
         self.renameTarget = nil
     }
 
+    // Почему: обратный слэш переносит строку и в шелле, и в агентских CLI — правки не слипаются
     func sendPreviewNote(_ note: PreviewNote) {
-        dispatcher.insert(note.message(relativeTo: inspectorGitRoot), into: selection)
+        dispatcher.insert(note.message(relativeTo: inspectorGitRoot) + "\\\n", into: selection)
     }
 
     func dragItem(for session: TerminalSession) -> NSItemProvider {
