@@ -19,6 +19,7 @@ struct PreviewTextView: NSViewRepresentable {
 
         var openLink: ((URL) -> Void)?
         var noteLine: Int?
+        var noteOrigin: CGFloat?
 
         let scrollSignal = ScrollSignal()
 
@@ -192,7 +193,13 @@ struct PreviewTextView: NSViewRepresentable {
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.openLink = openLink
-        context.coordinator.scrollSignal.action = onScroll
+        // Почему: просвет сам двигает содержимое, и такой сдвиг нельзя считать скроллом пользователя
+        context.coordinator.scrollSignal.action = { [weak scroll] in
+            guard let scroll, let origin = context.coordinator.noteOrigin else { return }
+            guard abs(scroll.contentView.bounds.origin.y - origin) > 1 else { return }
+
+            onScroll?()
+        }
 
         guard let text = scroll.documentView as? NSTextView else { return }
 
@@ -237,6 +244,7 @@ struct PreviewTextView: NSViewRepresentable {
             let storage = text.textStorage,
             let anchor = Self.anchor(for: noteLine, in: storage)
         else {
+            context.coordinator.noteOrigin = nil
             scroll.verticalRulerView?.needsDisplay = true
 
             return
@@ -244,6 +252,10 @@ struct PreviewTextView: NSViewRepresentable {
 
         storage.insert(Self.placeholder(), at: anchor)
         scroll.verticalRulerView?.needsDisplay = true
+
+        DispatchQueue.main.async {
+            context.coordinator.noteOrigin = scroll.contentView.bounds.origin.y
+        }
     }
 
     func fixedHeight(of nsView: NSScrollView) -> CGFloat? {
