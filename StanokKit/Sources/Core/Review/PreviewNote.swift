@@ -6,11 +6,13 @@ public struct PreviewNote: Sendable, Equatable {
     public let url: URL
     public let line: Int
     public let text: String
+    public let code: String?
 
-    public init(url: URL, line: Int, text: String) {
+    public init(url: URL, line: Int, text: String, code: String? = nil) {
         self.url = url
         self.line = line
         self.text = text
+        self.code = code
     }
 
     public func message(relativeTo root: String?) -> String {
@@ -19,6 +21,9 @@ public struct PreviewNote: Sendable, Equatable {
         let shown = base.flatMap { path.hasPrefix($0) ? String(path.dropFirst($0.count)) : nil }
             ?? url.lastPathComponent
 
-        return "\(shown):\(line) — \(text)"
+        // Почему: агенту и ревьюеру нужна сама строка, иначе адрес без контекста
+        guard let code, !code.isEmpty else { return "\(shown):\(line) — \(text)" }
+
+        return "\(shown):\(line) — \(text)\n    \(code)"
     }
 }

@@ -140,7 +140,14 @@ struct PreviewContentView: View {
             PreviewNoteField(
                 line: noteLine,
                 onSend: { text in
-                    notes.send(PreviewNote(url: preview.url, line: noteLine, text: text))
+                    notes.send(
+                        PreviewNote(
+                            url: preview.url,
+                            line: noteLine,
+                            text: text,
+                            code: sourceText(at: noteLine)
+                        )
+                    )
                     self.noteLine = nil
                 },
                 onCancel: { self.noteLine = nil }
@@ -182,6 +189,16 @@ private extension PreviewContentView {
     }
 
     // Почему: повторный клик по номеру закрывает поле — это toggle, а не отдельная кнопка
+    func sourceText(at line: Int) -> String? {
+        guard case let .code(lines) = preview.content, lines.indices.contains(line - 1)
+        else { return nil }
+
+        return lines[line - 1]
+            .map(\.text)
+            .joined()
+            .trimmingCharacters(in: .whitespaces)
+    }
+
     func toggleNote(_ line: Int, rect: CGRect) {
         // Почему: пока просвет не отрисован, рамка неизвестна — поле ждёт её и не мигает в углу
         noteRect = .zero
