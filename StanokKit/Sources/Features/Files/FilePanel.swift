@@ -35,7 +35,7 @@ struct FilePanel: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
-            .help(mode == .all ? "Добавить папку" : "Добавить репозиторий")
+            .help("Добавить папку или репозиторий")
         }
         .padding(.horizontal, 14)
         .frame(height: WorkspaceLayout.headerHeight)

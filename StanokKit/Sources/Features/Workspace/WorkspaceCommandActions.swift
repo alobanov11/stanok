@@ -6,6 +6,7 @@ public struct WorkspaceCommandActions {
     public let toggleSidebar: () -> Void
     public let toggleAllFiles: () -> Void
     public let toggleGit: () -> Void
+    public let openReview: () -> Void
     public let newTerminalTab: (() -> Void)?
     public let closeTerminalTab: (() -> Void)?
 
@@ -13,12 +14,14 @@ public struct WorkspaceCommandActions {
         toggleSidebar: @escaping () -> Void,
         toggleAllFiles: @escaping () -> Void,
         toggleGit: @escaping () -> Void,
+        openReview: @escaping () -> Void,
         newTerminalTab: (() -> Void)?,
         closeTerminalTab: (() -> Void)?
     ) {
         self.toggleSidebar = toggleSidebar
         self.toggleAllFiles = toggleAllFiles
         self.toggleGit = toggleGit
+        self.openReview = openReview
         self.newTerminalTab = newTerminalTab
         self.closeTerminalTab = closeTerminalTab
     }
@@ -29,7 +32,8 @@ public struct WorkspaceCommandActions {
         session: TerminalSession?,
         store: SessionStore,
         selection: Binding<TerminalSession.ID?>,
-        closeSession: @escaping (TerminalSession) -> Void
+        closeSession: @escaping (TerminalSession) -> Void,
+        openReview: @escaping () -> Void
     ) -> WorkspaceCommandActions {
         let newTerminalTab: () -> Void = {
             let url = session?.url ?? FileManager.default.homeDirectoryForCurrentUser
@@ -45,6 +49,7 @@ public struct WorkspaceCommandActions {
             toggleSidebar: toggleSidebar,
             toggleAllFiles: { selectFilesMode(.all) },
             toggleGit: { selectFilesMode(.git) },
+            openReview: openReview,
             newTerminalTab: newTerminalTab,
             closeTerminalTab: closeTerminalTab
         )

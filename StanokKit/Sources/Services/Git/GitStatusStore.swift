@@ -58,10 +58,23 @@ public final class GitStatusStore {
         return root.flatMap { cache[$0] }
     }
 
+    // Почему: у добавленной вручную папки нет сессии, читаем её по пути
+    public func snapshot(path: String) -> GitSnapshot? {
+        rootByPath[path].flatMap { cache[$0] } ?? cache[path]
+    }
+
+    public func refresh(path: String) async {
+        await refresh(url: URL(filePath: path, directoryHint: .isDirectory))
+    }
+
     public func refresh(_ session: TerminalSession?) async {
         guard let session else { return }
 
-        let path = session.url.path(percentEncoded: false)
+        await refresh(url: session.url)
+    }
+
+    public func refresh(url: URL) async {
+        let path = url.path(percentEncoded: false)
 
         guard !inFlight.contains(path) else {
             pending.insert(path)
@@ -81,7 +94,7 @@ public final class GitStatusStore {
             guard live?.contains(path) != false else { return }
 
             let started = generations[path, default: 0]
-            await store(GitClient.probe(for: session.url), at: path, generation: started)
+            await store(GitClient.probe(for: url), at: path, generation: started)
         } while pending.contains(path)
     }
 

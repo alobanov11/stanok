@@ -107,27 +107,35 @@ public struct WorkspaceView<Terminal: View>: View {
 
     // Почему: добавленные вручную папки живут рядом с сессиями и не должны вычищаться
     private var sessionFolders: Set<URL> {
-        Set(store.sessions.map(\.url)).union(pinned.folders.map(\.url))
+        Set(store.sessions.map(\.url)).union(pinned.sources.map(\.url))
     }
 
     private var sessionGitRoots: Set<String> {
         Set(store.sessions.compactMap { git.snapshot(for: $0)?.root })
             .union(sessionFolders.map { InspectorState.key(for: $0) })
-            .union(pinned.repositories.map(\.path))
+            .union(pinned.sources.map(\.path))
     }
 
-    private var pinnedFolderPaths: [String] {
-        pinned.folders.map(\.path)
+    private var pinnedPaths: [String] {
+        pinned.sources.map(\.path)
     }
 
-    private var pinnedRepositoryPaths: [String] {
-        pinned.repositories.map(\.path)
+    // Почему: ревью и рибоны должны видеть все репозитории инспектора, а не только активный
+    private var pinnedGitSnapshots: [(name: String, snapshot: GitSnapshot)] {
+        pinned.sources.compactMap { source in
+            guard
+                let snapshot = git.snapshot(path: source.path),
+                snapshot.root != gitSnapshot?.root
+            else { return nil }
+
+            return (source.name, snapshot)
+        }
     }
 
     private var pinnedBranchSnapshots: [String: GitBranchSnapshot] {
         var result: [String: GitBranchSnapshot] = [:]
 
-        for source in pinned.repositories {
+        for source in pinned.sources {
             guard let snapshot = branchStore.snapshot(path: source.path) else { continue }
 
             result[source.path] = snapshot
@@ -137,7 +145,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var fileGroups: [FileTreeGroup] {
-        pinned.folders.map { source in
+        pinned.sources.map { source in
             FileTreeGroup(
                 id: source.id,
                 title: source.name,
@@ -148,7 +156,7 @@ public struct WorkspaceView<Terminal: View>: View {
     }
 
     private var branchGroups: [BranchTreeGroup] {
-        pinned.repositories.map { source in
+        pinned.sources.map { source in
             BranchTreeGroup(
                 id: source.id,
                 title: source.name,
@@ -310,7 +318,8 @@ public struct WorkspaceView<Terminal: View>: View {
         .focusedValue(\.workspaceCommands, .make(
             toggleSidebar: toggleSidebar, selectFilesMode: inspectorControls.select,
             session: selectedSession, store: store,
-            selection: $selection, closeSession: liveSessions.requestClose
+            selection: $selection, closeSession: liveSessions.requestClose,
+            openReview: { navigator.openReview(.git) }
         ))
         .alert(
             "Переименовать терминал",
@@ -326,8 +335,9 @@ public struct WorkspaceView<Terminal: View>: View {
         .task { selectFirstIfNeeded() }
         .task(id: visiblePaneIDs) { await refreshPanes() }
         .task(id: selection) { await branchStore.refresh(selectedSession) }
-        .task(id: pinnedRepositoryPaths) { await refreshPinnedBranches() }
-        .task(id: pinnedFolderPaths) { openPinnedTrees() }
+        .task(id: pinnedPaths) { await refreshPinnedBranches() }
+        .task(id: pinnedPaths) { await refreshPinnedStatus() }
+        .task(id: pinnedPaths) { openPinnedTrees() }
         .onChange(of: pinnedBranchSnapshots, initial: true) { _, snapshots in
             for (path, snapshot) in snapshots {
                 inspector.branchTree(for: path).apply(snapshot)
@@ -543,7 +553,10 @@ private extension WorkspaceView {
     // Почему: карточки перечитывают файлы того репозитория, чьё ревью открыто
     func reviewRevision(_ kind: ReviewKind) -> String {
         switch kind {
-        case .git: "\(git.revision(forRoot: inspectorGitRoot))"
+        case .git:
+            ([inspectorGitRoot] + pinnedGitSnapshots.map(\.snapshot.root))
+                .map { "\(git.revision(forRoot: $0))" }
+                .joined(separator: "|")
         case let .branch(root, ref, _, isCurrent):
             "\(git.revision(forRoot: root))|" +
                 "\(branchReviews.revision(root: root, branch: ref, isCurrent: isCurrent))"
@@ -625,6 +638,8 @@ private extension WorkspaceView {
                 branch: gitSnapshot?.branch,
                 isClean: gitSnapshot?.changes.isEmpty == true
             )
+
+            await refreshPinnedStatus()
 
             try? await Task.sleep(for: .seconds(60))
         }
@@ -888,14 +903,27 @@ private extension WorkspaceView {
     func reviewFiles(_ kind: ReviewKind) -> [ReviewFile] {
         switch kind {
         case .git:
-            guard let snapshot = gitSnapshot else { return [] }
+            var files: [ReviewFile] = []
 
-            return ReviewFiles.build(
-                root: snapshot.root,
-                changes: snapshot.changes,
-                commits: commits.commits(for: snapshot.root),
-                repository: nil
-            )
+            if let snapshot = gitSnapshot {
+                files = ReviewFiles.build(
+                    root: snapshot.root,
+                    changes: snapshot.changes,
+                    commits: commits.commits(for: snapshot.root),
+                    repository: nil
+                )
+            }
+
+            for entry in pinnedGitSnapshots {
+                files += ReviewFiles.build(
+                    root: entry.snapshot.root,
+                    changes: entry.snapshot.changes,
+                    commits: commits.commits(for: entry.snapshot.root),
+                    repository: entry.name
+                )
+            }
+
+            return files
 
         case let .branch(root, ref, _, current):
             guard let review = branchReviews.review(root: root, branch: ref, isCurrent: current)
@@ -972,7 +1000,7 @@ private extension WorkspaceView {
 
     // Почему: добавленные папки живут своим деревом и не зависят от активного терминала
     func openPinnedTrees() {
-        for source in pinned.folders {
+        for source in pinned.sources {
             inspector.fileTree(for: source.url).open(
                 source.url,
                 gitDirectories: [],
@@ -982,8 +1010,26 @@ private extension WorkspaceView {
     }
 
     func refreshPinnedBranches() async {
-        for path in pinnedRepositoryPaths {
+        for path in pinnedPaths {
             await branchStore.refresh(root: path)
+        }
+    }
+
+    func refreshPinnedStatus() async {
+        for path in pinnedPaths {
+            await git.refresh(path: path)
+        }
+
+        await refreshPinnedCommits()
+    }
+
+    func refreshPinnedCommits() async {
+        for entry in pinnedGitSnapshots {
+            await commits.refresh(
+                root: entry.snapshot.root,
+                branch: entry.snapshot.branch,
+                isClean: entry.snapshot.changes.isEmpty
+            )
         }
     }
 
@@ -996,11 +1042,7 @@ private extension WorkspaceView {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        if filesMode == .git {
-            pinned.addRepository(url)
-        } else {
-            pinned.addFolder(url)
-        }
+        pinned.add(url)
     }
 
     func refreshPanes() async {

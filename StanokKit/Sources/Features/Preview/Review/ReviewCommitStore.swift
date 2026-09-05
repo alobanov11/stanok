@@ -7,31 +7,33 @@ final class ReviewCommitStore {
     private var commits: [String: [GitCommitChanges]] = [:]
 
     @ObservationIgnored
-    private var loaded: String?
+    private var stamps: [String: String] = [:]
 
     @ObservationIgnored
-    private var loadedRoot: String?
+    private var running: [String: Task<Void, Never>] = [:]
 
     @ObservationIgnored
-    private var running: Task<Void, Never>?
+    private var pending: [String: (branch: String?, isClean: Bool)] = [:]
 
-    @ObservationIgnored
-    private var pending: (root: String, branch: String?, isClean: Bool)?
-
-    // Почему: пока не пересчитали, история другого репозитория — не наша правда
+    // Почему: ревью собирается по всем репозиториям инспектора, а не по одному активному
     func commits(for root: String?) -> [GitCommitChanges] {
-        guard let root, root == loadedRoot else { return [] }
+        guard let root else { return [] }
 
         return commits[root] ?? []
+    }
+
+    func prune(roots: Set<String>) {
+        commits = commits.filter { roots.contains($0.key) }
+        stamps = stamps.filter { roots.contains($0.key) }
     }
 
     // Почему: повторный вызов ждёт идущий проход, иначе очередь git забивается дублями
     func refresh(root: String?, branch: String?, isClean: Bool) async {
         guard let root else { return }
 
-        if let running {
-            pending = (root, branch, isClean)
-            await running.value
+        if let task = running[root] {
+            pending[root] = (branch, isClean)
+            await task.value
             return
         }
 
@@ -40,25 +42,23 @@ final class ReviewCommitStore {
 
             await reload(root: root, branch: branch, isClean: isClean)
         }
-        running = task
+        running[root] = task
         await task.value
-        running = nil
+        running[root] = nil
 
         // Почему: пока шёл проход, состояние могло смениться — доводим до актуального
-        if let next = pending {
-            pending = nil
-            await refresh(root: next.root, branch: next.branch, isClean: next.isClean)
+        if let next = pending.removeValue(forKey: root) {
+            await refresh(root: root, branch: next.branch, isClean: next.isClean)
         }
     }
 
     private func loadRoot(root: String, head: String, isClean: Bool, url: URL) async {
         let stamp = [root, head, "root", "\(isClean)"].joined(separator: "|")
-        guard stamp != loaded, let found = await GitClient.history(of: head, at: url, limit: 1)
+        guard stamp != stamps[root], let found = await GitClient.history(of: head, at: url, limit: 1)
         else { return }
 
-        loaded = stamp
-        loadedRoot = root
-        commits = [root: found]
+        stamps[root] = stamp
+        commits[root] = found
     }
 
     private func reload(root: String, branch: String?, isClean: Bool) async {
@@ -83,7 +83,7 @@ final class ReviewCommitStore {
 
         // Почему: точка отсчёта могла сдвинуться сама, поэтому ключ считаем уже с ней
         let stamp = [root, head, base, "\(isClean)"].joined(separator: "|")
-        guard stamp != loaded else { return }
+        guard stamp != stamps[root] else { return }
         // Почему: сбой git — это не «коммитов нет», такой ответ кэшировать нельзя
         guard
             let found = base == head
@@ -91,8 +91,7 @@ final class ReviewCommitStore {
             : await GitClient.commits(since: base, upTo: head, at: url)
         else { return }
 
-        loaded = stamp
-        loadedRoot = root
-        commits = [root: found]
+        stamps[root] = stamp
+        commits[root] = found
     }
 }
