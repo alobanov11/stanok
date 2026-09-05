@@ -600,8 +600,12 @@ private extension WorkspaceView {
         let terminal = isVertical
             ? WorkspaceLayout.minimumTerminalHeight
             : WorkspaceLayout.minimumTerminalWidth
-        // Почему: доля превью выводится из геометрии, иначе она зависит от своего же результата
-        let columns = CGFloat(WorkspaceGeometry.fit(room: along, minimum: terminal) + 1)
+        // Почему: доля считается по составу области, а не по видимым панелям — те зависят от неё
+        let panes = min(
+            WorkspaceGeometry.fit(room: along, minimum: terminal),
+            max(store.shown.count, 1)
+        )
+        let columns = CGFloat(panes + 1)
         let share = along / columns - WorkspaceLayout.inset
         let minimum = isVertical
             ? WorkspaceLayout.minimumPreviewHeight
