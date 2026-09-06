@@ -9,8 +9,18 @@ let package = Package(
         .library(name: "StanokTerminal", targets: ["StanokTerminal"]),
         .library(name: "StanokAgents", targets: ["StanokAgents"])
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/swiftlang/swift-markdown",
+            revision: "ce613726d4047027fdb564bd1ad382a1cee8ecf0"
+        )
+    ],
     targets: [
-        .target(name: "StanokKit", path: "Sources"),
+        .target(
+            name: "StanokKit",
+            dependencies: [.product(name: "Markdown", package: "swift-markdown")],
+            path: "Sources"
+        ),
         .binaryTarget(name: "GhosttyKit", path: "GhosttyKit.xcframework"),
         .target(
             name: "StanokTerminal",
