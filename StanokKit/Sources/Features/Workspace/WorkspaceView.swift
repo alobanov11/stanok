@@ -87,6 +87,10 @@ public struct WorkspaceView<Terminal: View>: View {
         inspectorControls.mode
     }
 
+    private var watchKey: String {
+        (selectedSession?.url.path(percentEncoded: false) ?? "") + gitDirectories.joined(separator: "|")
+    }
+
     private var gitDirectories: [String] {
         guard let gitSnapshot else { return [] }
 
@@ -239,6 +243,9 @@ public struct WorkspaceView<Terminal: View>: View {
     private var pinned = PinnedSourceStore()
 
     @State
+    private var treeWatcher = WorkingTreeWatcher()
+
+    @State
     private var renameTarget: TerminalSession?
 
     @State
@@ -337,6 +344,7 @@ public struct WorkspaceView<Terminal: View>: View {
         .task { selectFirstIfNeeded() }
         .task(id: visiblePaneIDs) { await refreshPanes() }
         .task(id: selection) { await branchStore.refresh(selectedSession) }
+        .onChange(of: watchKey, initial: true) { _, _ in watchWorkingTree() }
         .task(id: pinnedPaths) { await refreshPinnedBranches() }
         .task(id: pinnedPaths) { await refreshPinnedStatus() }
         .task(id: pinnedPaths) { openPinnedTrees() }
@@ -997,6 +1005,18 @@ private extension WorkspaceView {
         if selection != session.id { selection = session.id }
 
         inspectorControls.select(mode)
+    }
+
+    // Почему: правки на диске должны обновлять и список изменений, и открытое превью
+    func watchWorkingTree() {
+        let session = selectedSession
+
+        treeWatcher.watch(session?.url, gitDirectories: gitDirectories) {
+            Task { @MainActor in
+                await git.refresh(session)
+                await navigator.refreshChanges()
+            }
+        }
     }
 
     func openFileTree() {
