@@ -104,6 +104,10 @@ private extension FileNode {
         (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
     }
 
+    static func isLocal(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.volumeIsLocalKey]))?.volumeIsLocal ?? true
+    }
+
     func appendVisibleDescendants(to result: inout [FileNode]) {
         guard isExpanded, let children else { return }
 
@@ -137,7 +141,7 @@ private extension FileNode {
         do {
             contents = try FileManager.default.contentsOfDirectory(
                 at: url,
-                includingPropertiesForKeys: [.isDirectoryKey]
+                includingPropertiesForKeys: [.isDirectoryKey, .volumeIsLocalKey]
             )
         } catch {
             let path = url.path(percentEncoded: false)
@@ -149,6 +153,8 @@ private extension FileNode {
         return contents
             .filter { child in
                 guard Self.isDirectory(child) else { return true }
+                // Почему: обход сетевого тома будит NFS, и его жалобы лезут в терминал
+                guard Self.isLocal(child) else { return false }
 
                 return !IgnoredPaths.contains(
                     relativePath: childRelativePath(child.lastPathComponent)
