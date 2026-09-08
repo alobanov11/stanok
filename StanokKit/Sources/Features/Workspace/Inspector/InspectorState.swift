@@ -60,6 +60,7 @@ final class InspectorState {
         let keys = Set(folders.map { Self.key(for: $0) })
 
         for (key, model) in fileTrees where !keys.contains(key) {
+            print("[tree] prune \(key) keys=\(keys)")
             model.close()
             fileTrees[key] = nil
         }

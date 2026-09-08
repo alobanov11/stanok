@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct TerminalStrip: View {
@@ -45,6 +46,20 @@ struct TerminalStrip: View {
     let isVertical: Bool
     let snapshots: TerminalSnapshots
     let onOpen: (TerminalSession) -> Void
+    let onMove: (TerminalSession.ID, TerminalSession.ID) -> Void
+    let onDrag: (TerminalSession) -> NSItemProvider
+
+    @Binding
+    var dragged: TerminalSession.ID?
+
+    @Binding
+    var dragTarget: TerminalSession.ID?
+
+    private func border(for session: TerminalSession) -> Color {
+        if dragTarget == session.id { return .accentColor }
+
+        return session.id == selection ? Color.accentColor.opacity(0.8) : .white.opacity(0.08)
+    }
 
     private func card(_ session: TerminalSession) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -76,13 +91,20 @@ struct TerminalStrip: View {
         .background(.white.opacity(0.05), in: .rect(cornerRadius: Metric.radius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Metric.radius, style: .continuous)
-                .strokeBorder(
-                    session.id == selection ? Color.accentColor.opacity(0.8) : .white.opacity(0.08),
-                    lineWidth: 1
-                )
+                .strokeBorder(border(for: session), lineWidth: dragTarget == session.id ? 2 : 1)
         }
         .contentShape(.rect(cornerRadius: Metric.radius))
         .onTapGesture { onOpen(session) }
         .help(session.url.path(percentEncoded: false))
+        .onDrag { onDrag(session) }
+        .onDrop(
+            of: [.text],
+            delegate: PaneDropDelegate(
+                target: session.id,
+                dragged: $dragged,
+                highlighted: $dragTarget,
+                swap: onMove
+            )
+        )
     }
 }

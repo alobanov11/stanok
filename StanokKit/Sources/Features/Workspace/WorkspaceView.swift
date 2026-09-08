@@ -505,7 +505,11 @@ public struct WorkspaceView<Terminal: View>: View {
                 selection: selection,
                 isVertical: isVertical,
                 snapshots: snapshots,
-                onOpen: { selection = $0.id }
+                onOpen: { selection = $0.id },
+                onMove: movePane,
+                onDrag: dragItem,
+                dragged: $dragged,
+                dragTarget: $dragTarget
             )
             .transition(.opacity)
         }
