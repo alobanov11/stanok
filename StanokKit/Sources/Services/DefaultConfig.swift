@@ -16,11 +16,66 @@ public enum DefaultConfig {
         window-padding-x = 16
         window-padding-y = 14,14
 
-        theme = light:Builtin Light,dark:Builtin Dark
+        theme = light:\(AppPaths.lightTheme.path(percentEncoded: false)),\
+        dark:\(AppPaths.darkTheme.path(percentEncoded: false))
         background-opacity = 0
         scrollback-limit = 2000000
 
         input = " source \(AppPaths.shellInit.path(percentEncoded: false))\\n"
+        """
+    }
+
+    private static var darkTheme: String {
+        """
+        palette = 0=#000000
+        palette = 1=#bb0000
+        palette = 2=#00bb00
+        palette = 3=#bbbb00
+        palette = 4=#0d0dc8
+        palette = 5=#bb00bb
+        palette = 6=#00bbbb
+        palette = 7=#bbbbbb
+        palette = 8=#555555
+        palette = 9=#ff5555
+        palette = 10=#55ff55
+        palette = 11=#ffff55
+        palette = 12=#5555ff
+        palette = 13=#ff55ff
+        palette = 14=#55ffff
+        palette = 15=#ffffff
+        background = #000000
+        foreground = #ffffff
+        cursor-color = #ffffff
+        cursor-text = #000000
+        selection-background = #b5d5ff
+        selection-foreground = #000000
+        """
+    }
+
+    private static var lightTheme: String {
+        """
+        palette = 0=#000000
+        palette = 1=#bb0000
+        palette = 2=#00bb00
+        palette = 3=#bbbb00
+        palette = 4=#0d0dc8
+        palette = 5=#bb00bb
+        palette = 6=#00bbbb
+        palette = 7=#555555
+        palette = 8=#888888
+        palette = 9=#cc3333
+        palette = 10=#22aa22
+        palette = 11=#aa7700
+        palette = 12=#3333cc
+        palette = 13=#aa22aa
+        palette = 14=#22aaaa
+        palette = 15=#ffffff
+        background = #ffffff
+        foreground = #1d1d1f
+        cursor-color = #1d1d1f
+        cursor-text = #ffffff
+        selection-background = #b5d5ff
+        selection-foreground = #000000
         """
     }
 
@@ -322,6 +377,8 @@ public enum DefaultConfig {
     }
 
     public static func seed() {
+        write(darkTheme, to: AppPaths.darkTheme)
+        write(lightTheme, to: AppPaths.lightTheme)
         write(ghostty, to: AppPaths.ghosttyConfig)
         write(shellInit, to: AppPaths.shellInit)
     }

@@ -20,6 +20,18 @@ public enum AppPaths {
         configDirectory.appending(path: "pinned.json", directoryHint: .notDirectory)
     }
 
+    public static var darkTheme: URL {
+        themes.appending(path: "stanok-dark", directoryHint: .notDirectory)
+    }
+
+    public static var lightTheme: URL {
+        themes.appending(path: "stanok-light", directoryHint: .notDirectory)
+    }
+
+    public static var themes: URL {
+        configDirectory.appending(path: "themes", directoryHint: .isDirectory)
+    }
+
     public static var repositories: URL {
         configDirectory.appending(path: "repositories.json", directoryHint: .notDirectory)
     }
