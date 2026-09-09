@@ -218,6 +218,12 @@ public struct WorkspaceView<Terminal: View>: View {
         Binding(get: { closeRequest != nil }, set: { if !$0 { closeRequest = nil } })
     }
 
+    private var stripLayout: AnyLayout {
+        isVertical
+            ? AnyLayout(VStackLayout(spacing: WorkspaceLayout.inset))
+            : AnyLayout(HStackLayout(spacing: WorkspaceLayout.inset))
+    }
+
     @State
     private var selection: TerminalSession.ID?
 
@@ -479,18 +485,12 @@ public struct WorkspaceView<Terminal: View>: View {
         }
     }
 
+    // Почему: смена стека пересоздала бы поверхности терминалов, AnyLayout сохраняет их живыми
     private var main: some View {
-        // Почему: на высоком окне полоса ложится снизу, на широком — справа
-        Group {
-            if isVertical {
-                VStack(spacing: WorkspaceLayout.inset) { mainContent
-                    strip
-                }
-            } else {
-                HStack(spacing: WorkspaceLayout.inset) { mainContent
-                    strip
-                }
-            }
+        stripLayout {
+            mainContent
+
+            strip
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onGeometryChange(for: CGSize.self) { $0.size } action: { areaSize = $0 }
