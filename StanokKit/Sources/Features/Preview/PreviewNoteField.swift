@@ -41,7 +41,7 @@ struct PreviewNoteField: View {
         .background(.regularMaterial, in: .rect(cornerRadius: Metric.radius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Metric.radius, style: .continuous)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                .strokeBorder(Palette.stroke, lineWidth: 1)
         }
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 1, style: .continuous)
@@ -49,7 +49,7 @@ struct PreviewNoteField: View {
                 .frame(width: 2, height: Metric.height - 12)
                 .padding(.leading, 3)
         }
-        .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+        .shadow(color: Palette.shadow, radius: 12, y: 4)
         .task { isFocused = true }
     }
 

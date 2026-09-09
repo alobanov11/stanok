@@ -59,7 +59,7 @@ struct ReviewFileCard: View {
         .padding(.horizontal, 10)
         .frame(height: Metric.header)
         // Почему: шапка лежит над текстом карточки, без подложки сквозь неё видно гаттер
-        .background(.black.opacity(0.22))
+        .background(Palette.insetStrong)
         .contentShape(.rect)
         .onTapGesture { toggle() }
     }
@@ -101,13 +101,13 @@ struct ReviewFileCard: View {
             }
         }
         .background(
-            .white.opacity(0.04),
+            Palette.cardFill,
             in: .rect(cornerRadius: Metric.radius, style: .continuous)
         )
         .clipShape(.rect(cornerRadius: Metric.radius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Metric.radius, style: .continuous)
-                .strokeBorder(.white.opacity(isHovering ? 0.16 : 0.08), lineWidth: 1)
+                .strokeBorder(isHovering ? Palette.strokeStrong : Palette.stroke, lineWidth: 1)
                 .allowsHitTesting(false)
         }
         .onHover { isHovering = $0 }

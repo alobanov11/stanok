@@ -19,7 +19,7 @@ enum MarkdownInlineText {
             ]
 
             if intent?.contains(.code) == true {
-                attributes[.backgroundColor] = NSColor.white.withAlphaComponent(0.08)
+                attributes[.backgroundColor] = Palette.NS.inlineCodeFill
             }
 
             if let link = run.link {

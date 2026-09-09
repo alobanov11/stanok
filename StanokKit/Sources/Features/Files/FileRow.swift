@@ -102,7 +102,7 @@ struct FileRow: View {
         .background(
             isDropTarget
                 ? AnyShapeStyle(Color.accentColor.opacity(0.28))
-                : isSelected ? AnyShapeStyle(.white.opacity(0.12)) : AnyShapeStyle(.clear),
+                : isSelected ? AnyShapeStyle(Palette.selectionFill) : AnyShapeStyle(.clear),
             in: .rect(cornerRadius: 8, style: .continuous)
         )
         .contentShape(.rect(cornerRadius: 8))

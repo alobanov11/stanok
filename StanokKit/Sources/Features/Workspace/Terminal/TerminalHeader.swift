@@ -7,7 +7,7 @@ struct TerminalHeader: View {
     }
 
     private var badgeBackground: AnyShapeStyle {
-        AnyShapeStyle(.white.opacity(0.05))
+        AnyShapeStyle(Palette.cardFill)
     }
 
     var body: some View {
@@ -180,7 +180,7 @@ private extension TerminalHeader {
     }
 
     func background(for mode: FilePanelMode) -> AnyShapeStyle {
-        filesMode == mode ? AnyShapeStyle(.white.opacity(0.14)) : badgeBackground
+        filesMode == mode ? AnyShapeStyle(Palette.selectionFill) : badgeBackground
     }
 
     func attributed(_ text: String, _ color: Color) -> AttributedString {

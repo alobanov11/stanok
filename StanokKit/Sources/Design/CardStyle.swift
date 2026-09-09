@@ -21,11 +21,11 @@ enum CardStyle: String, CaseIterable, Identifiable {
         case .raised:
             shape
                 .fill(.regularMaterial)
-                .overlay { shape.fill(.white.opacity(0.10)) }
+                .overlay { shape.fill(Palette.raised) }
                 .overlay {
                     shape.stroke(
                         LinearGradient(
-                            colors: [.white.opacity(0.28), .white.opacity(0.02)],
+                            colors: [Palette.edge, Palette.stroke.opacity(0.2)],
                             startPoint: .top,
                             endPoint: .bottom
                         ),
@@ -33,16 +33,16 @@ enum CardStyle: String, CaseIterable, Identifiable {
                     )
                 }
                 .compositingGroup()
-                .shadow(color: .black.opacity(0.28), radius: 10, y: 4)
+                .shadow(color: Palette.shadow, radius: 10, y: 4)
 
         case .inset:
             shape
                 .fill(.regularMaterial)
-                .overlay { shape.fill(.black.opacity(0.16)) }
+                .overlay { shape.fill(Palette.inset) }
                 .overlay {
                     shape.stroke(
                         LinearGradient(
-                            colors: [.black.opacity(0.45), .white.opacity(0.10)],
+                            colors: [Palette.insetStrong, Palette.stroke],
                             startPoint: .top,
                             endPoint: .bottom
                         ),

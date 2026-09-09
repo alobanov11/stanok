@@ -350,9 +350,9 @@ private extension CodeGutterRuler {
         if source.folded.contains(fold.header) {
             NSColor.controlAccentColor.withAlphaComponent(0.9).setFill()
         } else if hovered == fold.header {
-            NSColor.white.withAlphaComponent(0.55).setFill()
+            Palette.NS.ribbon.setFill()
         } else {
-            NSColor.white.withAlphaComponent(0.14).setFill()
+            Palette.NS.ribbonDim.setFill()
         }
 
         NSBezierPath(

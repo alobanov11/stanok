@@ -45,7 +45,7 @@ struct ChatRow: View {
         .padding(.trailing, 10)
         .padding(.vertical, 5)
         .background(
-            isHovering ? AnyShapeStyle(.white.opacity(0.08)) : AnyShapeStyle(.clear),
+            isHovering ? AnyShapeStyle(Palette.hoverFill) : AnyShapeStyle(.clear),
             in: .rect(cornerRadius: 8, style: .continuous)
         )
         .contentShape(.rect(cornerRadius: 8))

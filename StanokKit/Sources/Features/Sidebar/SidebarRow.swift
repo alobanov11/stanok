@@ -5,7 +5,7 @@ struct SidebarRow: View {
     private var background: AnyShapeStyle {
         if isDropTarget { return AnyShapeStyle(Color.accentColor.opacity(0.28)) }
 
-        return isSelected ? AnyShapeStyle(.white.opacity(0.12)) : AnyShapeStyle(.clear)
+        return isSelected ? AnyShapeStyle(Palette.selectionFill) : AnyShapeStyle(.clear)
     }
 
     private var iconStyle: AnyShapeStyle {

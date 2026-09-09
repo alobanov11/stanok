@@ -31,7 +31,7 @@ struct FileInfoView: View {
                 }
             }
             .padding(14)
-            .background(.black.opacity(0.18), in: .rect(cornerRadius: 10, style: .continuous))
+            .background(Palette.inset, in: .rect(cornerRadius: 10, style: .continuous))
 
             Spacer()
         }

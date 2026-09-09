@@ -58,7 +58,7 @@ struct TerminalStrip: View {
     private func border(for session: TerminalSession) -> Color {
         if dragTarget == session.id { return .accentColor }
 
-        return session.id == selection ? Color.accentColor.opacity(0.8) : .white.opacity(0.08)
+        return session.id == selection ? Color.accentColor.opacity(0.8) : Palette.stroke
     }
 
     private func card(_ session: TerminalSession) -> some View {
@@ -88,7 +88,7 @@ struct TerminalStrip: View {
         }
         .padding(8)
         .frame(width: Metric.card.width, height: Metric.card.height)
-        .background(.white.opacity(0.05), in: .rect(cornerRadius: Metric.radius, style: .continuous))
+        .background(Palette.cardFill, in: .rect(cornerRadius: Metric.radius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: Metric.radius, style: .continuous)
                 .strokeBorder(border(for: session), lineWidth: dragTarget == session.id ? 2 : 1)

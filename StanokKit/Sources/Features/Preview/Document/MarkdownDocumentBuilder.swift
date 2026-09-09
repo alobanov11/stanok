@@ -194,7 +194,7 @@ private extension MarkdownDocumentBuilder {
             // Почему: тёмная подложка сливалась с фоном окна, блок выглядел обычным текстом
             [
                 .paragraphStyle: style,
-                .backgroundColor: NSColor.white.withAlphaComponent(0.07)
+                .backgroundColor: Palette.NS.codeFill
             ],
             range: NSRange(location: 0, length: text.length)
         )

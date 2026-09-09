@@ -74,7 +74,7 @@ struct ImagePreviewView: View {
                 .frame(maxWidth: .infinity)
                 .frame(maxHeight: compact ? Metric.cardHeight : nil)
                 .background(
-                    .black.opacity(0.18),
+                    Palette.inset,
                     in: .rect(cornerRadius: Metric.radius, style: .continuous)
                 )
         } else {
@@ -83,7 +83,7 @@ struct ImagePreviewView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 60)
                 .background(
-                    .black.opacity(0.18),
+                    Palette.inset,
                     in: .rect(cornerRadius: Metric.radius, style: .continuous)
                 )
         }

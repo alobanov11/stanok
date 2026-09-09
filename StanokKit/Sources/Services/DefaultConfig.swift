@@ -16,6 +16,7 @@ public enum DefaultConfig {
         window-padding-x = 16
         window-padding-y = 14,14
 
+        theme = light:Builtin Light,dark:Builtin Dark
         background-opacity = 0
         scrollback-limit = 2000000
 
