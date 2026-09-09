@@ -92,6 +92,8 @@ final class GhosttySurfaceView: NSView {
             Log.terminal.error("failed to create ghostty surface")
             showCreationFailureLabel()
         }
+
+        applyColorScheme()
     }
 
     @available(*, unavailable)
@@ -99,8 +101,17 @@ final class GhosttySurfaceView: NSView {
         fatalError("not supported")
     }
 
+    // Почему: без этого ghostty считает систему светлой и берёт светлую тему на тёмном окне
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+
+        applyColorScheme()
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+
+        applyColorScheme()
 
         guard let window else { return }
 
@@ -277,6 +288,16 @@ final class GhosttySurfaceView: NSView {
     static func from(userdata: UnsafeMutableRawPointer?) -> GhosttySurfaceView? {
         guard let userdata else { return nil }
         return Unmanaged<GhosttySurfaceView>.fromOpaque(userdata).takeUnretainedValue()
+    }
+
+    func applyColorScheme() {
+        guard let surface else { return }
+
+        let scheme = effectiveAppearance.isDark
+            ? GHOSTTY_COLOR_SCHEME_DARK
+            : GHOSTTY_COLOR_SCHEME_LIGHT
+
+        ghostty_surface_set_color_scheme(surface, scheme)
     }
 
     func scroll(toRow row: Int) {

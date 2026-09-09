@@ -1,6 +1,6 @@
 import AppKit
 
-extension NSAppearance {
+public extension NSAppearance {
 
     var isDark: Bool {
         bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
