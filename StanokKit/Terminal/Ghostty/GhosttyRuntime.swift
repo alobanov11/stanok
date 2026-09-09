@@ -21,6 +21,9 @@ public final class GhosttyRuntime {
     }
 
     @ObservationIgnored
+    private(set) nonisolated(unsafe) weak static var current: GhosttyRuntime?
+
+    @ObservationIgnored
     private static var isInitialized = false
 
     @ObservationIgnored
@@ -98,6 +101,7 @@ public final class GhosttyRuntime {
         self.app = app
 
         wakeupContext.runtime = self
+        Self.current = self
     }
 
     deinit {
@@ -227,6 +231,18 @@ private extension GhosttyRuntime {
                     offset: scrollbar.offset,
                     length: scrollbar.len
                 ))
+            }
+
+        // Почему: смена системной темы переизбирает тему ghostty только через перечитку конфига
+        case GHOSTTY_ACTION_RELOAD_CONFIG:
+            assertMainThread()
+
+            return MainActor.assumeIsolated {
+                guard let runtime = current else { return false }
+
+                runtime.reloadConfig()
+
+                return true
             }
 
         case GHOSTTY_ACTION_MOUSE_SHAPE:
